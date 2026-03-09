@@ -335,17 +335,10 @@ export function importStartParse(){
         if(!wasAutoResolved){
           // Only flag if it looks like it could be an abbreviation or ambiguous term
           // Skip lines that are clearly full English names (3+ distinct words, no abbreviations)
-          const words=cleaned.split(/\s+/);
-          const hasAbbrev=/^[a-z]{1,5}$/.test(cleaned)||/\b[a-z]{2,4}\b/.test(cleaned);
-          const shortEnough=words.length<=3;
-          const isPlainFullName=words.length>=3 && words.every(w=>w.length>3) && !/[0-9]/.test(cleaned);
-
-          if(!isPlainFullName && (hasAbbrev||shortEnough)){
-            if(!unknowns.has(cleaned)){
+          if(!unknowns.has(cleaned)){
               unknowns.set(cleaned,{rawTerm:trimmed, count:0});
             }
             unknowns.get(cleaned).count++;
-          }
         }
         continue;
       }
@@ -413,7 +406,7 @@ export function importStartParse(){
 
   // Q type 1: every unknown/ambiguous exercise term
   for(const [cleaned, info] of unknowns){
-    if(importClarifications.length>=10) break;
+    if(importClarifications.length>=20) break;
     if(seenQ.has(cleaned)) continue;
     seenQ.add(cleaned);
 

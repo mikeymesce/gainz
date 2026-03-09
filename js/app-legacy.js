@@ -301,7 +301,6 @@ function confirmFinish(){
       </div>
     </div>
     <button class="btn primary" onclick="hideModal();finishWorkout()">FINISH ✓</button>
-    <button class="btn ghost" onclick="saveAsTemplate();hideModal();finishWorkout()" style="margin-top:8px;font-size:11px;">📋 SAVE AS TEMPLATE + FINISH</button>
     <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">KEEP GOING</button>
   `);
 }
@@ -352,6 +351,7 @@ function commitRenameSplit(key){
 let setHistory=[];
 let autoSaveInterval=null;
 let histFilter='All';
+let histSearchTerm='';
 let workoutSummary=null;
 let expandedLastSession=new Set();
 let activeSSPrompt=null; // name of exercise user should do next in superset
@@ -373,8 +373,16 @@ function startWorkout(split){
     if(activeWorkout){ try{ localStorage.setItem("gainz_recovery",JSON.stringify(activeWorkout)); }catch(e){} }
     else{ clearInterval(autoSaveInterval); }
   },20000);
-  render();
-  setTimeout(openPicker, 100);
+  // Smart Start: auto-load exercises from last same-split workout
+  const lastSame=state.workouts.find(w=>w.split===split);
+  if(lastSame){
+    lastSame.exercises.forEach(e=>addExercise(e.name));
+    render();
+    showToast('Loaded last '+splitName(split)+' day');
+  } else {
+    render();
+    setTimeout(openPicker, 100);
+  }
 }
 function initSwipeCollapse(){
   const content=document.getElementById("content");
@@ -654,30 +662,10 @@ function nextExercise(name){
       if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
     }, 80);
   } else {
-    // Last exercise — collapse and scroll to finish
+    // Last exercise — collapse and open picker to add more
     render();
-    setTimeout(()=>{
-      const fin = document.getElementById('finish-btn-anchor');
-      if(fin) fin.scrollIntoView({behavior:'smooth', block:'center'});
-    }, 80);
+    setTimeout(openPicker, 100);
   }
-}
-function repeatLastWorkout(){
-  const last=state.workouts[0];
-  if(!last) return;
-  activeWorkout={split:last.split,exercises:[],startTime:Date.now()};
-  setHistory=[];
-  screen="log";
-  startWoTimer();
-  requestWakeLock();
-  clearInterval(autoSaveInterval);
-  autoSaveInterval=setInterval(()=>{
-    if(activeWorkout){ try{ localStorage.setItem("gainz_recovery",JSON.stringify(activeWorkout)); }catch(e){} }
-    else{ clearInterval(autoSaveInterval); }
-  },20000);
-  last.exercises.forEach(e=>addExercise(e.name));
-  render(); // no picker
-  showToast('↻ Loaded last '+splitName(last.split)+' day');
 }
 function dismissSummary(){
   workoutSummary=null;
@@ -753,6 +741,20 @@ function finishWorkout(){
   const w={...activeWorkout,date:today(),timestamp:Date.now(),duration:Date.now()-activeWorkout.startTime,totalVolume:activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0)};
   state.workouts.unshift(w); state.streak=streak; state.lastWorkoutDate=todayStr();
   if(state.workouts.length>500) state.workouts=state.workouts.slice(0,500);
+  saveImmediate();
+  // Auto-save as template for this split (silent)
+  if(!state.templates) state.templates=[];
+  const existingIdx=state.templates.findIndex(t=>t.split===activeWorkout.split);
+  const autoTmpl={
+    id:existingIdx>=0?state.templates[existingIdx].id:stackId(),
+    name:splitName(activeWorkout.split)+' Day',
+    split:activeWorkout.split,
+    exercises:activeWorkout.exercises.map(e=>({name:e.name,sets:e.sets.length||3})),
+    savedAt:Date.now()
+  };
+  if(existingIdx>=0) state.templates[existingIdx]=autoTmpl;
+  else state.templates.unshift(autoTmpl);
+  if(state.templates.length>20) state.templates=state.templates.slice(0,20);
   saveImmediate();
   clearInterval(autoSaveInterval);
   try{ localStorage.removeItem("gainz_recovery"); }catch(e){}
@@ -1085,11 +1087,6 @@ function renderHome(){
   }).join('');
 
 
-  // Repeat last btn
-  const lastWo=state.workouts[0];
-  const repeatBtn=lastWo&&!activeWorkout&&lastWo.split!==rec
-    ?`<button class="btn ghost" onclick="repeatLastWorkout()" style="width:100%;margin-top:6px;font-size:11px;letter-spacing:1px;padding:11px;">&#8635; Repeat last ${splitName(lastWo.split)} day</button>`
-    :'';
 
   // Best 1RM stat — for the second stat box
   const statColor2=best1RM?'#52c87a':'var(--accent)';
@@ -1111,6 +1108,14 @@ function renderHome(){
         <div class="sb-streak-label">Day Streak</div>
         <div class="sb-streak-sub">${streak>=3?'Keep it going':'Build the habit'}</div>
         <div class="sb-streak-dots">${streakDots}</div>
+      </div>
+    </div>
+
+    <div class="sb-insight">
+      <div class="sb-insight-val">${funStat.val}</div>
+      <div>
+        <div class="sb-insight-label">${funStat.label}</div>
+        ${funStat.sub?`<div class="sb-insight-sub">${funStat.sub}</div>`:''}
       </div>
     </div>
 
@@ -1161,15 +1166,8 @@ function renderHome(){
       </div>
     </div>
 
-    ${repeatBtn}
-
-    <div class="sb-insight">
-      <div class="sb-insight-val">${funStat.val}</div>
-      <div>
-        <div class="sb-insight-label">${funStat.label}</div>
-        ${funStat.sub?`<div class="sb-insight-sub">${funStat.sub}</div>`:''}
-      </div>
-    </div>`;
+    ${renderMuscleFatigue()}
+`;
 }
 
 
@@ -1481,6 +1479,62 @@ function renderProgramBuilder(){
   `;
 }
 
+function buildBWChart(){
+  const bw=(state.bodyweight||[]).slice().reverse(); // oldest first
+  if(bw.length<2) return '';
+  const W=320, H=120, padL=40, padR=12, padT=10, padB=24;
+  const IW=W-padL-padR, IH=H-padT-padB;
+  const vals=bw.map(e=>e.weight);
+  const minV=Math.min(...vals)-2, maxV=Math.max(...vals)+2;
+  const range=maxV-minV||1;
+  function px(i){ return padL+(i/(bw.length-1))*IW; }
+  function py(v){ return padT+IH-((v-minV)/range)*IH; }
+  const lineCoords=bw.map((e,i)=>`${px(i).toFixed(1)},${py(e.weight).toFixed(1)}`).join(' ');
+  const firstX=px(0).toFixed(1), lastX=px(bw.length-1).toFixed(1), baseY=(padT+IH).toFixed(1);
+  const areaPath=`M${firstX},${baseY} `+bw.map((e,i)=>`L${px(i).toFixed(1)},${py(e.weight).toFixed(1)}`).join(' ')+` L${lastX},${baseY} Z`;
+  // Y labels
+  const steps=3;
+  const stepSize=range/steps;
+  const yLabels=[...Array(steps+1)].map((_,i)=>{
+    const v=Math.round(minV+stepSize*i);
+    const yy=py(v).toFixed(1);
+    return `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="#1e1e24" stroke-width="1"/>
+      <text x="${padL-4}" y="${(parseFloat(yy)+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#3a3630">${v}</text>`;
+  }).join('');
+  // X labels (first and last date)
+  const xLabels=[0,bw.length-1].map(i=>{
+    const d=bw[i].date; const parts=(d||'').split(' ');
+    const lbl=parts.length>=3?parts[1]+' '+parts[2]:d;
+    return `<text x="${px(i).toFixed(1)}" y="${H-4}" text-anchor="${i===0?'start':'end'}" font-size="8" fill="#3a3630">${lbl}</text>`;
+  }).join('');
+  // Dots
+  const dots=bw.map((e,i)=>{
+    const isLast=i===bw.length-1;
+    return `<circle cx="${px(i).toFixed(1)}" cy="${py(e.weight).toFixed(1)}" r="${isLast?4:2}" fill="${isLast?'var(--accent)':'rgba(232,213,160,0.4)'}"/>`;
+  }).join('');
+  // Delta
+  const delta=vals[vals.length-1]-vals[0];
+  const deltaStr=delta>0?`+${delta.toFixed(1)}`:delta.toFixed(1);
+  const deltaColor=Math.abs(delta)<0.5?'var(--muted)':delta>0?'var(--accent)':'var(--green)';
+  return `<div style="margin-top:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;">Trend</span>
+      <span style="font-size:11px;color:${deltaColor};font-weight:600;">${deltaStr} lb</span>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:8px 6px 2px;">
+      <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;">
+        <defs><linearGradient id="bwGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(232,213,160,0.12)"/><stop offset="100%" stop-color="rgba(232,213,160,0)"/>
+        </linearGradient></defs>
+        ${yLabels}${xLabels}
+        <path d="${areaPath}" fill="url(#bwGrad)"/>
+        <polyline points="${lineCoords}" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
+        ${dots}
+      </svg>
+    </div>
+  </div>`;
+}
+
 function renderSettings(){
   const defaultRest = state.defaultRest || 45;
   const prog = state.program || "ppl";
@@ -1571,7 +1625,7 @@ function renderSettings(){
     <div class="card" style="padding:0 18px;">
       ${(()=>{
         const tmpls=state.templates||[];
-        if(!tmpls.length) return '<div style="padding:14px 0;font-size:13px;color:var(--dim);">No templates yet. Finish a workout and tap \"Save as Template\".</div>';
+        if(!tmpls.length) return '<div style="padding:14px 0;font-size:13px;color:var(--dim);">No templates yet. Templates are auto-saved when you finish a workout.</div>';
         return tmpls.map(t=>`
           <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
             <span style="font-size:18px;width:24px;text-align:center;flex-shrink:0;">📋</span>
@@ -1601,6 +1655,7 @@ function renderSettings(){
           <span style="font-size:11px;color:var(--muted);">${e.date}</span>
           <span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);">${e.weight} lb</span>
         </div>`).join('')}
+      ${buildBWChart()}
     </div>
 
     ${sectionHead('Import')}
@@ -1795,7 +1850,6 @@ function renderLog(){
           ${activeWorkout.exercises.length>1?`<button class="pill${ssOn?" ss-on":""}" onclick="openPairModal(${esc(e.name)})"><span class="pill-dot"></span>${ssPairName?"⚡ "+ssPairName:"⚡ SUPERSET"}</button>`:""}
           <button class="pill${e.warmupNext?" ss-on":""}" onclick="toggleWarmup(${esc(e.name)})" style="${e.warmupNext?"background:rgba(100,160,255,0.12);border-color:rgba(100,160,255,0.3);color:#7aacff;":""}">W WARMUP</button>
           <button class="pill${bwOn&&!BW_EXERCISES.has(e.name)?" ss-on":""}" onclick="toggleBW(${esc(e.name)})" style="${bwOn&&!BW_EXERCISES.has(e.name)?"background:rgba(232,213,160,0.1);border-color:var(--accent);color:var(--accent);":""}">BW</button>
-          <button class="pill${isDone?" ss-on":""}" onclick="doneExSet.has(${esc(e.name)})?doneExSet.delete(${esc(e.name)}):doneExSet.add(${esc(e.name)});render();" style="${isDone?"background:rgba(82,200,122,0.12);border-color:rgba(82,200,122,0.3);color:var(--green);":""}">✓ DONE</button>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           ${deltaEl}
@@ -1816,7 +1870,6 @@ function renderLog(){
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="btn ghost small" onclick="abandonWorkout()" style="font-size:11px;padding:6px 10px;color:var(--danger);border-color:var(--danger)33;">✕</button>
         ${setHistory.length>0?`<button class="btn ghost small" onclick="undoLastSet()" style="font-size:11px;padding:6px 10px;">↩ UNDO</button>`:""}
-        ${activeWorkout.exercises.length>0?`<button class="btn ghost small" onclick="saveAsTemplate()" style="font-size:11px;padding:6px 10px;" title="Save as template">📋</button>`:""}
         <button class="btn primary small" id="finish-btn-anchor" onclick="confirmFinish()">FINISH ✓</button>
       </div>
     </div>
@@ -1949,7 +2002,11 @@ function renderMe(){
         style="background:${histFilter===s?"rgba(232,213,160,0.15)":"var(--bg3)"};border:1px solid ${histFilter===s?"var(--accent)":"var(--border2)"};
         border-radius:20px;color:${histFilter===s?"var(--accent)":"var(--muted)"};font-family:inherit;font-size:11px;letter-spacing:1px;padding:6px 14px;cursor:pointer;"
         >${s.toUpperCase()}</button>`).join("");
-      const filtered=histFilter==="All"?state.workouts:state.workouts.filter(w=>w.split===histFilter);
+      let filtered=histFilter==="All"?state.workouts:state.workouts.filter(w=>w.split===histFilter);
+      if(histSearchTerm&&histSearchTerm.trim()){
+        const q=histSearchTerm.toLowerCase();
+        filtered=filtered.filter(w=>w.exercises.some(e=>e.name.toLowerCase().includes(q)));
+      }
       const cards=filtered.map(w=>{
         const idx=state.workouts.indexOf(w);
         const exNames=w.exercises.slice(0,3).map(e=>e.name).join(" · ")+(w.exercises.length>3?" +"+(w.exercises.length-3):"");
@@ -1969,7 +2026,51 @@ function renderMe(){
           <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);letter-spacing:0.5px;">${w.totalVolume>0?w.totalVolume.toLocaleString()+' lb':'BW only'}</div>
         </div>`;
       }).join("");
-      tabContent=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${filterBtns}</div>${filtered.length?cards:`<div style="color:var(--dim);font-size:13px;">No ${histFilter} workouts yet.</div>`}`;
+      const histSearch=`<div style="position:relative;margin-bottom:10px;">
+        <input id="hist-search" class="input" placeholder="Search by exercise..." value="${histSearchTerm||''}"
+          oninput="histSearchTerm=this.value;render()" style="font-size:13px;padding:10px 14px;"/>
+        ${histSearchTerm?`<button onclick="histSearchTerm='';render()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;">✕</button>`:''}
+      </div>`;
+      const calHeatMap=(()=>{
+        const today=new Date(); today.setHours(0,0,0,0);
+        const weeks=8;
+        const days=weeks*7;
+        const startDate=new Date(today); startDate.setDate(startDate.getDate()-days+1);
+        const dayCounts={};
+        state.workouts.forEach(w=>{
+          const d=new Date(w.timestamp); d.setHours(0,0,0,0);
+          const key=d.toDateString();
+          dayCounts[key]=(dayCounts[key]||0)+1;
+        });
+        const cells=[];
+        for(let i=0;i<days;i++){
+          const d=new Date(startDate); d.setDate(d.getDate()+i);
+          const key=d.toDateString();
+          const count=dayCounts[key]||0;
+          const isToday=d.toDateString()===new Date().toDateString();
+          const opacity=count===0?0.06:count===1?0.3:count>=2?0.6:0.15;
+          cells.push(`<div style="width:12px;height:12px;border-radius:2px;background:${count>0?'var(--accent)':'var(--border)'};opacity:${count>0?opacity:0.3};${isToday?'border:1px solid var(--accent);':''}"></div>`);
+        }
+        const grid=[];
+        for(let row=0;row<7;row++){
+          const rowCells=[];
+          for(let col=0;col<weeks;col++){
+            const idx=col*7+row;
+            rowCells.push(idx<cells.length?cells[idx]:'<div style="width:12px;height:12px;"></div>');
+          }
+          grid.push(`<div style="display:flex;gap:2px;">${rowCells.join('')}</div>`);
+        }
+        const dayLabels=['M','T','W','T','F','S','S'];
+        const labelCol=dayLabels.map(d=>`<div style="width:12px;height:12px;font-size:7px;color:var(--dim);display:flex;align-items:center;justify-content:center;">${d}</div>`).join('');
+        return `<div style="margin-bottom:16px;">
+          <div style="font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Last ${weeks} weeks</div>
+          <div style="display:flex;gap:2px;justify-content:center;">
+            <div style="display:flex;flex-direction:column;gap:2px;margin-right:2px;">${labelCol}</div>
+            <div style="display:flex;flex-direction:column;gap:2px;">${grid.join('')}</div>
+          </div>
+        </div>`;
+      })();
+      tabContent=histSearch+`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${filterBtns}</div>`+calHeatMap+(filtered.length?cards:`<div style="color:var(--dim);font-size:13px;">No ${histFilter} workouts yet.</div>`);
     }
   } else {
     // PROGRESS tab — search + top 5 + grouped by split

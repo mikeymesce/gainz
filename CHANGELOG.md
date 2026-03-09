@@ -4,7 +4,31 @@
 
 ---
 
-## Latest — March 9 (Session 3)
+## Latest — March 9 (Session 4)
+
+### Home Screen Overhaul
+- **Muscle volume tracker** on home screen — weekly sets per muscle group vs MRV, color-coded bars (under MEV / good / near MRV / exceeded). Source: Israetel et al.
+- **Moved daily insight/quote** from bottom of home page to right below the day streak — more visible now.
+
+### Workout Flow
+- **Smart Start**: `startWorkout()` auto-loads exercises from your last same-split workout. Shows toast ("Loaded last Push day"). Picker only opens if it's your first time doing that split.
+- **Auto-save templates**: Workouts silently save as templates on finish (replaces existing for that split). No more manual "Save as Template" button.
+- **Removed Done button** from exercise cards — redundant with Next Exercise.
+- **Next Exercise on last exercise** now opens the exercise picker instead of scrolling to Finish.
+- **Removed "Repeat last" button** — redundant with Smart Start.
+
+### History & Settings
+- **History search** — search bar filters workouts by exercise name.
+- **Calendar heat map** — 8-week activity grid in the history tab.
+- **Bodyweight trend chart** — SVG chart in Settings showing weight over time with delta.
+
+### Import
+- **Always ask about unknowns** — all unrecognized exercise terms get flagged for clarification (removed filtering that skipped "plain full names").
+- **Clarification limit** bumped from 10 to 20.
+
+---
+
+## March 9 (Session 3)
 
 ### Modular Refactor Complete (Phase 1–3)
 Broke `app.js` (4,324 lines) into 14 native ES modules. No bundler, no frameworks.
