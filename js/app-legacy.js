@@ -13,6 +13,7 @@ function dispatch(action, payload = {}) {
 
 // ── Computed Stats Cache ──
 let statsCache = { dirty: true, tonnage: 0, prCount: 0, lastCalc: 0 };
+window.statsCache = statsCache;
 
 // ═══════════════════════════════════════════
 
@@ -27,209 +28,24 @@ try {
   logDebug("❌ State parse error — resetting to defaults");
   setTimeout(()=>showToast("Data restored to defaults"), 500);
 }
-function splitName(key){ return (state.splitNames&&state.splitNames[key])||key; }
-function setProgram(p){
-  state.program=p;
-  if(p !== "custom") state.customSplits = [...(PROGRAMS[p]?.splits||[])];
-  saveImmediate();
-  render();
-  showToast('Switched to '+(PROGRAMS[p]?.label||p));
-}
 let state = migrateState(_rawState);
 let activeWorkout = null;
 let screen = "start";
 let historyDetail = null;
 let progressEx = null;
-let dismissedTips = new Set();
-let shownTips = new Set(); // tips explicitly opened by user (hidden by default mid-workout)
-let activeTipCat = {};
-let timerInterval = null;
-let timerLeft = 0;
-let woTimerInterval = null;
-let woStartTime = null;
 let collapsedEx = new Set();
 let doneExSet   = new Set(); // exercises marked done this session
 let renamingEx = null;
 
 // Expose state object for extracted modules (never reassigned, only mutated)
 window.state = state;
+// Apply theme after state vars initialized
+applyTheme(activeTheme);
 // Navigation helper for modules that can't access `screen` (let, not on window)
 function navigateTo(s, tab) { screen = s; if(tab !== undefined) meTab = tab; render(); }
 
-// ═══════════════════════════════════════════
-// UTILS
-// ═══════════════════════════════════════════
-let saveTimer = null;
-function _writeStorage(){ try{ localStorage.setItem('gainz_v5',JSON.stringify(state)); checkStorageQuota(); }catch(e){ logDebug('❌ Save failed: '+e.message); } }
-function debouncedSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    _writeStorage();
-  }, 300);
-}
-function saveImmediate() {
-  clearTimeout(saveTimer);
-  _writeStorage();
-}
-function save() { statsCache.dirty = true; debouncedSave(); logDebug("💾 save()"); }
-function checkStorageQuota() {
-  try {
-    const used = new Blob([localStorage.getItem("gainz_v5") || ""]).size;
-    if (used > 4 * 1024 * 1024) showToast("Storage nearly full — export your data in Settings");
-  } catch(e) {}
-}
 
 
-// ── Screen Wake Lock ──
-let wakeLock=null;
-async function requestWakeLock(){
-  if(!FEATURES.screenWakeLock) return;
-  try{ if("wakeLock" in navigator) wakeLock=await navigator.wakeLock.request("screen"); }catch(e){}
-}
-function releaseWakeLock(){ if(wakeLock){wakeLock.release();wakeLock=null;} }
-
-// ── Offline Detection ──
-function checkOnline(){
-  if(!FEATURES.offlineDetection) return;
-  if(!navigator.onLine) showToast("Offline — app works fine, fonts may not load");
-}
-window.addEventListener("offline",()=>showToast("Gone offline — data saves locally"));
-window.addEventListener("online",()=>showToast("Back online"));
-
-function getActiveSplits(){
-  const prog = state.program || "ppl";
-  if(prog === "custom") return state.customSplits && state.customSplits.length ? state.customSplits : ["Push","Pull","Legs"];
-  return PROGRAMS[prog]?.splits || ["Push","Pull","Legs","Core"];
-}
-
-function getRec(){
-  const sp=getActiveSplits();
-  const last=state.workouts.slice(0,sp.length+2).map(w=>w.split);
-  for(const s of sp) if(!last.includes(s)) return s;
-  const c=sp.map(s=>last.filter(x=>x===s).length);
-  return sp[c.indexOf(Math.min(...c))];
-}
-function getLastSession(name){
-  for(const w of state.workouts){
-    const e=w.exercises.find(e=>e.name===name);
-    if(e&&e.sets.length) return e;
-  }
-  return null;
-}
-function isPR(name, weight, isWarmup){
-  if(isWarmup) return false;
-  if(!weight||isNaN(parseFloat(weight))) return false;
-  const w=parseFloat(weight);
-  // Check saved history
-  for(const wo of state.workouts){
-    const e=wo.exercises.find(e=>e.name===name);
-    if(e) for(const s of e.sets) if(!s.bw&&!s.warmup&&parseFloat(s.weight)>=w) return false;
-  }
-  // Also check current session — can't PR at 207 if you just hit 210 this workout
-  if(activeWorkout){
-    const e=activeWorkout.exercises.find(e=>e.name===name);
-    if(e) for(const s of e.sets) if(!s.bw&&!s.warmup&&parseFloat(s.weight)>=w) return false;
-  }
-  return true;
-}
-
-function getWeeklyMuscleSets(){
-  const weekStart=new Date(); weekStart.setDate(weekStart.getDate()-weekStart.getDay()); weekStart.setHours(0,0,0,0);
-  const counts={};
-  Object.keys(MRV).forEach(m=>counts[m]=0);
-  state.workouts.filter(w=>new Date(w.timestamp)>=weekStart).forEach(w=>{
-    w.exercises.forEach(e=>{
-      const muscles=EX_MUSCLES[e.name]||[];
-      const workSets=e.sets.filter(s=>!s.warmup).length;
-      muscles.forEach((m,mi)=>{
-        // Primary muscle gets full credit, secondaries get 0.5
-        counts[m]=(counts[m]||0)+(mi===0?workSets:Math.ceil(workSets*0.5));
-      });
-    });
-  });
-  return counts;
-}
-
-// ── SUGGESTED WEIGHT (progressive overload) ──
-// Logic: if you completed all reps in your last session's sets,
-// suggest an increase based on exercise-specific percentage.
-// Round to nearest 2.5lb (smallest standard plate increment).
-// If you left reps on the table, suggest same weight.
-function getSuggestedWeight(name){
-  const last = getLastSession(name);
-  if(!last || !last.sets.length) return null;
-  // Only applies to weighted exercises
-  const weightedSets = last.sets.filter(s => !s.bw && parseFloat(s.weight) > 0);
-  if(!weightedSets.length) return null;
-
-  const lastWeight = parseFloat(weightedSets[weightedSets.length-1].weight);
-  const lastReps = parseInt(weightedSets[weightedSets.length-1].reps);
-  if(!lastWeight || !lastReps) return null;
-
-  // Check if all sets hit their reps (simple heuristic: last set completed)
-  // If reps >= 8 for isolation or >= 5 for compounds, suggest increase
-  // This mirrors the NSCA 2-for-2 rule spirit
-  const pct = (OVERLOAD_PCT[name] ?? DEFAULT_OVERLOAD_PCT) / 100;
-  const minRepsToProgress = (OVERLOAD_PCT[name] >= 5) ? 5 : 8;
-  const shouldIncrease = lastReps >= minRepsToProgress;
-
-  if(!shouldIncrease) return { weight: lastWeight, same: true };
-
-  const raw = lastWeight * (1 + pct);
-  // Round to nearest 2.5lb
-  const rounded = Math.round(raw / 2.5) * 2.5;
-  return { weight: rounded, same: false, pct: OVERLOAD_PCT[name] ?? DEFAULT_OVERLOAD_PCT };
-}
-
-
-// ═══════════════════════════════════════════
-// TIMERS
-// ═══════════════════════════════════════════
-function startTimer(exercise){
-  const rest=state.exerciseRests[exercise]??GLOBAL_DEFAULT;
-  timerLeft=rest;
-  clearInterval(timerInterval);
-  const bar=document.getElementById("timer-bar");
-  bar.classList.add("active");
-  document.getElementById("timer-label").textContent=exercise.toUpperCase();
-  refreshTimerNum();
-  let overCount=0;
-  timerInterval=setInterval(()=>{
-    timerLeft--;
-    if(timerLeft>0){
-      refreshTimerNum();
-    } else if(timerLeft===0){
-      clearInterval(timerInterval);
-      playBeep();
-      const d=document.getElementById("timer-display");
-      if(d) d.innerHTML=`<div class="timer-done">✓ GO</div>`;
-      // Count UP after zero — shows how long over rest
-      timerInterval=setInterval(()=>{
-        overCount++;
-        const d2=document.getElementById("timer-display");
-        if(d2) d2.innerHTML=`<div class="timer-num" id="timer-num" style="color:var(--muted);font-size:20px;">+${fmt(overCount)}</div>`;
-      },1000);
-    }
-  },1000);
-}
-function refreshTimerNum(){ const e=document.getElementById("timer-num"); if(e) e.textContent=fmt(timerLeft); }
-function adjTimer(d){ timerLeft=Math.max(5,timerLeft+d); refreshTimerNum(); }
-function skipTimer(){ clearInterval(timerInterval); const b=document.getElementById("timer-bar"); if(b) b.classList.remove("active"); const d=document.getElementById("timer-display"); if(d) d.innerHTML=`<div class="timer-num" id="timer-num">0:00</div>`; }
-
-function startWoTimer(){
-  woStartTime=Date.now();
-  clearInterval(woTimerInterval);
-  const el=document.getElementById("wo-timer");
-  el.style.display="block";
-  woTimerInterval=setInterval(()=>{
-    const el=document.getElementById("wo-timer");
-    if(el&&woStartTime) el.textContent=fmtMs(Date.now()-woStartTime);
-  },1000);
-}
-function stopWoTimer(){
-  clearInterval(woTimerInterval); woStartTime=null;
-  const el=document.getElementById("wo-timer"); if(el) el.style.display="none";
-}
 
 // ═══════════════════════════════════════════
 // EXERCISE PICKER — persistent, never rebuilt
@@ -290,50 +106,6 @@ function openPicker(){
 }
 
 // Research Library
-let libOpenEx = null;
-let libActiveCat = {};
-
-// Apply theme after ALL state vars initialized
-applyTheme(activeTheme);
-
-function openLibrary(){
-  const el = document.getElementById("res-library");
-  const list = document.getElementById("res-library-list");
-  const exercises = Object.keys(RESEARCH_TIPS).sort();
-  list.innerHTML = exercises.map(ex=>{
-    const isOpen = libOpenEx===ex;
-    const firstTip = RESEARCH_TIPS[ex][TIP_CATEGORIES[0].key];
-    const tabs = TIP_CATEGORIES.map(c=>{
-      const active = (libActiveCat[ex]||TIP_CATEGORIES[0].key)===c.key;
-      return `<button style="font-size:9px;padding:5px 10px;border-radius:8px;border:1px solid ${active?c.color:'#1e1e24'};background:${active?c.color+'22':'transparent'};color:${active?c.color:'var(--muted)'};font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:1px;transition:all .15s;margin:2px;" onclick="libSetCat(${esc(ex)},${esc(c.key)});event.stopPropagation();">${c.label}</button>`;
-    }).join("");
-    const cat = libActiveCat[ex]||TIP_CATEGORIES[0].key;
-    const tipData = RESEARCH_TIPS[ex][cat];
-    return `<div class="lib-ex-card${isOpen?" open":""}" onclick="libToggle(${esc(ex)})">
-      <div class="lib-ex-name">${ex}<span class="pick-badge">📚</span></div>
-      ${!isOpen?`<div class="lib-ex-preview">${firstTip?firstTip.tip.slice(0,60)+"…":""}</div>`:""}
-      <div class="lib-detail">
-        <div class="lib-tab-row">${tabs}</div>
-        ${tipData?`<div class="lib-tip-body">${tipData.tip}</div><div class="lib-tip-src">${tipData.source} (${tipData.year})</div>`:""}
-      </div>
-    </div>`;
-  }).join("");
-  el.classList.add("open");
-}
-
-function closeLibrary(){
-  document.getElementById("res-library").classList.remove("open");
-}
-
-function libToggle(ex){
-  libOpenEx = libOpenEx===ex ? null : ex;
-  openLibrary();
-}
-
-function libSetCat(ex, cat){
-  libActiveCat[ex]=cat;
-  openLibrary();
-}
 function closePicker(){
   swappingEx=null;
   document.getElementById("ex-picker").classList.remove("open");
@@ -681,7 +453,7 @@ function logSet(n){
   if(!r) r="10";
   if(!r||((!bw)&&!w)){ showToast("Enter weight and reps first"); return; }
   const isWarmup=!!activeWorkout.exercises.find(e=>e.name===n)?.warmupNext;
-  const wasPR=!bw&&isPR(n,w,isWarmup);
+  const wasPR=!bw&&isPR(n,w,isWarmup,activeWorkout);
   const newSet={weight:bw?"BW":w,reps:r,time:Date.now(),bw:!!bw,pr:wasPR||undefined,warmup:isWarmup||undefined};
   // reset warmupNext after consuming it
   const _ex=activeWorkout.exercises.find(e=>e.name===n);
@@ -699,24 +471,7 @@ function logSet(n){
       const restA=state.exerciseRests[n]??GLOBAL_DEFAULT;
       const restB=state.exerciseRests[ex.ssPair]??GLOBAL_DEFAULT;
       const rest=Math.max(restA,restB);
-      timerLeft=rest;
-      clearInterval(timerInterval);
-      const _bar=document.getElementById('timer-bar');
-      if(_bar) _bar.classList.add('active');
-      const _lbl=document.getElementById('timer-label');
-      if(_lbl) _lbl.textContent=n.toUpperCase();
-      refreshTimerNum();
-      let _over=0;
-      timerInterval=setInterval(()=>{
-        timerLeft--;
-        if(timerLeft>0){ refreshTimerNum(); }
-        else if(timerLeft===0){
-          clearInterval(timerInterval); playBeep();
-          const _d=document.getElementById('timer-display');
-          if(_d) _d.innerHTML='<div class="timer-done">✓ GO</div>';
-          timerInterval=setInterval(()=>{ _over++; const _d2=document.getElementById('timer-display'); if(_d2) _d2.innerHTML='<div class="timer-num" id="timer-num" style="color:var(--muted);font-size:20px;">+'+fmt(_over)+'</div>'; },1000);
-        }
-      },1000);
+      startTimerRaw(rest, n.toUpperCase());
       activeSSPrompt=ex.ssPair; // after rest, go back to partner
     } else {
       // First exercise done — no timer, just prompt partner
@@ -759,7 +514,7 @@ function copyLastSet(n){
   if(!ex||!ex.sets.length) return;
   const prev=ex.sets[ex.sets.length-1];
   const isWarmup=!!ex.warmupNext;
-  const wasPR=!prev.bw&&!isWarmup&&isPR(n,prev.weight,false);
+  const wasPR=!prev.bw&&!isWarmup&&isPR(n,prev.weight,false,activeWorkout);
   const newSet={...prev,time:Date.now(),pr:wasPR||undefined,warmup:isWarmup||undefined};
   if(ex) ex.warmupNext=false;
   ex.sets.push(newSet);
@@ -892,31 +647,7 @@ function nextExercise(name){
     // Start travel timer: next exercise rest + 30s buffer for moving between stations
     const baseRest = state.exerciseRests[next.name] ?? GLOBAL_DEFAULT;
     const travelRest = baseRest + 30;
-    // Temporarily override timerLeft directly then start the interval
-    timerLeft = travelRest;
-    clearInterval(timerInterval);
-    const bar = document.getElementById('timer-bar');
-    if(bar) bar.classList.add('active');
-    const lbl = document.getElementById('timer-label');
-    if(lbl) lbl.textContent = ('→ ' + next.name).toUpperCase();
-    refreshTimerNum();
-    let overCount = 0;
-    timerInterval = setInterval(()=>{
-      timerLeft--;
-      if(timerLeft > 0){
-        refreshTimerNum();
-      } else if(timerLeft === 0){
-        clearInterval(timerInterval);
-        playBeep();
-        const d = document.getElementById('timer-display');
-        if(d) d.innerHTML = `<div class="timer-done">✓ GO</div>`;
-        timerInterval = setInterval(()=>{
-          overCount++;
-          const d2 = document.getElementById('timer-display');
-          if(d2) d2.innerHTML = `<div class="timer-num" id="timer-num" style="color:var(--muted);font-size:20px;">+${fmt(overCount)}</div>`;
-        }, 1000);
-      }
-    }, 1000);
+    startTimerRaw(travelRest, ('→ ' + next.name).toUpperCase());
     render();
     setTimeout(()=>{
       const el = document.getElementById('ex-'+sid(next.name));
@@ -1013,16 +744,6 @@ function renderWorkoutSummary(){
       <button class="btn primary" onclick="dismissSummary()" style="width:100%;margin-top:24px;font-size:13px;">DONE ✓</button>
     </div>
   </div>`;
-}
-function exportData(){
-  const json=JSON.stringify(state,null,2);
-  const blob=new Blob([json],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='gainz-backup-'+todayStr().replace(/[^a-z0-9]/gi,'-')+'.json';
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-  showToast('Data exported ✓');
 }
 function finishWorkout(){
   if(!activeWorkout.exercises.length){ showModal(`<div style="font-size:13px;color:var(--accent);margin-bottom:14px;">Log at least one exercise first 💪</div><button class="btn ghost" onclick="hideModal()">OK</button>`); return; }
@@ -1903,69 +1624,6 @@ function renderSettings(){
   `;
 }
 
-// ── Research Tip Helpers ──
-function getTips(exName){
-  return RESEARCH_TIPS[exName] || null;
-}
-function openTip(exName){
-  shownTips.add(exName);
-  dismissedTips.delete(exName);
-  render();
-}
-function dismissTip(exName){
-  shownTips.delete(exName);
-  dismissedTips.add(exName);
-  haptic("light");
-  render();
-}
-function setTipCat(exName, cat){
-  activeTipCat[exName]=cat;
-  render();
-}
-function cycleTipCat(exName, dir){
-  const cur=activeTipCat[exName]||TIP_CATEGORIES[0].key;
-  const idx=TIP_CATEGORIES.findIndex(c=>c.key===cur);
-  const next=TIP_CATEGORIES[(idx+dir+TIP_CATEGORIES.length)%TIP_CATEGORIES.length];
-  activeTipCat[exName]=next.key;
-  haptic("light");
-  render();
-}
-function buildTipPanel(exName){
-  const tips=getTips(exName);
-  if(!tips) return "";
-  if(!shownTips.has(exName)) return ""; // hidden by default
-  const cat=activeTipCat[exName]||TIP_CATEGORIES[0].key;
-  const catIdx=TIP_CATEGORIES.findIndex(c=>c.key===cat);
-  const catData=tips[cat];
-
-  const dots=TIP_CATEGORIES.map((_,i)=>`<div class="tip-dot${i===catIdx?' on':''}"></div>`).join('');
-
-  let cite='';
-  if(catData){
-    const raw=catData.source||'';
-    const authorPart=raw.split(/[,;]/)[0].trim();
-    const shortAuthor=authorPart.length>28?authorPart.slice(0,28)+'…':authorPart;
-    cite=`${shortAuthor} · ${catData.year}`;
-  }
-
-  return `<div class="tip-panel">
-    <div class="tip-panel-head">
-      <span class="tip-cite" style="opacity:0.5;">📚 research</span>
-      <button class="tip-dismiss" onclick="dismissTip(${esc(exName)})">✕</button>
-    </div>
-    <div class="tip-text">${catData?catData.tip:'—'}</div>
-    <div class="tip-footer">
-      <div class="tip-dots">${dots}</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        ${cite?`<span class="tip-cite">${cite}</span>`:''}
-        <div class="tip-nav-row">
-          <button class="tip-nav" onclick="cycleTipCat(${esc(exName)},-1)">‹</button>
-          <button class="tip-nav" onclick="cycleTipCat(${esc(exName)},1)">›</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
-}
 
 function renderLog(){
   if(!activeWorkout) return "";
@@ -2084,7 +1742,7 @@ function renderLog(){
       :`<div class="col"><span class="label" style="display:flex;justify-content:space-between;align-items:center;">WEIGHT (lb)<button onclick="openPlateCalc(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;" title="Plate calculator">🔧</button></span><input class="input" type="number" id="w-${id}" value="${prefillW}" placeholder="135" inputmode="decimal"/></div>`;
 
     const tipPanel=buildTipPanel(e.name);
-    const reopenBtn=getTips(e.name)&&!shownTips.has(e.name)?`<button class="tip-reopen" onclick="openTip(${esc(e.name)});render();" title="Research tips" style="font-size:11px;letter-spacing:1px;color:var(--dim);opacity:0.5;">📚</button>`:"";
+    const reopenBtn=getTips(e.name)&&!hasTipShown(e.name)?`<button class="tip-reopen" onclick="openTip(${esc(e.name)});render();" title="Research tips" style="font-size:11px;letter-spacing:1px;color:var(--dim);opacity:0.5;">📚</button>`:"";
 
     const isSSPrompt=activeSSPrompt===e.name;
     const ssPairName=e.ssPair;
@@ -2490,111 +2148,6 @@ function renderHistDetail(){
     ${exCards}`;
 }
 
-// ─── Progress Chart (SVG, no libs) ──────────────────────────────────────
-let progChartMode = "1rm"; // "1rm" | "vol"
-
-function buildProgChart(sessions, exName){
-  if(!sessions||sessions.length<2) return '';
-  const W=320, H=160, padL=46, padR=12, padT=14, padB=32;
-  const IW=W-padL-padR, IH=H-padT-padB;
-
-  // Build data points
-  const pts = sessions.map(w=>{
-    const e = w.exercises.find(e=>e.name===exName);
-    if(!e) return null;
-    const rm = Math.max(0,...e.sets.filter(s=>!s.bw&&parseFloat(s.weight)>0).map(s=>est1RM(s.weight,s.reps)));
-    const v  = vol(e.sets);
-    return { date: w.date, ts: w.timestamp, rm, v };
-  }).filter(Boolean);
-
-  if(pts.length<2) return '';
-  const vals  = pts.map(p=>progChartMode==="1rm"?p.rm:p.v).filter(v=>v>0);
-  if(!vals.length) return '';
-
-  const minV  = Math.min(...vals);
-  const maxV  = Math.max(...vals);
-  const range = maxV-minV||1;
-
-  // Nice Y labels (4 gridlines)
-  const step  = Math.ceil(range/3/5)*5||5;
-  const yBase = Math.floor(minV/step)*step;
-  const yTops = [yBase, yBase+step, yBase+step*2, yBase+step*3].filter(y=>y<=maxV+step);
-
-  function px(i){ return padL + (i/(pts.length-1))*IW; }
-  function py(v){ return padT + IH - ((v-yBase)/(yTops[yTops.length-1]-yBase||1))*IH; }
-
-  // Polyline for main line
-  const lineCoords = pts.map((p,i)=>{
-    const v=progChartMode==="1rm"?p.rm:p.v;
-    return v>0 ? `${px(i).toFixed(1)},${py(v).toFixed(1)}` : null;
-  }).filter(Boolean).join(' ');
-
-  // Area fill path
-  const firstX=px(0).toFixed(1), lastX=px(pts.length-1).toFixed(1), baseY=(padT+IH).toFixed(1);
-  const areaPath=`M${firstX},${baseY} ` + pts.map((p,i)=>{
-    const v=progChartMode==="1rm"?p.rm:p.v;
-    return v>0?`L${px(i).toFixed(1)},${py(v).toFixed(1)}`:'';
-  }).filter(Boolean).join(' ') + ` L${lastX},${baseY} Z`;
-
-  // Grid lines + Y labels
-  const grids = yTops.map(y=>{
-    const yy=py(y).toFixed(1);
-    const lbl = progChartMode==="1rm" ? y+"lb" : y>=1000?(y/1000).toFixed(1)+"k":y+"lb";
-    return `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="#1e1e24" stroke-width="1"/>
-    <text x="${(padL-4).toFixed(0)}" y="${(parseFloat(yy)+3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#3a3630">${lbl}</text>`;
-  }).join('');
-
-  // X date labels — show first, middle, last
-  const xIdxs = [0, Math.floor((pts.length-1)/2), pts.length-1].filter((v,i,a)=>a.indexOf(v)===i);
-  const xLabels = xIdxs.map(i=>{
-    const d=pts[i].date; const parts=d.split('-');
-    const lbl=parts.length===3?parts[1]+'/'+parts[2].slice(0,2):d.slice(5);
-    return `<text x="${px(i).toFixed(1)}" y="${(H-4).toFixed(0)}" text-anchor="middle" font-size="8" fill="#3a3630">${lbl}</text>`;
-  }).join('');
-
-  // Dots on data points
-  const dots = pts.map((p,i)=>{
-    const v=progChartMode==="1rm"?p.rm:p.v;
-    if(!v) return '';
-    const isLast=i===pts.length-1;
-    return `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="${isLast?4:2.5}" fill="${isLast?'var(--accent)':'rgba(232,213,160,0.4)'}" stroke="${isLast?'#1a1510':'none'}" stroke-width="${isLast?1.5:0}"/>`;
-  }).join('');
-
-  // Last value label
-  const lastPt=pts[pts.length-1];
-  const lastV=progChartMode==="1rm"?lastPt.rm:lastPt.v;
-  const lastLbl=progChartMode==="1rm"?lastV+"lb":lastV>=1000?(lastV/1000).toFixed(1)+"k lb":lastV+"lb";
-  const lx=px(pts.length-1), ly=py(lastV);
-  const lblAnchor=lx>W*0.7?"end":"start";
-  const lblOff=lx>W*0.7?-8:8;
-
-  // Toggle buttons rendered as HTML below SVG (not inside SVG)
-  const mode1=progChartMode==="1rm";
-  const toggleHtml=`<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;">
-    <button onclick="progChartMode='1rm';render()" style="padding:5px 14px;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1px;cursor:pointer;border:1px solid ${mode1?'var(--accent)':'var(--border2)'};background:${mode1?'var(--accentFaint)':'var(--bg3)'};color:${mode1?'var(--accent)':'var(--muted)'};">EST. 1RM</button>
-    <button onclick="progChartMode='vol';render()" style="padding:5px 14px;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1px;cursor:pointer;border:1px solid ${!mode1?'var(--accent)':'var(--border2)'};background:${!mode1?'var(--accentFaint)':'var(--bg3)'};color:${!mode1?'var(--accent)':'var(--muted)'};">VOLUME</button>
-  </div>`;
-
-  const svgHtml=`<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block;overflow:visible;" preserveAspectRatio="xMidYMid meet">
-    <defs>
-      <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="rgba(232,213,160,0.15)"/>
-        <stop offset="100%" stop-color="rgba(232,213,160,0)"/>
-      </linearGradient>
-    </defs>
-    ${grids}
-    ${xLabels}
-    <path d="${areaPath}" fill="url(#chartGrad)"/>
-    <polyline points="${lineCoords}" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
-    ${dots}
-    <text x="${(lx+lblOff).toFixed(1)}" y="${(ly-7).toFixed(1)}" text-anchor="${lblAnchor}" font-size="9" fill="var(--accent)" font-weight="bold">${lastLbl}</text>
-  </svg>`;
-
-  return toggleHtml + `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:12px 8px 4px;">${svgHtml}</div>`;
-}
-
-// legacy stub kept so nothing breaks
-function buildSparkline(bests){ return ''; }
 function renderProgDetail(){
   const ex=progressEx;
   const sessions=state.workouts.slice().reverse().filter(w=>w.exercises.find(e=>e.name===ex));
