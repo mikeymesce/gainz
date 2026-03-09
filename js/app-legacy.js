@@ -977,7 +977,7 @@ function renderWorkoutSummary(){
         <div style="font-size:10px;color:var(--dim);margin-top:3px;">${r.why}</div>
       </div>
     </div>`).join('');
-  return `<div id="wo-summary" style="position:fixed;inset:0;background:var(--bg1);z-index:300;overflow-y:auto;animation:summaryIn 0.35s ease;">
+  return `<div id="wo-summary" style="position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto;animation:summaryIn 0.35s ease;">
     <div style="max-width:430px;margin:0 auto;padding:24px 16px 48px;">
       <div style="text-align:center;padding:28px 0 20px;">
         <div style="font-size:36px;margin-bottom:8px;">🎉</div>
