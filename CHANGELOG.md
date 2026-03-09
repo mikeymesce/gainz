@@ -4,10 +4,10 @@
 
 ---
 
-## Latest — March 9 (Session 2)
+## Latest — March 9 (Session 3)
 
-### Modular Refactor (Phase 1 & 2)
-Broke `app.js` (4,324 lines) into native ES modules — no bundler, no frameworks.
+### Modular Refactor Complete (Phase 1–3)
+Broke `app.js` (4,324 lines) into 14 native ES modules. No bundler, no frameworks.
 
 | Module | What's in it |
 |---|---|
@@ -18,17 +18,22 @@ Broke `app.js` (4,324 lines) into native ES modules — no bundler, no framework
 | `js/audio.js` | Rest timer beep |
 | `js/onboarding.js` | Splash carousel + coach tips |
 | `js/import.js` | Full import system (paste → parse → confirm) |
+| `js/persistence.js` | Save/storage, wake lock, offline detection, export |
+| `js/workout-logic.js` | Split recs, PR detection, suggested weight, weekly sets |
+| `js/timers.js` | Rest timer + workout duration timer |
+| `js/research-tips.js` | Tip panels + research library |
+| `js/progress-chart.js` | SVG progress chart (no libs) |
 
-`js/main.js` wires modules together → loads `js/app-legacy.js` (~2,915 lines remaining).
+`js/main.js` wires modules → loads `js/app-legacy.js` (2,468 lines remaining).
 
-**Next up (Phase 3):** Break up `app-legacy.js` — workout logic, render pipeline, settings. Hardest part because of shared mutable state.
+**What's left in legacy:** Render pipeline, workout actions, exercise picker, stacks, tests, debug. These share mutable state (`screen`, `activeWorkout`, etc.) that would need a state management migration to extract further.
 
 ### Removed Quick Start Pills
 Redundant — split sequence on home screen is already tappable.
 
 ---
 
-## Earlier — March 9 (Session 1)
+## Earlier — March 9 (Sessions 1–2)
 
 - **File split:** Monolithic `index.html` (5,142 lines) → `index.html` + `styles.css` + `app.js`
 - **Load Template button:** Saved templates show on empty workout screen
