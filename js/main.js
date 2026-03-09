@@ -14,6 +14,17 @@ import {
   today, todayStr, fmt, fmtMs, vol, est1RM, sid, esc, sanitize,
   showToast, haptic, confetti
 } from './utils.js';
+import { playBeep } from './audio.js';
+import {
+  showSplash, dismissSplash, maybeShowSplash,
+  maybeShowCoachTip, removeCoachTip
+} from './onboarding.js';
+import {
+  openImportModal, closeImportModal, renderImportStep,
+  importStartParse, importToggle, importCommit,
+  importSelectAll, importSelectNone, importGoToStep,
+  importRestart, importViewHistory
+} from './import.js';
 
 // Expose all module exports to window so app-legacy.js can use them
 Object.assign(window, {
@@ -28,6 +39,16 @@ Object.assign(window, {
   // Utils
   today, todayStr, fmt, fmtMs, vol, est1RM, sid, esc, sanitize,
   showToast, haptic, confetti,
+  // Audio
+  playBeep,
+  // Onboarding
+  showSplash, dismissSplash, maybeShowSplash,
+  maybeShowCoachTip, removeCoachTip,
+  // Import
+  openImportModal, closeImportModal, renderImportStep,
+  importStartParse, importToggle, importCommit,
+  importSelectAll, importSelectNone, importGoToStep,
+  importRestart, importViewHistory,
 });
 
 // Load legacy script — guaranteed to run after modules are ready

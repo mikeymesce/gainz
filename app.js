@@ -2273,6 +2273,15 @@ function finishWorkout(){
   workoutSummary=finishedW; screen="start"; render();
 }
 
+function abandonWorkout(){
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">LEAVE WORKOUT?</div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:20px;">This will discard everything from this session. Nothing will be saved.</div>
+    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);" onclick="activeWorkout=null;setHistory=[];skipTimer();stopWoTimer();collapsedEx.clear();doneExSet.clear();try{localStorage.removeItem('gainz_recovery');}catch(e){}screen='start';hideModal();render();">LEAVE WITHOUT SAVING</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">KEEP WORKING</button>
+  `);
+}
+
 // ═══════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════
@@ -2280,12 +2289,13 @@ function goBack(){
   if(progressEx){ progressEx=null; render(); return; }
   if(historyDetail){ historyDetail=null; histEditMode=false; render(); return; }
   if(screen==="settings"){ screen="start"; render(); return; }
+  if(screen==="log" && activeWorkout){ abandonWorkout(); return; }
 }
 
 function updateBackBtn(){
   const btn = document.getElementById("back-btn");
   if(!btn) return;
-  const show = progressEx || historyDetail || screen==="settings";
+  const show = progressEx || historyDetail || screen==="settings" || screen==="log";
   btn.classList.toggle("visible", !!show);
 }
 
@@ -3359,6 +3369,9 @@ function renderLog(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           ${activeWorkout.exercises.length>1?`<button class="pill${ssOn?" ss-on":""}" onclick="openPairModal(${esc(e.name)})"><span class="pill-dot"></span>${ssPairName?"⚡ "+ssPairName:"⚡ SUPERSET"}</button>`:""}
+          <button class="pill${e.warmupNext?" ss-on":""}" onclick="toggleWarmup(${esc(e.name)})" style="${e.warmupNext?"background:rgba(100,160,255,0.12);border-color:rgba(100,160,255,0.3);color:#7aacff;":""}">W WARMUP</button>
+          <button class="pill${bwOn&&!BW_EXERCISES.has(e.name)?" ss-on":""}" onclick="toggleBW(${esc(e.name)})" style="${bwOn&&!BW_EXERCISES.has(e.name)?"background:rgba(232,213,160,0.1);border-color:var(--accent);color:var(--accent);":""}">BW</button>
+          <button class="pill${isDone?" ss-on":""}" onclick="doneExSet.has(${esc(e.name)})?doneExSet.delete(${esc(e.name)}):doneExSet.add(${esc(e.name)});render();" style="${isDone?"background:rgba(82,200,122,0.12);border-color:rgba(82,200,122,0.3);color:var(--green);":""}">✓ DONE</button>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           ${deltaEl}
@@ -3377,6 +3390,7 @@ function renderLog(){
         ${totalV>0?`<div style="font-size:11px;color:var(--accent);margin-top:4px;">${totalV.toLocaleString()}lb total</div>`:""}
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn ghost small" onclick="abandonWorkout()" style="font-size:11px;padding:6px 10px;color:var(--danger);border-color:var(--danger)33;">✕</button>
         ${setHistory.length>0?`<button class="btn ghost small" onclick="undoLastSet()" style="font-size:11px;padding:6px 10px;">↩ UNDO</button>`:""}
         ${activeWorkout.exercises.length>0?`<button class="btn ghost small" onclick="saveAsTemplate()" style="font-size:11px;padding:6px 10px;" title="Save as template">📋</button>`:""}
         <button class="btn primary small" id="finish-btn-anchor" onclick="confirmFinish()">FINISH ✓</button>
