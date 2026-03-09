@@ -1,6 +1,8 @@
 # Architecture
 
-> Technical reference for the GAINZ codebase. Update this when files change.
+> Technical reference for the GAINZ codebase.
+>
+> **This file MUST be updated whenever files are added, removed, renamed, or responsibilities change. See CLAUDE.md.**
 
 ---
 

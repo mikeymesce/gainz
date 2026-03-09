@@ -5,7 +5,7 @@
 ## Team
 
 - **Mike** — Product owner. Sales background, not an engineer. Creative lead — we execute his vision.
-- **Jeremy (jpul)** — Lead engineer. Backend background. Owns code quality and architecture decisions.
+- **Jeremy (jpul)** — Backend engineer. Advisor on code quality and architecture. Advocates for clean structure and best practices.
 
 ## Engineering Philosophy
 
@@ -22,7 +22,9 @@ When in doubt: **what would a senior engineer do if they inherited this codebase
 - **Entry point:** `index.html` -> `js/main.js` -> loads `js/app-legacy.js`
 - **Storage:** localStorage key `gainz_v5`, schema version 6
 
-## Docs (keep these updated)
+## Documentation (NON-NEGOTIABLE)
+
+**Every code change must include doc updates.** Do not merge or commit code that adds, removes, or renames files without updating the relevant docs below. This is not optional.
 
 | Doc | Purpose | Update when... |
 |---|---|---|
