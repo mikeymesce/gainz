@@ -4,7 +4,30 @@
 
 ---
 
-## March 9, 2026
+## March 9, 2026 (Session 2)
+
+### Modular Refactor — Phase 1 & 2
+Broke `app.js` (4,324 lines) into ES modules. No build step, no frameworks — just native `import`/`export`.
+
+**Phase 1 — Foundation modules:**
+- `js/config.js` — feature flags, version, constants
+- `js/data.js` — exercise data, programs, split definitions, research tips
+- `js/state.js` — state migration logic
+- `js/utils.js` — pure helpers (formatting, DOM utils, toast, haptics)
+
+**Phase 2 — Feature modules:**
+- `js/audio.js` — rest timer beep sound
+- `js/onboarding.js` — splash carousel + coach tips
+- `js/import.js` — full import system (paste → parse → confirm)
+
+`js/app-legacy.js` is now ~2,915 lines (down from 4,324). `js/main.js` wires modules together and loads the legacy script.
+
+### Removed Quick Start Pills
+The "Quick start" buttons on the home screen were redundant — you can already tap any split in "Your split sequence." Removed to declutter.
+
+---
+
+## March 9, 2026 (Session 1)
 
 ### Codebase Split
 Broke the single `index.html` (5,142 lines) into 3 files:
