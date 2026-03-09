@@ -2,14 +2,63 @@
 // ONBOARDING — Splash carousel + coach tips
 // ═══════════════════════════════════════════
 
-// ── Carousel ──
+// ── All onboarding cards — shuffled each time ──
+const OB_CARDS = [
+  { icon: '🧠', title: 'Your Personal Coach', body: 'GAINZ learns your patterns. <strong>Tracks muscle volume, flags imbalances,</strong> and recommends what to train next based on your history.' },
+  { icon: '📚', title: 'Science-Backed', body: 'Every exercise has <strong>research-backed tips</strong> on form, rep ranges, and recovery. Real studies, not bro science.' },
+  { icon: '🦖', title: 'Wild Stats', body: 'See your total tonnage compared to real objects. <strong>"You moved a literal T-Rex this month."</strong> PRs, streaks, and milestones tracked.' },
+  { icon: '📈', title: 'Auto-Progression', body: 'GAINZ calculates your next weight automatically. <strong>Just show up and lift.</strong> It handles the programming.' },
+  { icon: '🏆', title: 'PR Detection', body: 'Hit a new personal record? <strong>GAINZ catches it instantly</strong> — confetti, badges, and a full PR history to look back on.' },
+  { icon: '👋', title: 'Zero Setup', body: 'No account. No login. No cloud. <strong>Your data stays on your phone.</strong> Open it and start lifting in 3 seconds.' },
+  { icon: '🔁', title: 'Smart Start', body: 'Start a workout and <strong>your last session auto-loads.</strong> Same exercises, ready to beat. No setup required.' },
+  { icon: '📋', title: 'Paste Any Log', body: 'Got notes from another app? <strong>Paste them in and AI parses it</strong> into structured workout history. Any format.' },
+  { icon: '💪', title: 'Muscle Volume', body: 'See <strong>weekly sets per muscle group</strong> vs your max recoverable volume. Know exactly when to push harder or back off.' },
+  { icon: '🔥', title: 'Streaks & Milestones', body: 'Track your consistency with <strong>day streaks, workout milestones,</strong> and weekly activity heat maps. Stay accountable.' },
+];
+
+const OB_SHOW_COUNT = 4; // cards per session
+const OB_MAX_VIEWS = 10; // stop showing after this many app opens
+
+// ── Carousel state ──
 let obIdx = 0;
-const OB_COUNT = 4;
+let obCardCount = OB_SHOW_COUNT;
+
+function _obShuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function _obBuildCards() {
+  const track = document.getElementById('ob-cards-track');
+  const dotsEl = document.getElementById('ob-dots');
+  if (!track || !dotsEl) return;
+
+  const shuffled = _obShuffle(OB_CARDS).slice(0, OB_SHOW_COUNT);
+  obCardCount = shuffled.length;
+
+  track.innerHTML = shuffled.map(c => `
+    <div class="ob-card">
+      <div class="ob-card-icon">${c.icon}</div>
+      <div class="ob-card-title">${c.title}</div>
+      <div class="ob-card-body">${c.body}</div>
+    </div>
+  `).join('');
+
+  dotsEl.innerHTML = shuffled.map((_, i) =>
+    `<div class="ob-dot${i === 0 ? ' active' : ''}" id="ob-dot-${i}"></div>`
+  ).join('');
+}
 
 export function showSplash() {
   const el = document.getElementById('onboard-splash');
   if (!el) return;
+  _obBuildCards();
   el.style.display = 'flex';
+  el.classList.remove('fade-out');
   obIdx = 0;
   _obSnap(0, false);
   _obBindSwipe();
@@ -21,7 +70,7 @@ function _obSnap(i, animate) {
   if (!animate) track.style.transition = 'none';
   else track.style.transition = 'transform 0.38s cubic-bezier(0.25,1,0.5,1)';
   track.style.transform = 'translateX(' + (-i * 100) + '%)';
-  for (let j = 0; j < OB_COUNT; j++) {
+  for (let j = 0; j < obCardCount; j++) {
     const d = document.getElementById('ob-dot-' + j);
     if (d) d.className = 'ob-dot' + (j === i ? ' active' : '');
   }
@@ -52,7 +101,7 @@ function _obBindSwipe() {
     if (lockAxis !== 'x') return;
     e.preventDefault();
     let raw = -obIdx * 100 + (dx / wrap.offsetWidth) * 100;
-    const minPct = -(OB_COUNT - 1) * 100;
+    const minPct = -(obCardCount - 1) * 100;
     if (raw > 0) raw = raw * 0.2;
     if (raw < minPct) raw = minPct + (raw - minPct) * 0.2;
     liveX = raw;
@@ -64,11 +113,11 @@ function _obBindSwipe() {
     dragging = false;
     const dx = e.changedTouches[0].clientX - startX;
     const threshold = wrap.offsetWidth * 0.22;
-    if (dx < -threshold && obIdx < OB_COUNT - 1) {
+    if (dx < -threshold && obIdx < obCardCount - 1) {
       _obSnap(obIdx + 1, true);
     } else if (dx > threshold && obIdx > 0) {
       _obSnap(obIdx - 1, true);
-    } else if (obIdx === OB_COUNT - 1 && dx < -threshold * 0.6) {
+    } else if (obIdx === obCardCount - 1 && dx < -threshold * 0.6) {
       dismissSplash();
     } else {
       _obSnap(obIdx, true);
@@ -81,7 +130,7 @@ function _obBindSwipe() {
     if (!mDown) return;
     const dx = e.clientX - mStartX;
     let raw = -obIdx * 100 + (dx / wrap.offsetWidth) * 100;
-    const minPct = -(OB_COUNT - 1) * 100;
+    const minPct = -(obCardCount - 1) * 100;
     if (raw > 0) raw = raw * 0.2;
     if (raw < minPct) raw = minPct + (raw - minPct) * 0.2;
     track.style.transform = 'translateX(' + raw + '%)';
@@ -91,9 +140,9 @@ function _obBindSwipe() {
     mDown = false;
     const dx = e.clientX - mStartX;
     const threshold = wrap.offsetWidth * 0.22;
-    if (dx < -threshold && obIdx < OB_COUNT - 1) _obSnap(obIdx + 1, true);
+    if (dx < -threshold && obIdx < obCardCount - 1) _obSnap(obIdx + 1, true);
     else if (dx > threshold && obIdx > 0) _obSnap(obIdx - 1, true);
-    else if (obIdx === OB_COUNT - 1 && dx < -threshold * 0.6) dismissSplash();
+    else if (obIdx === obCardCount - 1 && dx < -threshold * 0.6) dismissSplash();
     else _obSnap(obIdx, true);
   });
   wrap.addEventListener('mouseleave', e => { if (mDown) { mDown = false; _obSnap(obIdx, true); } });
@@ -104,11 +153,13 @@ export function dismissSplash() {
   if (!el) return;
   el.classList.add('fade-out');
   setTimeout(() => { el.style.display = 'none'; }, 500);
-  localStorage.setItem('gainz_seen_onboard', '1');
+  const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0') + 1;
+  localStorage.setItem('gainz_onboard_views', String(views));
 }
 
 export function maybeShowSplash() {
-  if (!localStorage.getItem('gainz_seen_onboard')) {
+  const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0');
+  if (views < OB_MAX_VIEWS) {
     showSplash();
   }
 }

@@ -414,17 +414,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 /* ── SCOREBOARD HOME ── */
 .sb-header{
   display:flex;justify-content:space-between;align-items:flex-start;
-  margin-bottom:16px;
+  margin-bottom:20px;padding-top:4px;
 }
-.sb-header-time{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.5px;}
-.sb-header-date{font-size:10px;color:var(--dim);letter-spacing:1px;text-align:right;margin-top:2px;}
+.sb-header-time{font-size:15px;font-weight:600;color:var(--muted);letter-spacing:0.5px;}
+.sb-header-date{font-size:11px;color:var(--dim);letter-spacing:1px;text-align:right;margin-top:2px;}
 
 /* Streak bar */
 .sb-streak{
   display:flex;align-items:center;gap:16px;
   background:linear-gradient(135deg,#1a0a0a,#0f0f12);
   border:1px solid rgba(255,80,60,0.2);border-radius:16px;
-  padding:14px 16px;margin-bottom:12px;
+  padding:14px 16px;margin-bottom:14px;
 }
 .sb-streak-num{
   font-family:'Bebas Neue',sans-serif;font-size:52px;
@@ -438,7 +438,23 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .sb-dot{width:22px;height:4px;border-radius:2px;background:#ff5038;box-shadow:0 0 6px rgba(255,80,60,0.5);}
 .sb-dot.off{background:var(--bg4);box-shadow:none;}
 
-/* Rec card */
+/* Hero card (merged streak + rec) */
+.sb-hero{
+  background:linear-gradient(150deg,#111215 0%,#0f0f12 100%);
+  border:1px solid #1e1e24;border-radius:22px;
+  padding:28px 24px;margin-bottom:16px;
+  position:relative;overflow:hidden;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:transform 0.1s;
+}
+.sb-hero:active{transform:scale(0.985);}
+.sb-hero::after{
+  content:'';position:absolute;top:-50px;right:-50px;
+  width:160px;height:160px;border-radius:50%;
+  background:var(--split-glow,rgba(232,213,160,0.08));
+  filter:blur(50px);pointer-events:none;
+}
+/* Rec card (legacy) */
 .sb-rec{
   background:linear-gradient(150deg,#111215 0%,#0f0f12 100%);
   border:1px solid #1e1e24;border-radius:20px;
@@ -501,11 +517,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   -webkit-tap-highlight-color:transparent;transition:all 0.15s;
 }
 .sb-pill:active{border-color:var(--accent);color:var(--accent);}
+#split-carousel{
+  overflow:hidden;
+  position:relative;
+}
 
 /* insight */
 .sb-insight{
   background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;
-  padding:13px 16px;margin-top:8px;
+  padding:16px 18px;margin:4px 0 20px;
   display:flex;align-items:center;gap:14px;
 }
 .sb-insight-val{
@@ -579,10 +599,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   padding:32px 28px;
 }
 #onboard-splash.fade-out{
-  animation:splashOut 0.5s ease-in forwards;
+  animation:splashOut 0.45s cubic-bezier(0.4,0,0.2,1) forwards;
 }
 @keyframes splashOut{
-  to{opacity:0;pointer-events:none;}
+  to{opacity:0;transform:scale(0.95);pointer-events:none;}
 }
 .ob-logo{
   font-family:'Bebas Neue',sans-serif;font-size:72px;letter-spacing:8px;
@@ -639,7 +659,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 }
 .ob-skip:hover{color:var(--muted);}
 @keyframes obFadeIn{from{opacity:0;}to{opacity:1;}}
-
 /* ── First Exercise Tooltip ── */
 .ex-coach-tip{
   position:absolute;z-index:80;

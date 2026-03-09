@@ -353,6 +353,10 @@ let autoSaveInterval=null;
 let histFilter='All';
 let histSearchTerm='';
 let workoutSummary=null;
+let homeCalOpen=false;
+let funStatIdx=-1; // -1 = use daily rotation, 0+ = manual cycle
+let homeCalMonth=new Date().getMonth();
+let homeCalYear=new Date().getFullYear();
 let expandedLastSession=new Set();
 let activeSSPrompt=null; // name of exercise user should do next in superset
 let ssPickerOpen=null;  // exercise name whose SS picker is open
@@ -685,17 +689,34 @@ function renderWorkoutSummary(){
   const volDiff=prev?w.totalVolume-prev.totalVolume:null;
   const volDiffEl=volDiff!==null?`<span style="font-size:12px;font-weight:600;color:${volDiff>0?'var(--green)':volDiff<0?'var(--red)':'var(--muted)'}">${volDiff>0?'+':''}${volDiff.toLocaleString()}lb vs last ${splitName(w.split)}</span>`:'';
   const prLine=prCount>0?`<div style="font-size:13px;color:var(--accent);margin-top:8px;font-weight:600;">🏆 ${prCount} new PR${prCount>1?'s':''} today</div>`:'';
-  const restRows=Object.values(REST_RECS).map(r=>`
-    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-      <span style="font-size:16px;flex-shrink:0;">${r.icon}</span>
-      <div style="flex:1;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;color:var(--text);font-weight:500;">${r.label}</span>
-          <span style="font-size:13px;color:var(--accent);font-weight:700;flex-shrink:0;margin-left:8px;">${r.rest}</span>
-        </div>
-        <div style="font-size:10px;color:var(--dim);margin-top:3px;">${r.why}</div>
-      </div>
-    </div>`).join('');
+  // Heaviest lift this session
+  const allSetsFlat=w.exercises.flatMap(e=>e.sets.filter(s=>!s.bw&&!s.warmup).map(s=>({name:e.name,weight:parseFloat(s.weight),reps:parseInt(s.reps)})));
+  const heaviest=allSetsFlat.length?allSetsFlat.reduce((a,b)=>a.weight>b.weight?a:b):null;
+
+  // Tonnage fun comparison
+  const COMPARISONS=[
+    {lbs:500,label:"a grand piano lid"},{lbs:2000,label:"a horse"},{lbs:4000,label:"a baby elephant"},
+    {lbs:8000,label:"a hippo"},{lbs:15000,label:"a school bus"},{lbs:33000,label:"a literal T-Rex"},
+    {lbs:80000,label:"a space shuttle"},{lbs:200000,label:"a blue whale"},
+  ];
+  let tonComp=null;
+  if(w.totalVolume>0){
+    for(const c of COMPARISONS) if(w.totalVolume>=c.lbs) tonComp=c;
+  }
+
+  // Motivational lines
+  const quotes=[
+    "The iron never lies.","Discipline is choosing between what you want now and what you want most.",
+    "You don't have to be extreme, just consistent.","The only bad workout is the one that didn't happen.",
+    "Strong people are harder to kill.","Trust the process.","Every rep counts.",
+    "You're building something most people quit on.","Progress, not perfection.",
+  ];
+  const quote=quotes[Math.floor(Math.random()*quotes.length)];
+
+  // Workout count milestone
+  const woCount=state.workouts.length;
+  const milestones=[500,250,200,150,100,75,50,25,10,5];
+  const milestone=milestones.find(m=>woCount===m);
   return `<div id="wo-summary" style="position:fixed;inset:0;background:var(--bg1);z-index:300;overflow-y:auto;animation:summaryIn 0.35s ease;">
     <div style="max-width:430px;margin:0 auto;padding:24px 16px 48px;">
       <div style="text-align:center;padding:28px 0 20px;">
@@ -724,12 +745,19 @@ function renderWorkoutSummary(){
         </div>
       </div>
       ${prLine}
-      <div style="margin-top:20px;">
-        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">RECOMMENDED REST</div>
-        <div style="font-size:10px;color:var(--dim);margin-bottom:12px;">Between sets · evidence-based</div>
-        <div style="background:var(--bg2);border-radius:12px;padding:0 14px;">${restRows}</div>
-      </div>
-      <button class="btn primary" onclick="dismissSummary()" style="width:100%;margin-top:24px;font-size:13px;">DONE ✓</button>
+      ${heaviest?`<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-top:16px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:6px;">Heaviest Lift</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent);line-height:1;">${heaviest.weight}lb x ${heaviest.reps}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">${heaviest.name}</div>
+      </div>`:''}
+      ${tonComp?`<div style="text-align:center;margin-top:14px;font-size:12px;color:var(--muted);">You moved more than ${tonComp.label} today.</div>`:''}
+      ${milestone?`<div style="background:rgba(232,213,160,0.08);border:1px solid rgba(232,213,160,0.2);border-radius:14px;padding:16px;margin-top:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:4px;">🎯</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);">WORKOUT #${milestone}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Milestone unlocked</div>
+      </div>`:''}
+      <div style="text-align:center;margin-top:20px;padding:14px;font-size:13px;color:var(--dim);font-style:italic;line-height:1.5;">"${quote}"</div>
+      <button class="btn primary" onclick="dismissSummary()" style="width:100%;margin-top:12px;font-size:13px;">DONE ✓</button>
     </div>
   </div>`;
 }
@@ -781,6 +809,7 @@ function abandonWorkout(){
 function goBack(){
   if(progressEx){ progressEx=null; render(); return; }
   if(historyDetail){ historyDetail=null; histEditMode=false; render(); return; }
+  if(screen==="prHistory"){ screen="settings"; render(); return; }
   if(screen==="settings"){ screen="start"; render(); return; }
   if(screen==="log" && activeWorkout){ abandonWorkout(); return; }
 }
@@ -788,7 +817,7 @@ function goBack(){
 function updateBackBtn(){
   const btn = document.getElementById("back-btn");
   if(!btn) return;
-  const show = progressEx || historyDetail || screen==="settings" || screen==="log";
+  const show = progressEx || historyDetail || screen==="settings" || screen==="log" || screen==="prHistory";
   btn.classList.toggle("visible", !!show);
 }
 
@@ -806,6 +835,7 @@ function render(){
   else if(screen==="me") c.innerHTML=renderMe();
   else if(screen==="settings") c.innerHTML=renderSettings();
   else if(screen==="programBuilder") c.innerHTML=renderProgramBuilder();
+  else if(screen==="prHistory") c.innerHTML=renderPRHistory();
   if(screen==="log"){
     window.scrollTo(0,scrollY);
     setTimeout(initSwipeCollapse,0);
@@ -824,6 +854,7 @@ function render(){
     const existing=document.getElementById("wo-summary");
     if(!existing){ const el=document.createElement("div"); el.innerHTML=renderWorkoutSummary(); document.body.appendChild(el.firstChild); }
   }
+  if(screen==="start") setTimeout(initCarouselFade,0);
   if(FEATURES.devMode){const t=performance.now()-renderStart;if(t>16)console.warn(`[GAINZ] render() took ${t.toFixed(1)}ms`);}
 }
 
@@ -836,7 +867,7 @@ function renderNav(){
     ["settings","⚙","MORE"]
   ];
   nav.innerHTML=tabs.map(([s,ic,lb])=>{
-    const isActive=screen===s;
+    const isActive=screen===s||(s==="settings"&&screen==="prHistory");
     const isLog=s==="log";
     const glowing=activeWorkout&&isLog;
     const logDisabled=isLog&&!activeWorkout;
@@ -884,6 +915,196 @@ function renderMuscleFatigue(){
     <div style="font-size:9px;color:var(--dim);margin-top:4px;">MEV = minimum effective volume · MRV = max recoverable volume</div>
   </div>`;
 }
+function cycleFunStat(){
+  funStatIdx++;
+  render();
+}
+
+function initCarouselFade(){
+  const wrap=document.getElementById('split-carousel');
+  const track=document.getElementById('split-carousel-track');
+  if(!wrap||!track||wrap._fadeInited) return;
+  wrap._fadeInited=true;
+
+  // Duplicate pills for infinite loop illusion
+  const original=track.innerHTML;
+  // Add gap between copies (match the 10px gap in the flex container)
+  track.innerHTML=original+original;
+  const halfWidth=track.scrollWidth/2;
+
+  let offset=0;
+
+  function applyPos(animate){
+    track.style.transition=animate?'transform 0.3s cubic-bezier(0.25,1,0.5,1)':'none';
+    track.style.transform='translateX('+offset+'px)';
+    updateFade();
+  }
+
+  // Wrap offset so it loops seamlessly
+  function wrapOffset(){
+    if(offset<-halfWidth) offset+=halfWidth;
+    else if(offset>0) offset-=halfWidth;
+  }
+
+  function updateFade(){
+    const pills=wrap.querySelectorAll('.split-pill');
+    const rect=wrap.getBoundingClientRect();
+    const center=rect.left+rect.width/2;
+    pills.forEach(p=>{
+      const pr=p.getBoundingClientRect();
+      const pillCenter=pr.left+pr.width/2;
+      const dist=Math.abs(pillCenter-center);
+      const maxDist=rect.width/2;
+      const opacity=Math.max(0.3,1-(dist/maxDist)*0.7);
+      const scale=Math.max(0.92,1-(dist/maxDist)*0.08);
+      p.style.opacity=opacity;
+      p.style.transform='scale('+scale+')';
+      p.style.transition='opacity 0.15s,transform 0.15s';
+    });
+  }
+
+  // Touch
+  let startX=0,startY=0,dragging=false,lockAxis=null,startOffset=0;
+  wrap.addEventListener('touchstart',e=>{
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    startOffset=offset; dragging=true; lockAxis=null;
+    track.style.transition='none';
+  },{passive:true});
+  wrap.addEventListener('touchmove',e=>{
+    if(!dragging) return;
+    const dx=e.touches[0].clientX-startX;
+    const dy=e.touches[0].clientY-startY;
+    if(!lockAxis) lockAxis=Math.abs(dx)>Math.abs(dy)?'x':'y';
+    if(lockAxis!=='x') return;
+    e.preventDefault();
+    offset=startOffset+dx;
+    wrapOffset();
+    track.style.transform='translateX('+offset+'px)';
+    updateFade();
+  },{passive:false});
+  wrap.addEventListener('touchend',()=>{
+    dragging=false;
+    wrapOffset();
+    applyPos(true);
+  },{passive:true});
+
+  // Mouse (trackpad / desktop)
+  let mDown=false,mStartX=0,mStartOffset=0;
+  wrap.addEventListener('mousedown',e=>{
+    mDown=true; mStartX=e.clientX; mStartOffset=offset;
+    track.style.transition='none'; wrap.style.cursor='grabbing';
+    e.preventDefault();
+  });
+  wrap.addEventListener('mousemove',e=>{
+    if(!mDown) return;
+    offset=mStartOffset+(e.clientX-mStartX);
+    wrapOffset();
+    track.style.transform='translateX('+offset+'px)';
+    updateFade();
+  });
+  wrap.addEventListener('mouseup',()=>{
+    if(!mDown) return;
+    mDown=false; wrap.style.cursor='grab';
+    wrapOffset();
+    applyPos(true);
+  });
+  wrap.addEventListener('mouseleave',()=>{
+    if(mDown){ mDown=false; wrap.style.cursor='grab'; wrapOffset(); applyPos(true); }
+  });
+  wrap.style.cursor='grab';
+
+  applyPos(false);
+}
+
+function toggleHomeCal(){
+  homeCalOpen=!homeCalOpen;
+  const el=document.getElementById('home-cal');
+  const arrow=document.getElementById('cal-arrow');
+  if(el){
+    if(homeCalOpen){
+      el.innerHTML=buildHomeCalInner();
+      el.style.maxHeight=el.scrollHeight+'px';
+      el.style.opacity='1';
+      el.style.marginTop='8px';
+      el.style.marginBottom='12px';
+      el.style.padding='16px';
+    } else {
+      el.style.maxHeight='0';
+      el.style.opacity='0';
+      el.style.marginTop='0';
+      el.style.marginBottom='0';
+      el.style.padding='0 16px';
+    }
+    if(arrow) arrow.textContent=homeCalOpen?'▲':'▼';
+  }
+}
+function homeCalNav(dir){
+  homeCalMonth+=dir;
+  if(homeCalMonth>11){homeCalMonth=0;homeCalYear++;}
+  if(homeCalMonth<0){homeCalMonth=11;homeCalYear--;}
+  const el=document.getElementById('home-cal');
+  if(el){ el.innerHTML=buildHomeCalInner(); el.style.maxHeight=el.scrollHeight+'px'; }
+}
+
+function buildHomeCalInner(){
+  const mn=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const firstDay=new Date(homeCalYear,homeCalMonth,1).getDay();
+  const daysInMonth=new Date(homeCalYear,homeCalMonth+1,0).getDate();
+  const todayDate=new Date(); todayDate.setHours(0,0,0,0);
+
+  const woDates={};
+  state.workouts.forEach(w=>{
+    const d=new Date(w.timestamp);
+    if(d.getMonth()===homeCalMonth&&d.getFullYear()===homeCalYear){
+      const key=d.getDate();
+      if(!woDates[key]) woDates[key]=[];
+      woDates[key].push(w);
+    }
+  });
+
+  const dayHeaders=['S','M','T','W','T','F','S'].map(d=>
+    `<div style="font-size:9px;color:var(--dim);text-align:center;padding:4px 0;letter-spacing:1px;">${d}</div>`
+  ).join('');
+
+  const blanks=[...Array(firstDay)].map(()=>'<div></div>').join('');
+  const days=[...Array(daysInMonth)].map((_,i)=>{
+    const day=i+1;
+    const wo=woDates[day];
+    const isToday=day===todayDate.getDate()&&homeCalMonth===todayDate.getMonth()&&homeCalYear===todayDate.getFullYear();
+    const hasWorkout=!!wo;
+    const splits=wo?wo.map(w=>w.split).join(', '):'';
+    const bg=hasWorkout?'rgba(232,213,160,0.15)':'transparent';
+    const border=isToday?'border:1px solid var(--accent);':'border:1px solid transparent;';
+    const color=hasWorkout?'var(--accent)':isToday?'var(--text)':'var(--dim)';
+    const dot=hasWorkout?`<div style="width:4px;height:4px;border-radius:50%;background:var(--accent);margin:1px auto 0;"></div>`:'';
+    return `<div style="text-align:center;padding:6px 2px;border-radius:8px;background:${bg};${border}cursor:default;" ${hasWorkout?`title="${splits}"`:''}>
+      <div style="font-size:12px;color:${color};font-weight:${hasWorkout?'600':'400'};">${day}</div>
+      ${dot}
+    </div>`;
+  }).join('');
+
+  const woCount=Object.keys(woDates).length;
+  const isCurrentMonth=homeCalMonth===new Date().getMonth()&&homeCalYear===new Date().getFullYear();
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <button onclick="homeCalNav(-1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;">‹</button>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text);letter-spacing:1px;">${mn[homeCalMonth]} ${homeCalYear}</div>
+      <button onclick="homeCalNav(1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;">${isCurrentMonth?'':'›'}</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+      ${dayHeaders}${blanks}${days}
+    </div>
+    <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted);">${woCount} workout${woCount!==1?'s':''} this month</div>`;
+}
+
+function buildHomeCal(){
+  const openStyle=homeCalOpen?'max-height:400px;opacity:1;padding:16px;margin-top:8px;margin-bottom:12px;':'max-height:0;opacity:0;padding:0 16px;margin-top:0;margin-bottom:0;';
+  return `<div id="home-cal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;overflow:hidden;transition:max-height 0.35s cubic-bezier(0.25,1,0.5,1),opacity 0.3s ease,padding 0.35s ease,margin 0.35s ease;${openStyle}">
+    ${homeCalOpen?buildHomeCalInner():''}
+  </div>`;
+}
+
 function renderHome(){
   const rec=getRec();
   const lw=state.workouts[0];
@@ -913,7 +1134,7 @@ function renderHome(){
   const COMPARISONS=[
     {lbs:4000,label:"a baby elephant"},
     {lbs:8000,label:"a hippo"},
-    {lbs:33000,label:"a T-Rex"},
+    {lbs:33000,label:"a literal T-Rex"},
     {lbs:40000,label:"a school bus"},
     {lbs:80000,label:"a space shuttle"},
     {lbs:900000,label:"the Statue of Liberty"},
@@ -1044,13 +1265,16 @@ function renderHome(){
   funStats.forEach((s,i)=>{ mixed.push(s); if((i+1)%3===0) mixed.push(emptyTips[ti++%emptyTips.length]); });
   if(!mixed.length) mixed.push(...emptyTips);
 
-  // No data: random each open. Has data: daily rotation through mixed pool.
+  // No data: random each open. Has data: daily rotation or manual cycle.
+  const pool=mixed.length?mixed:emptyTips;
   let funStat;
-  if(!state.workouts.length){
+  if(funStatIdx>=0){
+    funStat=pool[funStatIdx%pool.length];
+  } else if(!state.workouts.length){
     funStat=emptyTips[Math.floor(Math.random()*emptyTips.length)];
   } else {
     const dayOfYear=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/(1000*60*60*24));
-    funStat=mixed[dayOfYear%mixed.length];
+    funStat=pool[dayOfYear%pool.length];
   }
 
   // Split glow colors for scoreboard
@@ -1091,6 +1315,9 @@ function renderHome(){
   // Best 1RM stat — for the second stat box
   const statColor2=best1RM?'#52c87a':'var(--accent)';
 
+  // One-liner fun stat
+  const funLine=funStat.sub?`${funStat.val} ${funStat.label.toLowerCase()} — ${funStat.sub.toLowerCase()}`:`${funStat.val} ${funStat.label.toLowerCase()}`;
+
   return `
     ${banner}
     <div class="sb-header">
@@ -1098,75 +1325,84 @@ function renderHome(){
         <div class="sb-header-time">${greetWord}.</div>
       </div>
       <div style="text-align:right;">
-        <div class="sb-header-date">${today()}</div>
+        <div class="sb-header-date" onclick="toggleHomeCal()" style="cursor:pointer;">${today()} ${homeCalOpen?'▲':'▼'}</div>
       </div>
     </div>
 
-    <div class="sb-streak">
-      <div class="sb-streak-num">${streak||0}</div>
-      <div class="sb-streak-right">
-        <div class="sb-streak-label">Day Streak</div>
-        <div class="sb-streak-sub">${streak>=3?'Keep it going':'Build the habit'}</div>
-        <div class="sb-streak-dots">${streakDots}</div>
-      </div>
-    </div>
+    ${buildHomeCal()}
 
-    <div class="sb-insight">
-      <div class="sb-insight-val">${funStat.val}</div>
-      <div>
-        <div class="sb-insight-label">${funStat.label}</div>
-        ${funStat.sub?`<div class="sb-insight-sub">${funStat.sub}</div>`:''}
+    <div class="sb-hero" style="--split-glow:${splitGlow};" onclick="startWorkout('${rec}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+        <div>
+          <div style="font-size:8px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;opacity:0.7;margin-bottom:4px;">Recommended today</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:56px;letter-spacing:2px;line-height:1;color:var(--text);">${splitName(rec).toUpperCase()}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:0.5px;">Day</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:#ff5038;line-height:1;">${streak||0}</div>
+          <div style="font-size:8px;letter-spacing:2px;color:#ff5038;text-transform:uppercase;margin-top:3px;">Streak</div>
+          <div style="display:flex;gap:3px;margin-top:8px;justify-content:flex-end;">${streakDots}</div>
+        </div>
       </div>
-    </div>
-
-    <div class="sb-rec" style="--split-glow:${splitGlow};" onclick="startWorkout('${rec}')">
-      <div class="sb-rec-label">&#9650; Recommended today</div>
-      <div class="sb-rec-split">${splitName(rec).toUpperCase()}</div>
-      <div class="sb-rec-day">Day</div>
-      <div class="sb-rec-last">Last: ${lastLine}</div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:14px;">${lastLine}</div>
       ${(()=>{const est=estimateDuration(rec);return est?`<div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;">⏱ ~${est} min avg</div>`:''})()}
       <button class="sb-rec-cta" onclick="event.stopPropagation();startWorkout('${rec}')">
         START ${splitName(rec).toUpperCase()} DAY &nbsp;&#8594;
       </button>
     </div>
 
-    <div class="sb-stats">
-      <div class="sb-stat">
-        <div class="sb-stat-num">${thisWeek}</div>
-        <div class="sb-stat-lbl">This week</div>
-        <div class="sb-stat-sub">${daysRest==='Today'?'Last session today':`Last session ${daysRest} ago`}</div>
+    <div class="sb-insight" onclick="cycleFunStat()" style="cursor:pointer;-webkit-tap-highlight-color:transparent;">
+      <div class="sb-insight-val">${funStat.val}</div>
+      <div style="flex:1;">
+        <div class="sb-insight-label">${funStat.label}</div>
+        ${funStat.sub?`<div class="sb-insight-sub">${funStat.sub}</div>`:''}
       </div>
-      <div class="sb-stat">
-        <div class="sb-stat-num" style="color:${statColor2};">${best1RM?best1RM.val+'lb':'—'}</div>
-        <div class="sb-stat-lbl">Est. 1RM</div>
-        <div class="sb-stat-sub">${best1RM?best1RM.ex:'No data yet'}</div>
-      </div>
+      <div style="font-size:10px;color:var(--dim);flex-shrink:0;">tap ›</div>
     </div>
 
-    <div style="margin-bottom:12px;">
-      <div style="font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Your split sequence</div>
-      <div style="display:flex;align-items:center;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;">
-        ${(()=>{
-          const splits=getActiveSplits();
-          const recIdx=splits.indexOf(rec);
-          return splits.map((s,i)=>{
-            const isToday=s===rec;
-            const rel=i-recIdx;
-            return `<div onclick="startWorkout('${s}')" style="flex-shrink:0;text-align:center;opacity:${Math.abs(rel)<=1?1:0.35};cursor:pointer;">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:${isToday?'20':'15'}px;
-                color:${isToday?'var(--accent)':'var(--muted)'};
-                background:${isToday?'rgba(232,213,160,0.08)':'var(--bg2)'};
-                border:1px solid ${isToday?'rgba(232,213,160,0.2)':'var(--border2)'};
-                border-radius:10px;padding:10px 14px;min-width:62px;line-height:1.2;transition:opacity .12s;">
-                ${splitName(s)}
-              </div>
-              <div style="font-size:7px;letter-spacing:1px;margin-top:4px;color:${isToday?'var(--accent)':rel===1?'var(--muted)':'var(--dim)'};"
-              >${isToday?'TODAY':rel===1?'NEXT ›':rel===-1?'PREV':''}</div>
-            </div>${i<splits.length-1?`<div style="color:#1e1e24;font-size:14px;flex-shrink:0;">›</div>`:''}`;          }).join('');        })()}
+    <div id="split-carousel" style="overflow:hidden;padding:4px 0 8px;margin-bottom:8px;">
+      <div id="split-carousel-track" style="display:flex;gap:10px;width:max-content;">
+      ${(()=>{
+        const splits=getActiveSplits();
+        const EXTRAS=[
+          {key:'Cycling',label:'Cycle',icon:'🚴',color:'#ff6b35'},
+          {key:'Yoga',label:'Yoga',icon:'🧘',color:'#7ecba1'},
+          {key:'HIIT',label:'HIIT',icon:'⚡',color:'#ff4757'},
+          {key:'Swimming',label:'Swim',icon:'🏊',color:'#45aaf2'},
+          {key:'Running',label:'Run',icon:'🏃',color:'#26de81'},
+          {key:'Boxing',label:'Boxing',icon:'🥊',color:'#fc5c65'},
+          {key:'Pilates',label:'Pilates',icon:'🤸',color:'#a55eea'},
+          {key:'Stretching',label:'Stretch',icon:'🙆',color:'#20bf6b'},
+        ];
+        const recIdx=splits.indexOf(rec);
+        const programPills=splits.map((s,i)=>{
+          const isToday=s===rec;
+          return `<div class="split-pill" onclick="startWorkout('${s}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:${isToday?'20':'15'}px;
+              color:${isToday?'var(--accent)':'var(--muted)'};
+              background:${isToday?'rgba(232,213,160,0.08)':'var(--bg2)'};
+              border:1px solid ${isToday?'rgba(232,213,160,0.2)':'var(--border2)'};
+              border-radius:12px;padding:14px 10px;line-height:1.2;">
+              ${splitName(s)}
+            </div>
+            <div style="font-size:7px;letter-spacing:1px;margin-top:5px;color:${isToday?'var(--accent)':'var(--dim)'};"
+            >${isToday?'TODAY':''}</div>
+          </div>`;
+        });
+        const divider=`<div style="width:1px;flex-shrink:0;background:var(--border2);margin:8px 2px;border-radius:1px;"></div>`;
+        const extraPills=EXTRAS.map(e=>
+          `<div class="split-pill" onclick="startWorkout('${e.key}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
+            <div style="font-size:18px;background:${e.color}11;border:1px solid ${e.color}33;border-radius:12px;padding:10px 10px 6px;line-height:1;">
+              ${e.icon}
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:12px;color:${e.color};margin-top:4px;letter-spacing:1px;">${e.label}</div>
+            </div>
+            <div style="font-size:7px;margin-top:5px;">&nbsp;</div>
+          </div>`
+        );
+        return programPills.join('')+divider+extraPills.join('');
+      })()}
       </div>
     </div>
-
-    ${renderMuscleFatigue()}
 `;
 }
 
@@ -1669,6 +1905,15 @@ function renderSettings(){
       </button>
     </div>
 
+    ${sectionHead('Records')}
+    <button onclick="screen='prHistory';render();" style="width:100%;padding:14px 18px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;color:var(--muted);font-family:inherit;font-size:12px;letter-spacing:1px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;">
+      <span style="font-size:18px;">🏆</span>
+      <div>
+        <div style="color:var(--text);font-size:12px;letter-spacing:1px;margin-bottom:2px;">PR HISTORY</div>
+        <div style="color:var(--dim);font-size:10px;font-weight:400;letter-spacing:0;">All your personal records over time</div>
+      </div>
+    </button>
+
     ${sectionHead('Data')}
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <button onclick="exportData()" style="flex:1;padding:13px;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;color:var(--muted);font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;">↑ EXPORT</button>
@@ -1679,6 +1924,96 @@ function renderSettings(){
   `;
 }
 
+
+function renderPRHistory(){
+  // Collect all PRs across all workouts
+  const prs=[];
+  state.workouts.forEach(w=>{
+    w.exercises.forEach(e=>{
+      e.sets.forEach(s=>{
+        if(s.pr&&!s.bw&&!s.warmup){
+          prs.push({name:e.name,weight:parseFloat(s.weight),reps:parseInt(s.reps),date:w.date,timestamp:w.timestamp,split:w.split});
+        }
+      });
+    });
+  });
+
+  if(!prs.length) return `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:4px;">PR History</div>
+    <div style="color:var(--dim);font-size:13px;padding:40px 0;text-align:center;">No PRs yet. Go set some records.</div>`;
+
+  // Group by exercise, keep best per exercise + full timeline
+  const byExercise={};
+  prs.forEach(p=>{
+    if(!byExercise[p.name]) byExercise[p.name]=[];
+    byExercise[p.name].push(p);
+  });
+
+  // Sort exercises by most recent PR
+  const exerciseNames=Object.keys(byExercise).sort((a,b)=>{
+    const latestA=Math.max(...byExercise[a].map(p=>p.timestamp));
+    const latestB=Math.max(...byExercise[b].map(p=>p.timestamp));
+    return latestB-latestA;
+  });
+
+  // Summary stats
+  const totalPRs=prs.length;
+  const uniqueExercises=exerciseNames.length;
+  const latestPR=prs.reduce((a,b)=>a.timestamp>b.timestamp?a:b);
+
+  const cards=exerciseNames.map(name=>{
+    const exPrs=byExercise[name].sort((a,b)=>b.timestamp-a.timestamp);
+    const best=exPrs.reduce((a,b)=>a.weight>b.weight?a:b);
+    const bestE1RM=exPrs.reduce((a,b)=>est1RM(a.weight,a.reps)>est1RM(b.weight,b.reps)?a:b);
+    const e1rm=Math.round(est1RM(bestE1RM.weight,bestE1RM.reps));
+
+    const timeline=exPrs.slice(0,6).map((p,i)=>{
+      const isBest=p.weight===best.weight;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i<Math.min(exPrs.length,6)-1?'border-bottom:1px solid var(--border);':''}">
+        <span style="font-size:11px;color:var(--dim);">${p.date}</span>
+        <span style="font-size:12px;color:${isBest?'var(--accent)':'var(--muted)'};font-weight:${isBest?'700':'400'};">${p.weight}lb x ${p.reps}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);">${name}</div>
+          <div style="font-size:10px;color:var(--dim);margin-top:2px;">${exPrs.length} PR${exPrs.length>1?'s':''}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);line-height:1;">${best.weight}lb</div>
+          <div style="font-size:9px;color:var(--dim);margin-top:2px;">Est 1RM: ${e1rm}lb</div>
+        </div>
+      </div>
+      ${timeline}
+      ${exPrs.length>6?`<div style="font-size:10px;color:var(--dim);text-align:center;margin-top:6px;">+${exPrs.length-6} more</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:4px;">PR History</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:18px;">Every personal record you've set</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;">
+      <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent);line-height:1;">${totalPRs}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Total PRs</div>
+      </div>
+      <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent);line-height:1;">${uniqueExercises}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Exercises</div>
+      </div>
+      <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);line-height:1;">${latestPR.weight}lb</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Latest</div>
+        <div style="font-size:8px;color:var(--dim);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${latestPR.name}</div>
+      </div>
+    </div>
+
+    ${cards}
+  `;
+}
 
 function renderLog(){
   if(!activeWorkout) return "";
@@ -2454,7 +2789,7 @@ test("tonnage comparison picks correct tier",()=>{
   const COMPARISONS=[
     {lbs:4000,label:"a baby elephant"},
     {lbs:8000,label:"a hippo"},
-    {lbs:33000,label:"a T-Rex"},
+    {lbs:33000,label:"a literal T-Rex"},
   ];
   const tonnage=10000;
   let comp=COMPARISONS[0];
@@ -2563,6 +2898,12 @@ if("serviceWorker" in navigator){
 
 
 
+// ?reset in URL clears onboarding flags every load (just refresh to re-test)
+if(location.search.includes('reset')){
+  localStorage.removeItem('gainz_seen_onboard');
+  localStorage.removeItem('gainz_onboard_views');
+  localStorage.removeItem('gainz_seen_coach');
+}
 checkOnline();
 runTests();
 render();
