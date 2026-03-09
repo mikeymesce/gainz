@@ -1,4 +1,10 @@
-# GAINZ PWA — Project Brief
+# DEPRECATED — Do not use
+> This file is outdated. See `CLAUDE.md` and `docs/` for current documentation.
+> Keeping temporarily for reference. Safe to delete.
+
+---
+
+# GAINZ PWA — Project Brief (OLD)
 > Paste this entire document into the Claude Project instructions field.
 
 ---
