@@ -717,7 +717,7 @@ function renderWorkoutSummary(){
   const woCount=state.workouts.length;
   const milestones=[500,250,200,150,100,75,50,25,10,5];
   const milestone=milestones.find(m=>woCount===m);
-  return `<div id="wo-summary" style="position:fixed;inset:0;background:var(--bg1);z-index:300;overflow-y:auto;animation:summaryIn 0.35s ease;">
+  return `<div id="wo-summary" style="position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto;animation:summaryIn 0.35s ease;">
     <div style="max-width:430px;margin:0 auto;padding:24px 16px 48px;">
       <div style="text-align:center;padding:28px 0 20px;">
         <div style="font-size:36px;margin-bottom:8px;">🎉</div>
