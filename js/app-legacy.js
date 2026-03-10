@@ -1460,8 +1460,8 @@ function renderHome(){
   if(bestDay) funStats.push({val:dayNames[bestDay.day],label:"Your strongest day",sub:"By avg volume"});
 
   const emptyTips=[
-    {val:"10 sets",label:"Per muscle per week triggers growth. That's it.",sub:"Schoenfeld et al. 2017"},
     {val:"66 days",label:"That's how long it takes a gym habit to stick",sub:"Lally et al. 2010 · You just need to start"},
+    {val:"10 sets",label:"Per muscle per week triggers growth. That's it.",sub:"Schoenfeld et al. 2017"},
     {val:"225 lb",label:"Avg intermediate bench press",sub:"Log yours and track the climb"},
     {val:"315 lb",label:"Avg intermediate squat",sub:"The king of all lifts"},
     {val:"1,000 lb",label:"The 1,000 lb club",sub:"Squat + bench + deadlift combined"},
@@ -1471,8 +1471,8 @@ function renderHome(){
     {val:"7–9 hrs",label:"Sleep is the #1 legal steroid",sub:"Muscle repairs while you rest"},
     {val:"+2.5%",label:"Add weight each week = linear gains",sub:"Progressive overload is king"},
     {val:"~45 min",label:"Avg effective workout length",sub:"Quality over quantity"},
-    {val:"12 wks",label:"Noticeable strength gains in 12 weeks",sub:"Consistency is the cheat code"},
     {val:"💪",label:"You're already ahead of most people",sub:"Just by being here"},
+    {val:"12 wks",label:"Noticeable strength gains in 12 weeks",sub:"Consistency is the cheat code"},
   ];
   // Mix tips into real stats pool (every 3rd slot is a tip)
   const mixed=[];

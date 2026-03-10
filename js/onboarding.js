@@ -110,7 +110,7 @@ function showCinematic() {
   // Fade out the text content first, then crossfade to onboarding
   cinTimer = setTimeout(() => {
     container.classList.add('cin-content-fade');
-    setTimeout(() => dismissCinematic(), 1000);
+    setTimeout(() => dismissCinematic(), 200);
   }, t);
 }
 
@@ -127,7 +127,7 @@ export function dismissCinematic() {
 
   // Delay GAINZ appearing so it emerges as cinematic dissolves
   const ob = document.getElementById('onboard-splash');
-  setTimeout(() => { if (ob) ob.style.opacity = '1'; }, 800);
+  requestAnimationFrame(() => { if (ob) ob.style.opacity = '1'; });
 
   setTimeout(() => { el.style.display = 'none'; }, 1500);
 }
