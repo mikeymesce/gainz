@@ -9,9 +9,6 @@ export function setProgChartMode(mode){
   render();
 }
 
-export function getProgChartMode(){
-  return progChartMode;
-}
 
 export function buildProgChart(sessions, exName){
   if(!sessions || sessions.length < 2) return '';
@@ -103,6 +100,3 @@ export function buildProgChart(sessions, exName){
 
   return toggleHtml + `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:12px 8px 4px;">${svgHtml}</div>`;
 }
-
-// legacy stub
-export function buildSparkline(bests){ return ''; }

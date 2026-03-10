@@ -521,23 +521,7 @@ function sameAsLast(n){
   if(wi&&!s.bw) wi.value=s.weight;
   if(ri) ri.value=s.reps;
 }
-function copyLastSet(n){
-  const ex=activeWorkout?.exercises.find(e=>e.name===n);
-  if(!ex||!ex.sets.length) return;
-  const prev=ex.sets[ex.sets.length-1];
-  const isWarmup=!!ex.warmupNext;
-  const wasPR=!prev.bw&&!isWarmup&&isPR(n,prev.weight,false,activeWorkout);
-  const newSet={...prev,time:Date.now(),pr:wasPR||undefined,warmup:isWarmup||undefined};
-  if(ex) ex.warmupNext=false;
-  ex.sets.push(newSet);
-  if(wasPR){ confetti(); haptic('pr'); showToast('New PR! '+prev.weight+'lb'); }
-  else haptic('light');
-  setHistory.push({exerciseName:n,setIndex:ex.sets.length-1});
-  if(!prev.bw) startTimer(n);
-  try{ localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout)); }catch(e){}
-  logDebug('copyLastSet: '+n+' '+JSON.stringify(newSet));
-  render();
-}
+
 function deleteSet(exName,idx){
   const ex=activeWorkout?.exercises.find(e=>e.name===exName);
   if(ex){ ex.sets.splice(idx,1); render(); }
@@ -1127,10 +1111,11 @@ function initCarouselFade(){
 
 // ── Home Tour — instructional bubbles on first visit ──
 const HOME_TOUR_STEPS=[
-  {sel:'.sb-hero',msg:'Tap here to start today\'s recommended workout',pos:'below'},
-  {sel:'.sb-insight',msg:'Tap for a new tip or stat based on your data',pos:'below'},
-  {sel:'#split-carousel',msg:'Swipe to browse different workout types',pos:'below'},
-  {sel:'.sb-header-date',msg:'Tap the date to see your workout calendar',pos:'below'},
+  {sel:'.sb-hero',msg:'Your Daily Workout',desc:'GAINZ picks the best split for today based on your history. Tap to jump right in.',pos:'below'},
+  {sel:'.sb-insight',msg:'Tips & Stats',desc:'Tap to cycle through science-backed tips and your personal training stats. The more you train, the better these get.',pos:'below'},
+  {sel:'#split-carousel',msg:'Browse Workouts',desc:'Swipe through your program splits and other workout types. Tap any to start.',pos:'below'},
+  {sel:'.sb-header-date',msg:'Workout Calendar',desc:'Tap the date to see which days you trained this month at a glance.',pos:'below'},
+  {sel:'#nav',msg:'Explore the Tabs',desc:'Log workouts, review history, import old data from photos or text, and track your stats. Dive in.',pos:'above'},
 ];
 let homeTourStep=-1;
 let homeTourEl=null;
@@ -1150,7 +1135,15 @@ function showHomeTourStep(){
     return;
   }
   const step=HOME_TOUR_STEPS[homeTourStep];
-  const target=document.querySelector(step.sel);
+
+  // For nav tab steps, find the actual nav button
+  let target;
+  if(step.navTab!==undefined){
+    const navBtns=document.querySelectorAll('.nav-btn');
+    target=navBtns[step.navTab];
+  } else {
+    target=document.querySelector(step.sel);
+  }
   if(!target){ homeTourStep++; showHomeTourStep(); return; }
 
   const content=document.querySelector('.content');
@@ -1168,26 +1161,42 @@ function showHomeTourStep(){
   target.style.zIndex='91';
   target._tourHighlight=true;
 
+  // Step counter
+  const stepNum=homeTourStep+1;
+  const totalSteps=HOME_TOUR_STEPS.length;
+
   // Create tooltip
   const tip=document.createElement('div');
   tip.className='home-tour-tip';
-  tip.innerHTML=step.msg+'<div class="home-tour-hint">'+(homeTourStep<HOME_TOUR_STEPS.length-1?'tap anywhere to continue':'tap to finish')+'</div>';
+  // Progress dots instead of numbers
+  const dots=[...Array(HOME_TOUR_STEPS.length)].map((_,i)=>
+    `<span style="display:inline-block;width:${i===homeTourStep?'16px':'5px'};height:5px;border-radius:3px;background:${i===homeTourStep?'#1a1510':'rgba(26,21,16,0.25)'};transition:all 0.2s;"></span>`
+  ).join('');
+  tip.innerHTML=`
+    <div class="home-tour-title">${step.msg}</div>
+    <div class="home-tour-desc">${step.desc||''}</div>
+    <div style="display:flex;gap:4px;justify-content:center;margin-top:8px;">${dots}</div>
+  `;
 
   const tRect=target.getBoundingClientRect();
-  const contentRect=content.getBoundingClientRect();
 
-  if(step.pos==='below'){
-    tip.style.top=(tRect.bottom-contentRect.top+content.scrollTop+10)+'px';
-    tip.classList.add('arrow-up');
-  } else {
-    tip.style.top=(tRect.top-contentRect.top+content.scrollTop-60)+'px';
+  if(step.pos==='above'){
+    // Nav tabs — position tooltip fixed above the target
+    tip.style.position='fixed';
+    tip.style.bottom=(window.innerHeight-tRect.top+10)+'px';
+    tip.style.left='50%';
+    tip.style.transform='translateX(-50%)';
     tip.classList.add('arrow-down');
+    document.body.appendChild(tip);
+  } else {
+    const contentRect=content.getBoundingClientRect();
+    tip.style.top=(tRect.bottom-contentRect.top+content.scrollTop+10)+'px';
+    tip.style.left='50%';
+    tip.style.transform='translateX(-50%)';
+    tip.classList.add('arrow-up');
+    content.style.position='relative';
+    content.appendChild(tip);
   }
-  tip.style.left='50%';
-  tip.style.transform='translateX(-50%)';
-
-  content.style.position='relative';
-  content.appendChild(tip);
   homeTourEl=tip;
 }
 
@@ -1444,11 +1453,11 @@ function renderHome(){
   if(bestDay) funStats.push({val:dayNames[bestDay.day],label:"Your strongest day",sub:"By avg volume"});
 
   const emptyTips=[
+    {val:"10 sets",label:"Per muscle per week triggers growth. That's it.",sub:"Schoenfeld et al. 2017"},
     {val:"66 days",label:"That's how long it takes a gym habit to stick",sub:"Lally et al. 2010 · You just need to start"},
     {val:"225 lb",label:"Avg intermediate bench press",sub:"Log yours and track the climb"},
     {val:"315 lb",label:"Avg intermediate squat",sub:"The king of all lifts"},
     {val:"1,000 lb",label:"The 1,000 lb club",sub:"Squat + bench + deadlift combined"},
-    {val:"10 sets",label:"Per muscle per week triggers growth",sub:"Schoenfeld et al. 2017"},
     {val:"48 hrs",label:"Your muscles grow for 2 days after lifting",sub:"Every session keeps building"},
     {val:"1 g/lb",label:"Daily protein target for max gains",sub:"The one rule that works"},
     {val:"3× /wk",label:"Hitting each muscle 2–3x is optimal",sub:"Frequency > volume"},
@@ -1461,20 +1470,18 @@ function renderHome(){
   // Mix tips into real stats pool (every 3rd slot is a tip)
   const mixed=[];
   let ti=0;
-  funStats.forEach((s,i)=>{ mixed.push(s); if((i+1)%3===0) mixed.push(emptyTips[ti++%emptyTips.length]); });
-  if(!mixed.length) mixed.push(...emptyTips);
+  // Build pool: habit tip first, then real stats mixed with tips
+  const pool=[emptyTips[0]]; // "66 days" is always first
+  funStats.forEach((s,i)=>{ pool.push(s); if((i+1)%3===0) pool.push(emptyTips[(ti++)%emptyTips.length]); });
+  // Append remaining tips that weren't mixed in
+  emptyTips.forEach((t,i)=>{ if(i>0&&!pool.includes(t)) pool.push(t); });
 
-  // No data: random each open. Has data: daily rotation or manual cycle.
-  const pool=mixed.length?mixed:emptyTips;
   _funStatPool=pool; // cache for cycleFunStat
   let funStat;
   if(funStatIdx>=0){
     funStat=pool[funStatIdx%pool.length];
-  } else if(!state.workouts.length){
-    funStat=emptyTips[0]; // always show "66 days" first for new users
   } else {
-    const dayOfYear=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/(1000*60*60*24));
-    funStat=pool[dayOfYear%pool.length];
+    funStat=pool[0]; // always show "66 days" on first load
   }
 
   // Split glow colors for scoreboard
@@ -3070,12 +3077,6 @@ window.onerror=function(msg,src,line){logDebug(`❌ ${msg} (line ${line})`);};
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-// ── Service Worker (blob URL — no separate file needed) ──
-if("serviceWorker" in navigator){
-  const swCode=`const CACHE='gainz-v1';const ASSETS=['/'];self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
-  const blob=new Blob([swCode],{type:"application/javascript"});
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-}
 
 // ── Crash Recovery Check ──
 (function checkCrashRecovery(){
@@ -3105,4 +3106,7 @@ if(location.search.includes('reset')){
 checkOnline();
 runTests();
 render();
-maybeShowSplash();
+// Cinematic shows first, then chains into onboarding carousel
+if (!maybeShowCinematic()) {
+  maybeShowSplash();
+}

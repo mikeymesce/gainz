@@ -11,40 +11,19 @@
 <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
+<div id="ambient-particles"></div>
+<div id="cinematic-splash" style="display:none;">
+  <div class="cin-container" id="cin-container"></div>
+  <div class="cin-skip" onclick="dismissCinematic()">SKIP</div>
+</div>
 <div id="onboard-splash" style="display:none;">
   <div class="ob-logo">GAINZ</div>
   <div class="ob-tagline">Track. Progress. Dominate.</div>
   <div class="ob-cards-wrap" id="ob-cards-wrap">
-    <div class="ob-cards-track" id="ob-cards-track">
-      <div class="ob-card">
-        <div class="ob-card-icon">⏱</div>
-        <div class="ob-card-title">Rest Timer</div>
-        <div class="ob-card-body">Auto-starts after every set. <strong>Tap to skip.</strong> Long-press to adjust rest time per exercise.</div>
-      </div>
-      <div class="ob-card">
-        <div class="ob-card-icon">📈</div>
-        <div class="ob-card-title">Progressive Overload</div>
-        <div class="ob-card-body">GAINZ suggests your next weight based on your last session. <strong>It does the math.</strong></div>
-      </div>
-      <div class="ob-card">
-        <div class="ob-card-icon">⚡</div>
-        <div class="ob-card-title">Supersets</div>
-        <div class="ob-card-body">Pair any two exercises. GAINZ alternates between them and <strong>only rests when both are done.</strong></div>
-      </div>
-      <div class="ob-card">
-        <div class="ob-card-icon">📚</div>
-        <div class="ob-card-title">Research Tips</div>
-        <div class="ob-card-body">Tap 📚 on any exercise for <strong>science-backed tips</strong> on rest, reps, form, and common mistakes.</div>
-      </div>
-    </div>
+    <div class="ob-cards-track" id="ob-cards-track"></div>
   </div>
-  <div class="ob-dots">
-    <div class="ob-dot active" id="ob-dot-0"></div>
-    <div class="ob-dot" id="ob-dot-1"></div>
-    <div class="ob-dot" id="ob-dot-2"></div>
-    <div class="ob-dot" id="ob-dot-3"></div>
-  </div>
-  <div style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;opacity:0;animation:obFadeIn 0.4s ease 1.6s forwards;">SWIPE TO EXPLORE</div>
+  <div class="ob-dots" id="ob-dots"></div>
+  <div style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;opacity:0;animation:obSlideIn 0.8s ease 4.2s forwards;">SWIPE TO EXPLORE</div>
   <button class="ob-skip" onclick="dismissSplash()">SKIP →</button>
 </div>
 <div id="app">

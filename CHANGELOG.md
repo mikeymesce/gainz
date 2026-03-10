@@ -4,7 +4,25 @@
 
 ---
 
-## Latest — March 9 (Session 4)
+## Latest — March 10 (Session 5)
+
+### Cinematic Intro Polish
+- **"Literally." enters separately** — split from headline into its own `.cin-punch` element with scale-in animation (italic, 1.15 scale)
+- **Slower dramatic entrance** — 2s opacity, 3s scale on "Literally." for weight
+- **Gold headline text** — `.cin-headline` and `.cin-punch` use `var(--accent)` instead of white, font-weight bumped to 500
+- **Crossfade transition** — cinematic text fades out first (`.cin-content-fade`), then black bg dissolves into GAINZ onboarding
+- **More legible citation** — bumped `.cin-cite` opacity from 0.2 to 0.45
+- **Rotating study citations** — first cinematic stat cycles through 6 citations (Pereira 2007 → Zhao 2025), one per app open
+- **Slower onboarding animations** — logo at 0.3s (2.2s duration), tagline 2.6s, cards 3.6s, dots 4s, skip 4.4s
+- **Pinned card order** — Personal Coach → Science-Backed → Wild Stats → random 4th from remaining pool
+
+### Bug Fixes
+- **Fixed blank screen** — cinematic overlay stayed visible (display:flex) when `gainz_onboard_views >= 10`. Now explicitly hidden.
+- **Fixed silent JS crash** — duplicate `const cite` in `showCinematic()` killed the module. Renamed to `citeEl`.
+
+---
+
+## March 9 (Session 4)
 
 ### Home Screen Overhaul
 - **Muscle volume tracker** on home screen — weekly sets per muscle group vs MRV, color-coded bars (under MEV / good / near MRV / exceeded). Source: Israetel et al.

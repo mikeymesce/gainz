@@ -55,11 +55,11 @@ export function importStartParse(){
 
   // ── Inner helpers (date, sets, split detection) ──────────────────────
   function parseDate(str){
-    const m=str.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+    const m=str.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
     if(!m) return null;
     let mo=parseInt(m[1])-1, dy=parseInt(m[2]);
     let yr=m[3]?parseInt(m[3]):null;
-    if(yr!==null){ if(yr<100) yr+=2000; } else { yr=2025; }
+    if(yr!==null){ if(yr<100) yr+=2000; } else { yr=new Date().getFullYear(); }
     const d=new Date(yr,mo,dy,12,0,0);
     if(isNaN(d)) return null;
     return { date:d.toDateString(), timestamp:d.getTime() };
@@ -266,7 +266,7 @@ export function importStartParse(){
   }
 
   // ── Line classification ───────────────────────────────────────────────
-  const DATE_RE=/^\s*(?:\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)(?:\s|$)/;
+  const DATE_RE=/^\s*(?:\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)(?:\s|$)/;
   const SET_RE=/\d+\s*x\s*\d+|\d+\s*,\s*\d+/i;
   const IGNORE_RE=/^https?:|^http:|^www\.|^\s*[-*•]\s*\[|^\s*$|^my |^everyone |^same |^got sick|^sauna|^parents|^felt |^drank|^today|^been too long|^si$|^FORMFORMFORM/i;
 
@@ -300,7 +300,7 @@ export function importStartParse(){
 
     // Date line?
     if(DATE_RE.test(trimmed)){
-      const datePart=trimmed.match(/(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/);
+      const datePart=trimmed.match(/(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/);
       const parsed=datePart?parseDate(datePart[1]):null;
       if(parsed){ saveWorkout(); curWorkout={...parsed,split:'Push',exercises:[],notes:''}; continue; }
     }
@@ -309,6 +309,30 @@ export function importStartParse(){
 
     // Set line?
     if(SET_RE.test(trimmed)){
+      // Check if this is a combined "exercise name + sets" line (e.g. "squat 225x5x3")
+      const setStart=trimmed.search(/\d+\.?\d*\s*x\s*\d+/i);
+      if(setStart>0){
+        const namePart=trimmed.slice(0,setStart).trim();
+        if(namePart && /[a-zA-Z]/.test(namePart) && namePart.split(/\s+/).length<=4){
+          // This is "exercise sets" on one line — save previous exercise, start new one
+          saveExercise();
+          const normed=normalizeName(namePart);
+          curExercise={name:normed, sets:[]};
+          const setPart=trimmed.slice(setStart).trim();
+          const isBW=BW_EX.has(curExercise.name.toLowerCase());
+          curExercise.sets.push(...parseSets(setPart,isBW));
+          // Track unknown if not auto-resolved
+          let cleaned=namePart.toLowerCase().replace(/^superset\s+/,'').replace(/^ss\s+/,'').replace(/\s+x\s+.*/,'').trim();
+          const wasAutoResolved=AUTO_RESOLVE[cleaned]!==undefined||AUTO_RESOLVE[namePart.toLowerCase()]!==undefined
+            ||(()=>{const vals=Object.values(AUTO_RESOLVE); return vals.includes(normed);})();
+          if(!wasAutoResolved){
+            if(!unknowns.has(cleaned)) unknowns.set(cleaned,{rawTerm:namePart, count:0});
+            unknowns.get(cleaned).count++;
+          }
+          continue;
+        }
+      }
+      // Pure set line — add to current exercise
       if(!curExercise) continue;
       const isBW=BW_EX.has(curExercise.name.toLowerCase());
       curExercise.sets.push(...parseSets(trimmed,isBW));
@@ -628,11 +652,9 @@ function bindClarifyEvents(){
 function importApplyAndPreview(){
   for(const q of importClarifications){
     const answer=importAnswers[q.id];
-    if(!answer || answer==='Skip') continue;
+    if(!answer || answer.startsWith('Skip')) continue;
 
     if(q.type==='abbreviation' && q.affects_exercises){
-      // Skip pseudo-answers
-      if(answer==='Skip'||answer==='Skip (keep as-is)') continue;
       // Replace matching exercise names in all workouts
       const targets=new Set((q.affects_exercises||[]).map(t=>t.toLowerCase()));
       importParsed=importParsed.map(w=>({

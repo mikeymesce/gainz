@@ -1,6 +1,136 @@
 // ═══════════════════════════════════════════
-// ONBOARDING — Splash carousel + coach tips
+// ONBOARDING — Cinematic intro + Splash carousel + coach tips
 // ═══════════════════════════════════════════
+
+// ── Cinematic power stats — one shown per app open ──
+const CIN_STATS = [
+  {
+    lines: ['Exercise grows', 'new brain cells.'],
+    punch: 'Literally.',
+    size: 42,
+    cites: [
+      'Pereira et al., PNAS, 2007',
+      'Erickson et al., PNAS, 2011',
+      'Choi et al., Science, 2018',
+      'Queensland Brain Institute, 2020',
+      'Choi et al., Nature Metabolism, 2021',
+      'Zhao et al., Aging Cell, 2025',
+    ],
+    kicker: ''
+  },
+  {
+    lines: ['People who strength train', 'live 23% longer.'],
+    size: 38,
+    cite: 'Stamatakis et al., British Journal of Sports Medicine, 2018',
+    kicker: 'Every rep is an investment.'
+  },
+  {
+    lines: ['Your cells are 9 years younger', 'when you exercise.'],
+    size: 36,
+    cite: 'Tucker, Preventive Medicine, 2017',
+    kicker: 'You are literally turning back time.'
+  },
+  {
+    lines: ['One year of lifting reverses', '20 years of muscle loss.'],
+    size: 36,
+    cite: 'Melov et al., PLoS ONE, 2007',
+    kicker: 'It is never too late.'
+  },
+  {
+    lines: ['Exercise is the only proven way', 'to prevent Alzheimer\'s.'],
+    size: 34,
+    cite: 'Ahlskog et al., Mayo Clinic Proceedings, 2011',
+    kicker: 'Your brain needs your body.'
+  },
+];
+
+let cinTimer = null;
+
+export function maybeShowCinematic() {
+  const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0');
+  if (views >= 10) {
+    // Hide cinematic overlay so app is visible
+    const el = document.getElementById('cinematic-splash');
+    if (el) el.style.display = 'none';
+    return false;
+  }
+  showCinematic();
+  return true;
+}
+
+function showCinematic() {
+  const el = document.getElementById('cinematic-splash');
+  const container = document.getElementById('cin-container');
+  if (!el || !container) return;
+
+  // Pick stat — first open always gets brain cells, then rotate
+  const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0');
+  const stat = CIN_STATS[views % CIN_STATS.length];
+
+  // Build particles (subtle floating embers)
+  let particlesHTML = '<div class="cin-particles">';
+  for (let i = 0; i < 20; i++) {
+    const x = Math.random() * 100;
+    const delay = Math.random() * 6;
+    const dur = 5 + Math.random() * 5;
+    const size = 1 + Math.random() * 2;
+    particlesHTML += `<div class="cin-particle" style="left:${x}%;bottom:-10px;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s;"></div>`;
+  }
+  particlesHTML += '</div>';
+
+  // Build content — headline, optional punch line, optional kicker, cite last
+  // If stat has rotating cites array, pick one based on view count
+  const cite = stat.cites ? stat.cites[views % stat.cites.length] : stat.cite;
+  const hasKicker = stat.kicker && stat.kicker.length > 0;
+  const hasPunch = stat.punch && stat.punch.length > 0;
+  container.innerHTML = particlesHTML +
+    `<div class="cin-headline">${stat.lines.join('<br>')}</div>` +
+    (hasPunch ? `<div class="cin-punch">${stat.punch}</div>` : '') +
+    (hasKicker ? `<div class="cin-kicker">${stat.kicker}</div>` : '') +
+    `<div class="cin-cite">${cite}</div>`;
+
+  el.style.display = 'flex';
+  el.classList.remove('cin-fade-out');
+  el.style.opacity = '1';
+
+  const headline = container.querySelector('.cin-headline');
+  const punch = container.querySelector('.cin-punch');
+  const kicker = container.querySelector('.cin-kicker');
+  const citeEl = container.querySelector('.cin-cite');
+
+  let t = 800;
+  setTimeout(() => headline.classList.add('show'), t);
+  t += 2000;
+  if (punch) { setTimeout(() => punch.classList.add('show'), t); t += 1600; }
+  if (kicker) { setTimeout(() => kicker.classList.add('show'), t); t += 1600; }
+  setTimeout(() => citeEl.classList.add('show'), t);
+  t += 1200;
+  setTimeout(() => headline.classList.add('pulse'), t);
+  t += 600;
+  // Fade out the text content first, then crossfade to onboarding
+  cinTimer = setTimeout(() => {
+    container.classList.add('cin-content-fade');
+    setTimeout(() => dismissCinematic(), 1000);
+  }, t);
+}
+
+export function dismissCinematic() {
+  if (cinTimer) { clearTimeout(cinTimer); cinTimer = null; }
+  const el = document.getElementById('cinematic-splash');
+  if (!el || el.style.display === 'none') return;
+
+  // Prepare onboarding underneath (invisible)
+  maybeShowSplash();
+
+  // Start cinematic background fade out
+  el.classList.add('cin-fade-out');
+
+  // Delay GAINZ appearing so it emerges as cinematic dissolves
+  const ob = document.getElementById('onboard-splash');
+  setTimeout(() => { if (ob) ob.style.opacity = '1'; }, 800);
+
+  setTimeout(() => { el.style.display = 'none'; }, 1500);
+}
 
 // ── All onboarding cards — shuffled each time ──
 const OB_CARDS = [
@@ -32,15 +162,36 @@ function _obShuffle(arr) {
   return a;
 }
 
+function _obSpawnParticles(container) {
+  // Don't double-spawn
+  if (container.querySelector('.ob-particles')) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'ob-particles';
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'amb-particle';
+    const x = Math.random() * 100;
+    const delay = Math.random() * 8;
+    const dur = 6 + Math.random() * 6;
+    const size = 1 + Math.random() * 2;
+    p.style.cssText = `left:${x}%;bottom:-10px;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s;`;
+    wrap.appendChild(p);
+  }
+  container.appendChild(wrap);
+}
+
 function _obBuildCards() {
   const track = document.getElementById('ob-cards-track');
   const dotsEl = document.getElementById('ob-dots');
   if (!track || !dotsEl) return;
 
-  const shuffled = _obShuffle(OB_CARDS).slice(0, OB_SHOW_COUNT);
-  obCardCount = shuffled.length;
+  // First 3 cards are pinned in order, 4th is random from the rest
+  const pinned = OB_CARDS.slice(0, 3);
+  const rest = _obShuffle(OB_CARDS.slice(3));
+  const cards = [...pinned, rest[0]];
+  obCardCount = cards.length;
 
-  track.innerHTML = shuffled.map(c => `
+  track.innerHTML = cards.map(c => `
     <div class="ob-card">
       <div class="ob-card-icon">${c.icon}</div>
       <div class="ob-card-title">${c.title}</div>
@@ -48,7 +199,7 @@ function _obBuildCards() {
     </div>
   `).join('');
 
-  dotsEl.innerHTML = shuffled.map((_, i) =>
+  dotsEl.innerHTML = cards.map((_, i) =>
     `<div class="ob-dot${i === 0 ? ' active' : ''}" id="ob-dot-${i}"></div>`
   ).join('');
 }
@@ -57,8 +208,14 @@ export function showSplash() {
   const el = document.getElementById('onboard-splash');
   if (!el) return;
   _obBuildCards();
+  _obSpawnParticles(el);
   el.style.display = 'flex';
   el.classList.remove('fade-out');
+  // If no cinematic is covering us, fade in directly
+  const cin = document.getElementById('cinematic-splash');
+  if (!cin || cin.style.display === 'none') {
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+  }
   obIdx = 0;
   _obSnap(0, false);
   _obBindSwipe();

@@ -28,9 +28,8 @@ Browser loads index.html
 
 | File | Lines | Role |
 |---|---|---|
-| `index.html` | 167 | HTML structure, modals, debug panel |
-| `styles.css` | 663 | All styling, CSS variables, animations |
-| `app.js` | 4,324 | **DEAD CODE** — not loaded. Pre-refactor copy. Delete when ready. |
+| `index.html` | 146 | HTML structure, modals, debug panel, ambient particles |
+| `styles.css` | 813 | All styling, CSS variables, animations, cinematic + onboarding |
 | `CLAUDE.md` | — | Project instructions for Claude |
 | `CHANGELOG.md` | — | Mike's changelog |
 | `README.md` | — | Project overview |
@@ -39,20 +38,20 @@ Browser loads index.html
 
 | Module | Lines | Responsibility | Exports |
 |---|---|---|---|
-| `main.js` | 92 | Entry point — imports modules, exposes to window, loads legacy | — |
-| `app-legacy.js` | 2,468 | Render pipeline, workout actions, picker, stacks, tests, debug | globals |
+| `main.js` | 118 | Entry point — imports modules, exposes to window, loads legacy, SW cleanup, ambient particles | — |
+| `app-legacy.js` | 3,112 | Render pipeline, workout actions, picker, stacks, tests, debug | globals |
 | `config.js` | 29 | Feature flags, version, constants | `FEATURES`, `VERSION`, `SCHEMA_VERSION`, etc. |
 | `data.js` | 349 | Exercise DB, programs, splits, research tips, MRV | `ALL_SPLITS`, `PROGRAMS`, `RESEARCH_TIPS`, etc. |
 | `state.js` | 23 | Schema migration logic | `migrateState` |
 | `utils.js` | 44 | Formatting, DOM helpers, toast, haptics, confetti | `fmt`, `vol`, `est1RM`, `showToast`, etc. |
 | `audio.js` | 18 | Timer completion beep (Web Audio API) | `playBeep` |
-| `onboarding.js` | 171 | Splash carousel, coach tips | `showSplash`, `dismissSplash`, etc. |
-| `import.js` | 796 | Text log import (paste -> parse -> clarify -> preview -> commit) | `openImportModal`, `importStartParse`, etc. |
+| `onboarding.js` | 379 | Cinematic intro, splash carousel, coach tips, rotating citations, particles | `showSplash`, `dismissSplash`, `maybeShowCinematic`, etc. |
+| `import.js` | 811 | Text log import (paste -> parse -> clarify -> preview -> commit) | `openImportModal`, `importStartParse`, etc. |
 | `persistence.js` | 74 | Save/load localStorage, wake lock, storage quota, export | `save`, `saveImmediate`, `exportData`, etc. |
 | `workout-logic.js` | 89 | Active splits, recommendations, PR detection, suggested weight | `getActiveSplits`, `isPR`, `getSuggestedWeight`, etc. |
 | `timers.js` | 77 | Rest timer (auto-start, adjust, skip) + workout duration timer | `startTimer`, `adjTimer`, `skipTimer`, etc. |
 | `research-tips.js` | 123 | Tip panel UI, library modal, category filtering | `openTip`, `openLibrary`, `buildTipPanel`, etc. |
-| `progress-chart.js` | 108 | SVG line charts, sparklines, 1RM/volume toggle | `buildProgChart`, `buildSparkline`, etc. |
+| `progress-chart.js` | 102 | SVG line chart, 1RM/volume toggle | `buildProgChart`, `setProgChartMode` |
 
 ### docs/
 
@@ -102,13 +101,17 @@ The `render()` function in `app-legacy.js` switches on `screen` and sets `#conte
 
 ```css
 /* Backgrounds */
---bg: #080808    --bg2: #0f0f0f    --bg3: #161616
+--bg: #080808    --bg2: #0f0f0f    --bg3: #161616    --bg4: #1e1e1e
+--cardBg: #0f0f12    --inputBg: #111215
+
+/* Borders */
+--border: #1c1c1c    --border2: #242424    --borderCard: #1e1e24
 
 /* Accent */
 --accent: #e8d5a0  (gold — single hero color, used sparingly)
 
 /* Text */
---text: #f0ece0    --muted: #6a6560    --dim: #3a3630
+--text: #f0ece0    --muted: #6a6560    --dim: #3a3630    --ghost: #242220
 
 /* Semantic */
 --superset: #8b72e0    --green: #52c87a    --danger: #c0404a
@@ -123,7 +126,7 @@ The `render()` function in `app-legacy.js` switches on `screen` and sets `#conte
 
 ## What's Left in app-legacy.js
 
-The remaining ~2,468 lines contain:
+The remaining ~3,100 lines contain:
 
 1. **Render pipeline** — `render()` + all screen-specific render functions. Heavy inline HTML.
 2. **Workout actions** — add/delete/reorder exercises and sets, warmup toggle, notes.
@@ -137,4 +140,4 @@ Extracting these further requires decoupling the shared mutable state, which is 
 
 ---
 
-*Last updated: March 9, 2026*
+*Last updated: March 10, 2026*
