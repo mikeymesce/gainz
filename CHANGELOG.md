@@ -4,7 +4,26 @@
 
 ---
 
-## Latest — March 10 (Session 5)
+## Latest — March 10 (Session 6)
+
+### Cinematic → Onboarding Transition Polish
+- **GAINZ logo emerges slowly** — 3.5s fade with heavy ease-in curve (`cubic-bezier(0.8,0,1,1)`) + scale-down from 115% → 100%, matching the cinematic headline feel
+- **Tightened dead space** — cinematic-to-GAINZ gap reduced to ~200ms (was ~700ms)
+- **Rebalanced onboarding delays** — tagline 3.0s, cards 4.0s, dots 4.4s, skip 4.8s to match new logo timing
+
+### Bug Fixes
+- **Tour tooltips scroll fix** — tooltips that land off-screen on mobile now auto-scroll into view
+- **Tip reorder** — "66 days" stat tip shows first, "12 weeks" pushed to last
+
+### Codebase Health
+- **Service worker removed** — broken cache-first SW in app-legacy.js was preventing the app from loading in regular browsers. Added one-time cleanup in main.js.
+- **Dead code removed** — deleted `app.js` (4,324 lines, pre-refactor), `copyLastSet`, `buildSparkline`, `getProgChartMode`
+- **CSS cleanup** — replaced 20+ hardcoded hex values with CSS variables, removed 15 unused selectors
+- **Import parser fixes** — dash-date support, dynamic year default, combined exercise+sets line parsing, fixed Skip handling
+
+---
+
+## March 10 (Session 5)
 
 ### Cinematic Intro Polish
 - **"Literally." enters separately** — split from headline into its own `.cin-punch` element with scale-in animation (italic, 1.15 scale)
@@ -13,7 +32,6 @@
 - **Crossfade transition** — cinematic text fades out first (`.cin-content-fade`), then black bg dissolves into GAINZ onboarding
 - **More legible citation** — bumped `.cin-cite` opacity from 0.2 to 0.45
 - **Rotating study citations** — first cinematic stat cycles through 6 citations (Pereira 2007 → Zhao 2025), one per app open
-- **Slower onboarding animations** — logo at 0.3s (2.2s duration), tagline 2.6s, cards 3.6s, dots 4s, skip 4.4s
 - **Pinned card order** — Personal Coach → Science-Backed → Wild Stats → random 4th from remaining pool
 
 ### Bug Fixes

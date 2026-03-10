@@ -39,13 +39,13 @@ Browser loads index.html
 | Module | Lines | Responsibility | Exports |
 |---|---|---|---|
 | `main.js` | 118 | Entry point — imports modules, exposes to window, loads legacy, SW cleanup, ambient particles | — |
-| `app-legacy.js` | 3,112 | Render pipeline, workout actions, picker, stacks, tests, debug | globals |
+| `app-legacy.js` | 3,119 | Render pipeline, workout actions, picker, stacks, tests, debug | globals |
 | `config.js` | 29 | Feature flags, version, constants | `FEATURES`, `VERSION`, `SCHEMA_VERSION`, etc. |
 | `data.js` | 349 | Exercise DB, programs, splits, research tips, MRV | `ALL_SPLITS`, `PROGRAMS`, `RESEARCH_TIPS`, etc. |
 | `state.js` | 23 | Schema migration logic | `migrateState` |
 | `utils.js` | 44 | Formatting, DOM helpers, toast, haptics, confetti | `fmt`, `vol`, `est1RM`, `showToast`, etc. |
 | `audio.js` | 18 | Timer completion beep (Web Audio API) | `playBeep` |
-| `onboarding.js` | 379 | Cinematic intro, splash carousel, coach tips, rotating citations, particles | `showSplash`, `dismissSplash`, `maybeShowCinematic`, etc. |
+| `onboarding.js` | 379 | Cinematic intro, splash carousel, coach tips, rotating citations, particles | `showSplash`, `dismissSplash`, `maybeShowCinematic`, `dismissCinematic`, etc. |
 | `import.js` | 811 | Text log import (paste -> parse -> clarify -> preview -> commit) | `openImportModal`, `importStartParse`, etc. |
 | `persistence.js` | 74 | Save/load localStorage, wake lock, storage quota, export | `save`, `saveImmediate`, `exportData`, etc. |
 | `workout-logic.js` | 89 | Active splits, recommendations, PR detection, suggested weight | `getActiveSplits`, `isPR`, `getSuggestedWeight`, etc. |
