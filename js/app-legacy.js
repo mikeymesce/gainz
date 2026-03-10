@@ -1196,6 +1196,13 @@ function showHomeTourStep(){
     tip.classList.add('arrow-up');
     content.style.position='relative';
     content.appendChild(tip);
+    // Scroll tooltip into view if it's off-screen
+    requestAnimationFrame(()=>{
+      const tipRect=tip.getBoundingClientRect();
+      if(tipRect.bottom>window.innerHeight-80){
+        content.scrollBy({top:tipRect.bottom-window.innerHeight+100,behavior:'smooth'});
+      }
+    });
   }
   homeTourEl=tip;
 }
