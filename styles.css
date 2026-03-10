@@ -705,7 +705,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .ob-logo{
   font-family:'Bebas Neue',sans-serif;font-size:72px;letter-spacing:8px;
   color:var(--accent);opacity:0;
-  animation:obLogoIn 1.5s linear 0.3s forwards;
+  animation:obLogoIn 3s linear 0.3s forwards;
 }
 @keyframes obLogoIn{
   from{opacity:0;}
@@ -714,7 +714,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .ob-tagline{
   font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:3px;color:var(--muted);
   margin-top:4px;opacity:0;
-  animation:obSlideIn 1.2s cubic-bezier(0.25,1,0.5,1) 2.0s forwards;
+  animation:obSlideIn 1.2s cubic-bezier(0.25,1,0.5,1) 3.0s forwards;
   text-transform:uppercase;
 }
 @keyframes obSlideIn{
@@ -724,7 +724,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .ob-cards-wrap{
   margin-top:48px;width:100%;max-width:320px;overflow:hidden;
   opacity:0;
-  animation:obSlideIn 1s cubic-bezier(0.25,1,0.5,1) 3.0s forwards;
+  animation:obSlideIn 1s cubic-bezier(0.25,1,0.5,1) 4.0s forwards;
 }
 .ob-cards-track{
   display:flex;
@@ -747,7 +747,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .ob-card-body strong{color:var(--text);}
 .ob-dots{
   display:flex;gap:7px;justify-content:center;margin-top:18px;
-  opacity:0;animation:obSlideIn 0.8s ease 3.4s forwards;
+  opacity:0;animation:obSlideIn 0.8s ease 4.4s forwards;
 }
 .ob-dot{
   width:6px;height:6px;border-radius:50%;background:var(--dim);
@@ -757,7 +757,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .ob-skip{
   margin-top:32px;font-family:'DM Sans',sans-serif;font-size:11px;
   letter-spacing:1.5px;color:var(--dim);background:none;border:none;cursor:pointer;
-  opacity:0;animation:obSlideIn 0.8s ease 3.8s forwards;
+  opacity:0;animation:obSlideIn 0.8s ease 4.8s forwards;
   text-transform:uppercase;
 }
 .ob-skip:hover{color:var(--muted);}
