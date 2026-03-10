@@ -854,7 +854,7 @@ function render(){
     const existing=document.getElementById("wo-summary");
     if(!existing){ const el=document.createElement("div"); el.innerHTML=renderWorkoutSummary(); document.body.appendChild(el.firstChild); }
   }
-  if(screen==="start") setTimeout(initCarouselFade,0);
+  if(screen==="start"){ setTimeout(initCarouselFade,0); setTimeout(maybeShowHomeTour,300); }
   if(FEATURES.devMode){const t=performance.now()-renderStart;if(t>16)console.warn(`[GAINZ] render() took ${t.toFixed(1)}ms`);}
 }
 
@@ -915,9 +915,28 @@ function renderMuscleFatigue(){
     <div style="font-size:9px;color:var(--dim);margin-top:4px;">MEV = minimum effective volume · MRV = max recoverable volume</div>
   </div>`;
 }
+let _funStatPool=null; // cached by render()
 function cycleFunStat(){
   funStatIdx++;
-  render();
+  if(!_funStatPool||!_funStatPool.length) return;
+  const stat=_funStatPool[funStatIdx%_funStatPool.length];
+  // Update insight card directly — no full render()
+  const card=document.querySelector('.sb-insight');
+  if(!card) return;
+  const valEl=card.querySelector('.sb-insight-val');
+  const labelEl=card.querySelector('.sb-insight-label');
+  const subEl=card.querySelector('.sb-insight-sub');
+  if(valEl) valEl.textContent=stat.val;
+  if(labelEl) labelEl.textContent=stat.label;
+  if(subEl){
+    if(stat.sub){ subEl.textContent=stat.sub; subEl.style.display=''; }
+    else { subEl.textContent=''; subEl.style.display='none'; }
+  } else if(stat.sub){
+    const s=document.createElement('div');
+    s.className='sb-insight-sub';
+    s.textContent=stat.sub;
+    labelEl.parentNode.appendChild(s);
+  }
 }
 
 function initCarouselFade(){
@@ -926,48 +945,123 @@ function initCarouselFade(){
   if(!wrap||!track||wrap._fadeInited) return;
   wrap._fadeInited=true;
 
-  // Duplicate pills for infinite loop illusion
+  // Suppress clicks after drag — track whether a real drag happened
+  let didDrag=false;
+  wrap.addEventListener('click',e=>{
+    if(didDrag){ e.stopPropagation(); e.preventDefault(); didDrag=false; }
+  },true);
+
+  // Duplicate pills for infinite loop
   const original=track.innerHTML;
-  // Add gap between copies (match the 10px gap in the flex container)
   track.innerHTML=original+original;
   const halfWidth=track.scrollWidth/2;
 
+  // Collect pill positions (centers relative to track start)
+  const pills=track.querySelectorAll('.split-pill');
+  const pillCenters=[];
+  pills.forEach(p=>{
+    pillCenters.push(p.offsetLeft+p.offsetWidth/2);
+  });
+
   let offset=0;
+  const wrapCenter=wrap.offsetWidth/2;
 
   function applyPos(animate){
-    track.style.transition=animate?'transform 0.3s cubic-bezier(0.25,1,0.5,1)':'none';
+    track.style.transition=animate?'transform 0.35s cubic-bezier(0.25,1,0.5,1)':'none';
     track.style.transform='translateX('+offset+'px)';
     updateFade();
   }
 
-  // Wrap offset so it loops seamlessly
   function wrapOffset(){
     if(offset<-halfWidth) offset+=halfWidth;
     else if(offset>0) offset-=halfWidth;
   }
 
+  // Snap: find pill closest to center and shift offset so it's exactly centered
+  function snapToNearest(){
+    wrapOffset();
+    let bestDist=Infinity, bestOffset=offset;
+    pillCenters.forEach(pc=>{
+      const pillScreenPos=pc+offset;
+      const dist=Math.abs(pillScreenPos-wrapCenter);
+      if(dist<bestDist){
+        bestDist=dist;
+        bestOffset=offset-(pillScreenPos-wrapCenter);
+      }
+    });
+    offset=bestOffset;
+    wrapOffset();
+    applyPos(true);
+  }
+
   function updateFade(){
-    const pills=wrap.querySelectorAll('.split-pill');
+    const allPills=wrap.querySelectorAll('.split-pill');
     const rect=wrap.getBoundingClientRect();
     const center=rect.left+rect.width/2;
-    pills.forEach(p=>{
+    let closestPill=null, closestDist=Infinity;
+    allPills.forEach(p=>{
       const pr=p.getBoundingClientRect();
       const pillCenter=pr.left+pr.width/2;
       const dist=Math.abs(pillCenter-center);
-      const maxDist=rect.width/2;
-      const opacity=Math.max(0.3,1-(dist/maxDist)*0.7);
-      const scale=Math.max(0.92,1-(dist/maxDist)*0.08);
+      const pillW=pr.width;
+      const t=Math.min(1,dist/(pillW*0.8));
+      const opacity=Math.max(0.15,1-t*0.85);
+      const scale=Math.max(0.88,1-t*0.12);
       p.style.opacity=opacity;
       p.style.transform='scale('+scale+')';
       p.style.transition='opacity 0.15s,transform 0.15s';
+      // Track center pill for glow + label
+      const inner=p.querySelector('.split-pill-inner');
+      if(inner){
+        if(!inner._origBorder) inner._origBorder=inner.style.borderColor||'';
+        const isCenter=dist<pillW*0.4;
+        inner.style.boxShadow=isCenter?'0 0 18px rgba(232,213,160,0.3), 0 0 6px rgba(232,213,160,0.15) inset':'none';
+        inner.style.borderColor=isCenter?'rgba(232,213,160,0.45)':inner._origBorder;
+      }
+      if(dist<closestDist){ closestDist=dist; closestPill=p; }
     });
+    // Update label
+    const label=document.getElementById('carousel-label');
+    if(label&&closestPill){
+      label.textContent=closestPill.dataset.label||'';
+    }
+  }
+
+  // Momentum / inertia
+  let velocity=0, lastX=0, lastTime=0, momentumRAF=null;
+
+  function coast(){
+    velocity*=0.92; // friction
+    offset+=velocity;
+    wrapOffset();
+    track.style.transition='none';
+    track.style.transform='translateX('+offset+'px)';
+    updateFade();
+    if(Math.abs(velocity)>0.5){
+      momentumRAF=requestAnimationFrame(coast);
+    } else {
+      snapToNearest();
+    }
+  }
+  function startCoast(){
+    if(Math.abs(velocity)>2){
+      momentumRAF=requestAnimationFrame(coast);
+    } else {
+      snapToNearest();
+    }
+  }
+  function stopCoast(){
+    if(momentumRAF){ cancelAnimationFrame(momentumRAF); momentumRAF=null; }
   }
 
   // Touch
   let startX=0,startY=0,dragging=false,lockAxis=null,startOffset=0;
   wrap.addEventListener('touchstart',e=>{
+    stopCoast();
     startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    lastX=startX; lastTime=Date.now();
     startOffset=offset; dragging=true; lockAxis=null;
+    velocity=0;
     track.style.transition='none';
   },{passive:true});
   wrap.addEventListener('touchmove',e=>{
@@ -977,6 +1071,11 @@ function initCarouselFade(){
     if(!lockAxis) lockAxis=Math.abs(dx)>Math.abs(dy)?'x':'y';
     if(lockAxis!=='x') return;
     e.preventDefault();
+    if(Math.abs(dx)>5) didDrag=true;
+    const now=Date.now();
+    const dt=now-lastTime||1;
+    velocity=(e.touches[0].clientX-lastX)/(dt/16);
+    lastX=e.touches[0].clientX; lastTime=now;
     offset=startOffset+dx;
     wrapOffset();
     track.style.transform='translateX('+offset+'px)';
@@ -984,19 +1083,25 @@ function initCarouselFade(){
   },{passive:false});
   wrap.addEventListener('touchend',()=>{
     dragging=false;
-    wrapOffset();
-    applyPos(true);
+    startCoast();
   },{passive:true});
 
   // Mouse (trackpad / desktop)
   let mDown=false,mStartX=0,mStartOffset=0;
   wrap.addEventListener('mousedown',e=>{
+    stopCoast();
     mDown=true; mStartX=e.clientX; mStartOffset=offset;
+    lastX=e.clientX; lastTime=Date.now(); velocity=0;
     track.style.transition='none'; wrap.style.cursor='grabbing';
     e.preventDefault();
   });
   wrap.addEventListener('mousemove',e=>{
     if(!mDown) return;
+    if(Math.abs(e.clientX-mStartX)>5) didDrag=true;
+    const now=Date.now();
+    const dt=now-lastTime||1;
+    velocity=(e.clientX-lastX)/(dt/16);
+    lastX=e.clientX; lastTime=now;
     offset=mStartOffset+(e.clientX-mStartX);
     wrapOffset();
     track.style.transform='translateX('+offset+'px)';
@@ -1005,15 +1110,102 @@ function initCarouselFade(){
   wrap.addEventListener('mouseup',()=>{
     if(!mDown) return;
     mDown=false; wrap.style.cursor='grab';
-    wrapOffset();
-    applyPos(true);
+    startCoast();
   });
   wrap.addEventListener('mouseleave',()=>{
-    if(mDown){ mDown=false; wrap.style.cursor='grab'; wrapOffset(); applyPos(true); }
+    if(mDown){ mDown=false; wrap.style.cursor='grab'; startCoast(); }
   });
   wrap.style.cursor='grab';
 
+  // Start with first pill centered
+  if(pillCenters.length){
+    offset=wrapCenter-pillCenters[0];
+    wrapOffset();
+  }
   applyPos(false);
+}
+
+// ── Home Tour — instructional bubbles on first visit ──
+const HOME_TOUR_STEPS=[
+  {sel:'.sb-hero',msg:'Tap here to start today\'s recommended workout',pos:'below'},
+  {sel:'.sb-insight',msg:'Tap for a new tip or stat based on your data',pos:'below'},
+  {sel:'#split-carousel',msg:'Swipe to browse different workout types',pos:'below'},
+  {sel:'.sb-header-date',msg:'Tap the date to see your workout calendar',pos:'below'},
+];
+let homeTourStep=-1;
+let homeTourEl=null;
+
+function maybeShowHomeTour(){
+  if(localStorage.getItem('gainz_seen_home_tour')) return;
+  if(homeTourStep>=0) return; // already showing
+  homeTourStep=0;
+  showHomeTourStep();
+}
+
+function showHomeTourStep(){
+  removeHomeTour();
+  if(homeTourStep>=HOME_TOUR_STEPS.length){
+    localStorage.setItem('gainz_seen_home_tour','1');
+    homeTourStep=-1;
+    return;
+  }
+  const step=HOME_TOUR_STEPS[homeTourStep];
+  const target=document.querySelector(step.sel);
+  if(!target){ homeTourStep++; showHomeTourStep(); return; }
+
+  const content=document.querySelector('.content');
+  if(!content) return;
+
+  // Create overlay to dim background
+  const overlay=document.createElement('div');
+  overlay.id='home-tour-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:90;';
+  overlay.addEventListener('click',advanceHomeTour);
+  document.body.appendChild(overlay);
+
+  // Highlight target by raising it above overlay
+  target.style.position='relative';
+  target.style.zIndex='91';
+  target._tourHighlight=true;
+
+  // Create tooltip
+  const tip=document.createElement('div');
+  tip.className='home-tour-tip';
+  tip.innerHTML=step.msg+'<div class="home-tour-hint">'+(homeTourStep<HOME_TOUR_STEPS.length-1?'tap anywhere to continue':'tap to finish')+'</div>';
+
+  const tRect=target.getBoundingClientRect();
+  const contentRect=content.getBoundingClientRect();
+
+  if(step.pos==='below'){
+    tip.style.top=(tRect.bottom-contentRect.top+content.scrollTop+10)+'px';
+    tip.classList.add('arrow-up');
+  } else {
+    tip.style.top=(tRect.top-contentRect.top+content.scrollTop-60)+'px';
+    tip.classList.add('arrow-down');
+  }
+  tip.style.left='50%';
+  tip.style.transform='translateX(-50%)';
+
+  content.style.position='relative';
+  content.appendChild(tip);
+  homeTourEl=tip;
+}
+
+function advanceHomeTour(){
+  homeTourStep++;
+  showHomeTourStep();
+}
+
+function removeHomeTour(){
+  // Remove overlay
+  const ov=document.getElementById('home-tour-overlay');
+  if(ov) ov.remove();
+  // Remove tooltip
+  if(homeTourEl){ homeTourEl.remove(); homeTourEl=null; }
+  // Reset highlighted targets
+  document.querySelectorAll('[style]').forEach(el=>{
+    if(el._tourHighlight){ el.style.zIndex=''; el._tourHighlight=false; }
+  });
 }
 
 function toggleHomeCal(){
@@ -1252,12 +1444,19 @@ function renderHome(){
   if(bestDay) funStats.push({val:dayNames[bestDay.day],label:"Your strongest day",sub:"By avg volume"});
 
   const emptyTips=[
-    {val:"Rest 2–3 min",label:"Between heavy sets",sub:"For max strength gains"},
-    {val:"3–5 sets",label:"Per exercise is the sweet spot",sub:"Schoenfeld 2017"},
-    {val:"Log it",label:"You can't improve what you don't track",sub:"First session unlocks stats"},
-    {val:"Progressive overload",label:"Add weight or reps each week",sub:"The only rule that matters"},
-    {val:"Compound first",label:"Squat, press, pull before isolation",sub:"Biggest bang per minute"},
-    {val:"Sleep = gains",label:"Muscle repairs while you sleep",sub:"8 hrs beats any supplement"},
+    {val:"66 days",label:"That's how long it takes a gym habit to stick",sub:"Lally et al. 2010 · You just need to start"},
+    {val:"225 lb",label:"Avg intermediate bench press",sub:"Log yours and track the climb"},
+    {val:"315 lb",label:"Avg intermediate squat",sub:"The king of all lifts"},
+    {val:"1,000 lb",label:"The 1,000 lb club",sub:"Squat + bench + deadlift combined"},
+    {val:"10 sets",label:"Per muscle per week triggers growth",sub:"Schoenfeld et al. 2017"},
+    {val:"48 hrs",label:"Your muscles grow for 2 days after lifting",sub:"Every session keeps building"},
+    {val:"1 g/lb",label:"Daily protein target for max gains",sub:"The one rule that works"},
+    {val:"3× /wk",label:"Hitting each muscle 2–3x is optimal",sub:"Frequency > volume"},
+    {val:"7–9 hrs",label:"Sleep is the #1 legal steroid",sub:"Muscle repairs while you rest"},
+    {val:"+2.5%",label:"Add weight each week = linear gains",sub:"Progressive overload is king"},
+    {val:"~45 min",label:"Avg effective workout length",sub:"Quality over quantity"},
+    {val:"12 wks",label:"Noticeable strength gains in 12 weeks",sub:"Consistency is the cheat code"},
+    {val:"💪",label:"You're already ahead of most people",sub:"Just by being here"},
   ];
   // Mix tips into real stats pool (every 3rd slot is a tip)
   const mixed=[];
@@ -1267,11 +1466,12 @@ function renderHome(){
 
   // No data: random each open. Has data: daily rotation or manual cycle.
   const pool=mixed.length?mixed:emptyTips;
+  _funStatPool=pool; // cache for cycleFunStat
   let funStat;
   if(funStatIdx>=0){
     funStat=pool[funStatIdx%pool.length];
   } else if(!state.workouts.length){
-    funStat=emptyTips[Math.floor(Math.random()*emptyTips.length)];
+    funStat=emptyTips[0]; // always show "66 days" first for new users
   } else {
     const dayOfYear=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/(1000*60*60*24));
     funStat=pool[dayOfYear%pool.length];
@@ -1365,44 +1565,41 @@ function renderHome(){
       ${(()=>{
         const splits=getActiveSplits();
         const EXTRAS=[
+          {key:'HIIT',label:'HIIT',icon:'⚡',color:'#ff4757'},
           {key:'Cycling',label:'Cycle',icon:'🚴',color:'#ff6b35'},
           {key:'Yoga',label:'Yoga',icon:'🧘',color:'#7ecba1'},
-          {key:'HIIT',label:'HIIT',icon:'⚡',color:'#ff4757'},
-          {key:'Swimming',label:'Swim',icon:'🏊',color:'#45aaf2'},
           {key:'Running',label:'Run',icon:'🏃',color:'#26de81'},
-          {key:'Boxing',label:'Boxing',icon:'🥊',color:'#fc5c65'},
-          {key:'Pilates',label:'Pilates',icon:'🤸',color:'#a55eea'},
-          {key:'Stretching',label:'Stretch',icon:'🙆',color:'#20bf6b'},
         ];
         const recIdx=splits.indexOf(rec);
         const programPills=splits.map((s,i)=>{
           const isToday=s===rec;
-          return `<div class="split-pill" onclick="startWorkout('${s}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:${isToday?'20':'15'}px;
-              color:${isToday?'var(--accent)':'var(--muted)'};
-              background:${isToday?'rgba(232,213,160,0.08)':'var(--bg2)'};
-              border:1px solid ${isToday?'rgba(232,213,160,0.2)':'var(--border2)'};
+          return `<div class="split-pill" data-key="${s}" data-label="${splitName(s)}" onclick="startWorkout('${s}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
+            <div class="split-pill-inner" style="font-family:'Bebas Neue',sans-serif;font-size:15px;
+              color:var(--muted);
+              background:var(--bg2);
+              border:1px solid var(--border2);
               border-radius:12px;padding:14px 10px;line-height:1.2;">
               ${splitName(s)}
             </div>
-            <div style="font-size:7px;letter-spacing:1px;margin-top:5px;color:${isToday?'var(--accent)':'var(--dim)'};"
+            <div class="split-pill-tag" style="font-size:7px;letter-spacing:1px;margin-top:5px;color:var(--dim);"
             >${isToday?'TODAY':''}</div>
           </div>`;
         });
         const divider=`<div style="width:1px;flex-shrink:0;background:var(--border2);margin:8px 2px;border-radius:1px;"></div>`;
         const extraPills=EXTRAS.map(e=>
-          `<div class="split-pill" onclick="startWorkout('${e.key}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
-            <div style="font-size:18px;background:${e.color}11;border:1px solid ${e.color}33;border-radius:12px;padding:10px 10px 6px;line-height:1;">
+          `<div class="split-pill" data-key="${e.key}" data-label="${e.label}" onclick="startWorkout('${e.key}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
+            <div class="split-pill-inner" style="font-size:18px;background:${e.color}11;border:1px solid ${e.color}33;border-radius:12px;padding:10px 10px 6px;line-height:1;">
               ${e.icon}
               <div style="font-family:'Bebas Neue',sans-serif;font-size:12px;color:${e.color};margin-top:4px;letter-spacing:1px;">${e.label}</div>
             </div>
-            <div style="font-size:7px;margin-top:5px;">&nbsp;</div>
+            <div class="split-pill-tag" style="font-size:7px;margin-top:5px;">&nbsp;</div>
           </div>`
         );
         return programPills.join('')+divider+extraPills.join('');
       })()}
       </div>
     </div>
+    <div id="carousel-label" style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:3px;color:var(--muted);margin-bottom:12px;transition:opacity 0.2s;"></div>
 `;
 }
 
@@ -2903,6 +3100,7 @@ if(location.search.includes('reset')){
   localStorage.removeItem('gainz_seen_onboard');
   localStorage.removeItem('gainz_onboard_views');
   localStorage.removeItem('gainz_seen_coach');
+  localStorage.removeItem('gainz_seen_home_tour');
 }
 checkOnline();
 runTests();
