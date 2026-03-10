@@ -705,7 +705,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .ob-logo{
   font-family:'Bebas Neue',sans-serif;font-size:72px;letter-spacing:8px;
   color:var(--accent);opacity:0;
-  animation:obLogoIn 3s linear 0.3s forwards;
+  animation:obLogoIn 3s cubic-bezier(0.5,0,1,1) 0.3s forwards;
 }
 @keyframes obLogoIn{
   from{opacity:0;}
