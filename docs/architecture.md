@@ -78,7 +78,9 @@ state (localStorage)          activeWorkout (in-memory only)
 ├── customSplits[]
 ├── bodyweight[]
 ├── templates[]
-└── schemaVersion: 6
+├── supplements[]             // daily creatine & vitamin log
+│   └── { date, timestamp, creatine (g), creatineDose, vitamins (bool) }
+└── schemaVersion: 7
 ```
 
 **Save flow:** `save()` -> `debouncedSave()` -> writes to localStorage. Use `saveImmediate()` after modals.
@@ -140,4 +142,4 @@ Extracting these further requires decoupling the shared mutable state, which is 
 
 ---
 
-*Last updated: March 10, 2026*
+*Last updated: March 15, 2026*

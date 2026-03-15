@@ -573,6 +573,50 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 /* Stack button in picker */
 .stack-btn{height:auto;text-align:left;white-space:normal;}
 
+/* ── Supplement Toggles ── */
+.supp-toggle{
+  background:var(--cardBg);border:1px solid var(--borderCard);
+  border-radius:16px;padding:14px 12px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all 0.2s;-webkit-tap-highlight-color:transparent;
+}
+.supp-toggle:active{transform:scale(0.97);}
+.supp-toggle.on{
+  background:rgba(232,213,160,0.06);
+  border-color:rgba(232,213,160,0.25);
+}
+.supp-check{
+  width:28px;height:28px;border-radius:50%;
+  border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:var(--dim);
+  transition:all 0.2s;
+}
+.supp-toggle.on .supp-check{
+  background:var(--accent);border-color:var(--accent);
+  color:var(--bg);font-weight:700;
+}
+.supp-label{
+  font-size:12px;font-weight:600;color:var(--muted);
+  letter-spacing:0.5px;
+}
+.supp-toggle.on .supp-label{color:var(--accent);}
+.supp-dose{
+  font-size:10px;color:var(--dim);
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:8px;padding:2px 8px;
+  cursor:pointer;transition:all 0.15s;
+}
+.supp-toggle.on .supp-dose{
+  color:var(--accent);border-color:rgba(232,213,160,0.2);
+  background:rgba(232,213,160,0.06);
+}
+.supp-week{
+  font-size:9px;color:var(--dim);letter-spacing:0.5px;
+}
+.supp-toggle.on .supp-week{color:var(--muted);}
+
 /* ── Confetti ── */
 @keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(60vh) rotate(720deg);opacity:0}}
 @keyframes summaryIn{0%{opacity:0;transform:translateY(30px)}100%{opacity:1;transform:translateY(0)}}

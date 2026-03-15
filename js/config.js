@@ -11,7 +11,7 @@ export const FEATURES = {
   devMode: false,
 };
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 export const VERSION = "v5.1";
 export const GLOBAL_DEFAULT = 45;
 
