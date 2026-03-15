@@ -18,13 +18,7 @@ const CIN_STATS = [
     ],
     kicker: ''
   },
-  {
-    lines: ['People who strength train', 'live 23% longer.'],
-    size: 38,
-    cite: 'Stamatakis et al., British Journal of Sports Medicine, 2018',
-    kicker: 'Every rep is an investment.'
-  },
-  {
+{
     lines: ['Your cells are 9 years younger', 'when you exercise.'],
     size: 36,
     cite: 'Tucker, Preventive Medicine, 2017',
