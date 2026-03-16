@@ -35,7 +35,7 @@ import {
   importRestart, importViewHistory
 } from './import.js';
 import {
-  save, saveImmediate, debouncedSave, checkStorageQuota,
+  save, saveImmediate, saveAndSync, debouncedSave, checkStorageQuota,
   requestWakeLock, releaseWakeLock, checkOnline, exportData
 } from './persistence.js';
 import {
@@ -54,6 +54,11 @@ import {
 import {
   buildProgChart, setProgChartMode
 } from './progress-chart.js';
+import {
+  getUser, signUp, signIn, signOut, isLoggedIn,
+  syncToCloud, syncFromCloud,
+  renderCloudSyncCard, renderSyncUI
+} from './supabase.js';
 
 // Expose all module exports to window so app-legacy.js can use them
 Object.assign(window, {
@@ -80,7 +85,7 @@ Object.assign(window, {
   importSelectAll, importSelectNone, importGoToStep,
   importRestart, importViewHistory,
   // Persistence
-  save, saveImmediate, debouncedSave, checkStorageQuota,
+  save, saveImmediate, saveAndSync, debouncedSave, checkStorageQuota,
   requestWakeLock, releaseWakeLock, checkOnline, exportData,
   // Workout logic
   getActiveSplits, getRec, getLastSession, isPR,
@@ -94,6 +99,10 @@ Object.assign(window, {
   buildTipPanel, openLibrary, closeLibrary, libToggle, libSetCat,
   // Progress chart
   buildProgChart, setProgChartMode,
+  // Cloud sync
+  getUser, signUp, signIn, signOut, isLoggedIn,
+  syncToCloud, syncFromCloud,
+  renderCloudSyncCard, renderSyncUI,
 });
 
 // ── Ambient particles (persistent floating embers) ──

@@ -44,8 +44,71 @@ applyTheme(activeTheme);
 // Navigation helper for modules that can't access `screen` (let, not on window)
 function navigateTo(s, tab) { screen = s; if(tab !== undefined) meTab = tab; render(); }
 
+// ── Cloud Sync UI Handlers ──
+async function cloudSignIn(){
+  const email=document.getElementById('sync-email')?.value?.trim();
+  const pass=document.getElementById('sync-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  const errEl=document.getElementById('sync-error');
+  const {error}=await signIn(email,pass);
+  if(error){
+    if(errEl){errEl.textContent=error.message;errEl.style.display='block';}
+    return;
+  }
+  showToast('Signed in — syncing...');
+  const cloud=await syncFromCloud();
+  if(cloud){
+    Object.assign(state,migrateState(cloud));
+    localStorage.setItem('gainz_v5',JSON.stringify(state));
+    showToast('Data synced from cloud');
+  }
+  render();
+}
+async function cloudSignUp(){
+  const email=document.getElementById('sync-email')?.value?.trim();
+  const pass=document.getElementById('sync-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  if(pass.length<6){showToast('Password must be at least 6 characters');return;}
+  const errEl=document.getElementById('sync-error');
+  const {error}=await signUp(email,pass);
+  if(error){
+    if(errEl){errEl.textContent=error.message;errEl.style.display='block';}
+    return;
+  }
+  showToast('Account created — check email to confirm, then sign in');
+}
+async function cloudSignOut(){
+  await signOut();
+  showToast('Signed out');
+  render();
+}
+async function cloudSyncNow(){
+  showToast('Syncing...');
+  const cloud=await syncFromCloud();
+  if(cloud){
+    Object.assign(state,migrateState(cloud));
+    localStorage.setItem('gainz_v5',JSON.stringify(state));
+    showToast('Data pulled from cloud');
+    render();
+  } else {
+    await syncToCloud();
+    showToast('Data pushed to cloud');
+    render();
+  }
+}
 
-
+// ── Sync on App Load ──
+setTimeout(async ()=>{
+  if(!syncFromCloud) return;
+  try{
+    const cloud=await syncFromCloud();
+    if(cloud){
+      Object.assign(state,migrateState(cloud));
+      localStorage.setItem('gainz_v5',JSON.stringify(state));
+      render();
+    }
+  }catch(e){console.warn('[GAINZ] Load sync failed:',e);}
+},1000);
 
 // ═══════════════════════════════════════════
 // EXERCISE PICKER — persistent, never rebuilt
@@ -557,7 +620,7 @@ function logBW(w){
   const timeOfDay=hr<12?'morning':hr<17?'afternoon':'night';
   state.bodyweight.unshift({date:today(),timestamp:Date.now(),weight:val,timeOfDay});
   state.bodyweight=state.bodyweight.slice(0,90);
-  save();
+  saveAndSync();
   showToast("Bodyweight logged ✓ ("+timeOfDay+")");
   render();
 }
@@ -771,7 +834,7 @@ function finishWorkout(){
   const w={...activeWorkout,date:today(),timestamp:Date.now(),duration:Date.now()-activeWorkout.startTime,totalVolume:activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0)};
   state.workouts.unshift(w); state.streak=streak; state.lastWorkoutDate=todayStr();
   if(state.workouts.length>500) state.workouts=state.workouts.slice(0,500);
-  saveImmediate();
+  saveAndSync();
   // Auto-save as template for this split (silent)
   if(!state.templates) state.templates=[];
   const existingIdx=state.templates.findIndex(t=>t.split===activeWorkout.split);
@@ -835,7 +898,7 @@ function render(){
   if(screen==="start") c.innerHTML=renderHome();
   else if(screen==="log") c.innerHTML=renderLog();
   else if(screen==="me") c.innerHTML=renderMe();
-  else if(screen==="settings") c.innerHTML=renderSettings();
+  else if(screen==="settings"){ c.innerHTML=renderSettings(); setTimeout(()=>{ if(renderSyncUI) renderSyncUI(); },50); }
   else if(screen==="programBuilder") c.innerHTML=renderProgramBuilder();
   else if(screen==="prHistory") c.innerHTML=renderPRHistory();
   if(screen==="log"){
@@ -1724,13 +1787,13 @@ function toggleCreatine(){
   const entry=ensureTodaySupp();
   if(entry.creatine>0) entry.creatine=0;
   else entry.creatine=entry.creatineDose||5;
-  saveImmediate(); render();
+  saveAndSync(); render();
   if(entry.creatine>0) haptic('light');
 }
 function toggleVitamin(name){
   const entry=ensureTodaySupp();
   entry.vitamins[name]=!entry.vitamins[name];
-  saveImmediate(); render();
+  saveAndSync(); render();
   if(entry.vitamins[name]) haptic('light');
 }
 function toggleAllVitamins(){
@@ -1738,7 +1801,7 @@ function toggleAllVitamins(){
   const list=getVitaminList();
   const allOn=list.every(v=>entry.vitamins[v]);
   list.forEach(v=>entry.vitamins[v]=!allOn);
-  saveImmediate(); render();
+  saveAndSync(); render();
   if(!allOn) haptic('light');
 }
 function adjustCreatine(){
@@ -2316,6 +2379,8 @@ function renderSettings(){
         <div style="color:var(--dim);font-size:10px;font-weight:400;letter-spacing:0;">All your personal records over time</div>
       </div>
     </button>
+
+    ${renderCloudSyncCard(sectionHead)}
 
     ${sectionHead('Data')}
     <div style="display:flex;gap:8px;margin-bottom:8px;">

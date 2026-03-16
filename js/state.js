@@ -20,6 +20,8 @@ export function migrateState(s) {
   if(!s.templates) s.templates = [];
   if(!s.supplements) s.supplements = [];
   if(!s.vitaminTypes) s.vitaminTypes = ['Vitamin D','Fish Oil','Multivitamin'];
+  if(!s._localUpdatedAt) s._localUpdatedAt = Date.now();
+  if(!s._lastSyncedAt) s._lastSyncedAt = 0;
   s.schemaVersion = SCHEMA_VERSION;
   return s;
 }

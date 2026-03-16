@@ -52,6 +52,7 @@ Browser loads index.html
 | `timers.js` | 77 | Rest timer (auto-start, adjust, skip) + workout duration timer | `startTimer`, `adjTimer`, `skipTimer`, etc. |
 | `research-tips.js` | 123 | Tip panel UI, library modal, category filtering | `openTip`, `openLibrary`, `buildTipPanel`, etc. |
 | `progress-chart.js` | 102 | SVG line chart, 1RM/volume toggle | `buildProgChart`, `setProgChartMode` |
+| `supabase.js` | ~160 | Cloud sync via Supabase — auth, push/pull state | `syncToCloud`, `syncFromCloud`, `signIn`, `signUp`, etc. |
 
 ### docs/
 

@@ -8,6 +8,7 @@ export const FEATURES = {
   confettiOnPR: true,
   screenWakeLock: true,
   offlineDetection: true,
+  cloudSync: true,
   devMode: false,
 };
 

@@ -57,8 +57,19 @@ export function checkOnline(){
   if(!navigator.onLine) showToast("Offline — app works fine, fonts may not load");
 }
 
+// ── Cloud Sync Helper ──
+export function saveAndSync() {
+  saveImmediate();
+  if (window.syncToCloud) {
+    window.syncToCloud();
+  }
+}
+
 window.addEventListener("offline", () => showToast("Gone offline — data saves locally"));
-window.addEventListener("online", () => showToast("Back online"));
+window.addEventListener("online", () => {
+  showToast("Back online — syncing...");
+  if (window.syncToCloud) window.syncToCloud();
+});
 
 // ── Export Data ──
 export function exportData(){
