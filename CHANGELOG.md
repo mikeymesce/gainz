@@ -4,7 +4,32 @@
 
 ---
 
-## Latest — March 10 (Session 6)
+## Latest — March 16 (Session 7)
+
+### Supplement Tracker (New Feature)
+- **Creatine toggle** on home screen — tap to check off daily, adjustable dose in 0.5g steps
+- **Vitamins toggle** — customizable list (Vitamin D, Fish Oil, Multivitamin by default), tap individual chips or toggle all, edit to add/remove
+- **Weigh-in button** on home screen — quick bodyweight log with time-of-day tagging (morning/afternoon/night)
+- **Creatine X/7** stat added to Me screen stats strip
+
+### Cloud Sync via Supabase (New Feature)
+- **Supabase integration** — data persists across devices (phone + laptop)
+- **Email/password auth** in Settings > Cloud Sync (optional, app works without it)
+- **Syncs at key moments** — finish workout, log bodyweight, toggle creatine/vitamins
+- **Auto-pulls on app load**, auto-pushes on reconnect
+- **Offline-first** — localStorage stays source of truth, cloud is backup + sync
+
+### Deployment
+- **GitHub Pages** — app live at mikeymesce.github.io/gainz
+- Added `.nojekyll` for clean static serving
+
+### Small Changes
+- Removed "live 23% longer" onboarding stat
+- Schema bumped to v7 (supplements, vitaminTypes, sync timestamps)
+
+---
+
+## March 10 (Session 6)
 
 ### Cinematic → Onboarding Transition Polish
 - **GAINZ logo emerges slowly** — 3.5s fade with heavy ease-in curve (`cubic-bezier(0.8,0,1,1)`) + scale-down from 115% → 100%, matching the cinematic headline feel
