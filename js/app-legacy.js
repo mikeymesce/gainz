@@ -895,12 +895,14 @@ function render(){
   updateBackBtn();
   const c=document.getElementById("content");
   const scrollY=window.scrollY||0;
-  if(screen==="start") c.innerHTML=renderHome();
-  else if(screen==="log") c.innerHTML=renderLog();
-  else if(screen==="me") c.innerHTML=renderMe();
-  else if(screen==="settings"){ c.innerHTML=renderSettings(); setTimeout(()=>{ if(renderSyncUI) renderSyncUI(); },50); }
-  else if(screen==="programBuilder") c.innerHTML=renderProgramBuilder();
-  else if(screen==="prHistory") c.innerHTML=renderPRHistory();
+  try{
+    if(screen==="start") c.innerHTML=renderHome();
+    else if(screen==="log") c.innerHTML=renderLog();
+    else if(screen==="me") c.innerHTML=renderMe();
+    else if(screen==="settings"){ c.innerHTML=renderSettings(); setTimeout(()=>{ if(typeof renderSyncUI==='function') renderSyncUI(); },50); }
+    else if(screen==="programBuilder") c.innerHTML=renderProgramBuilder();
+    else if(screen==="prHistory") c.innerHTML=renderPRHistory();
+  }catch(e){ console.error('[GAINZ render]',screen,e); c.innerHTML=`<div style="padding:20px;color:var(--danger);">Render error: ${e.message}</div>`; }
   if(screen==="log"){
     window.scrollTo(0,scrollY);
     setTimeout(initSwipeCollapse,0);
@@ -2380,7 +2382,7 @@ function renderSettings(){
       </div>
     </button>
 
-    ${renderCloudSyncCard(sectionHead)}
+    ${typeof renderCloudSyncCard==='function'?renderCloudSyncCard(sectionHead):''}
 
     ${sectionHead('Data')}
     <div style="display:flex;gap:8px;margin-bottom:8px;">
