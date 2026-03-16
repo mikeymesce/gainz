@@ -553,11 +553,29 @@ function logBW(w){
   const val=parseFloat(w);
   if(!val||val<50||val>500){showToast("Enter a valid weight (50–500 lbs)");return;}
   if(!state.bodyweight) state.bodyweight=[];
-  state.bodyweight.unshift({date:today(),timestamp:Date.now(),weight:val});
+  const hr=new Date().getHours();
+  const timeOfDay=hr<12?'morning':hr<17?'afternoon':'night';
+  state.bodyweight.unshift({date:today(),timestamp:Date.now(),weight:val,timeOfDay});
   state.bodyweight=state.bodyweight.slice(0,90);
   save();
-  showToast("Bodyweight logged ✓");
+  showToast("Bodyweight logged ✓ ("+timeOfDay+")");
   render();
+}
+function openWeighIn(){
+  const last=state.bodyweight&&state.bodyweight[0]?state.bodyweight[0].weight:'';
+  const hr=new Date().getHours();
+  const timeLabel=hr<12?'Morning':hr<17?'Afternoon':'Night';
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">WEIGH IN</div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:14px;">${timeLabel} check-in</div>
+    <input id="bw-inp" type="number" class="input" placeholder="${last||'185'}" value="" step="0.1"
+      style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;margin-bottom:6px;"
+      inputmode="decimal"/>
+    <div style="font-size:10px;color:var(--dim);text-align:center;margin-bottom:16px;">lbs</div>
+    <button class="btn primary" onclick="const v=document.getElementById('bw-inp').value;logBW(v);hideModal();">LOG WEIGHT</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+  setTimeout(()=>{const i=document.getElementById('bw-inp');if(i)i.focus();},100);
 }
 function updateNote(n,val){
   const ex=activeWorkout?.exercises.find(e=>e.name===n);
@@ -1676,37 +1694,52 @@ function renameTemplate(id){
 // ═══════════════════════════════════════════
 // SUPPLEMENTS — Daily creatine & vitamin tracking
 // ═══════════════════════════════════════════
+const DEFAULT_VITAMINS=['Vitamin D','Fish Oil','Multivitamin'];
+
+function getVitaminList(){
+  return state.vitaminTypes||DEFAULT_VITAMINS;
+}
 function getTodaySupp(){
   const d=today();
   if(!state.supplements) state.supplements=[];
   return state.supplements.find(s=>s.date===d);
 }
-function toggleCreatine(){
+function ensureTodaySupp(){
   if(!state.supplements) state.supplements=[];
   const d=today();
   let entry=state.supplements.find(s=>s.date===d);
-  if(entry){
-    if(entry.creatine>0) entry.creatine=0;
-    else entry.creatine=entry.creatineDose||5;
-  } else {
-    entry={date:d,timestamp:Date.now(),creatine:5,creatineDose:5,vitamins:false};
+  if(!entry){
+    entry={date:d,timestamp:Date.now(),creatine:0,creatineDose:5,vitamins:{}};
     state.supplements.unshift(entry);
   }
+  // Migrate old boolean vitamins to object
+  if(typeof entry.vitamins==='boolean'){
+    const old=entry.vitamins;
+    entry.vitamins={};
+    if(old) getVitaminList().forEach(v=>entry.vitamins[v]=true);
+  }
+  return entry;
+}
+function toggleCreatine(){
+  const entry=ensureTodaySupp();
+  if(entry.creatine>0) entry.creatine=0;
+  else entry.creatine=entry.creatineDose||5;
   saveImmediate(); render();
   if(entry.creatine>0) haptic('light');
 }
-function toggleVitamins(){
-  if(!state.supplements) state.supplements=[];
-  const d=today();
-  let entry=state.supplements.find(s=>s.date===d);
-  if(entry){
-    entry.vitamins=!entry.vitamins;
-  } else {
-    entry={date:d,timestamp:Date.now(),creatine:0,creatineDose:5,vitamins:true};
-    state.supplements.unshift(entry);
-  }
+function toggleVitamin(name){
+  const entry=ensureTodaySupp();
+  entry.vitamins[name]=!entry.vitamins[name];
   saveImmediate(); render();
-  if(entry.vitamins) haptic('light');
+  if(entry.vitamins[name]) haptic('light');
+}
+function toggleAllVitamins(){
+  const entry=ensureTodaySupp();
+  const list=getVitaminList();
+  const allOn=list.every(v=>entry.vitamins[v]);
+  list.forEach(v=>entry.vitamins[v]=!allOn);
+  saveImmediate(); render();
+  if(!allOn) haptic('light');
 }
 function adjustCreatine(){
   const entry=getTodaySupp();
@@ -1714,10 +1747,10 @@ function adjustCreatine(){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">CREATINE DOSE</div>
     <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px;">
-      <button class="btn ghost small" onclick="document.getElementById('creatine-dose-inp').stepDown()" style="font-size:18px;padding:8px 14px;">−</button>
-      <input id="creatine-dose-inp" type="number" class="input" value="${currentDose}" min="1" max="20" step="1"
+      <button class="btn ghost small" onclick="const i=document.getElementById('creatine-dose-inp');i.value=(Math.max(0.5,parseFloat(i.value)-0.5)).toFixed(1)" style="font-size:18px;padding:8px 14px;">−</button>
+      <input id="creatine-dose-inp" type="number" class="input" value="${currentDose}" min="0.5" max="20" step="0.5"
         style="width:80px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:32px;"/>
-      <button class="btn ghost small" onclick="document.getElementById('creatine-dose-inp').stepUp()" style="font-size:18px;padding:8px 14px;">+</button>
+      <button class="btn ghost small" onclick="const i=document.getElementById('creatine-dose-inp');i.value=(Math.min(20,parseFloat(i.value)+0.5)).toFixed(1)" style="font-size:18px;padding:8px 14px;">+</button>
     </div>
     <div style="font-size:10px;color:var(--dim);text-align:center;margin-bottom:16px;">grams per day</div>
     <button class="btn primary" onclick="saveCreatineDose()">SAVE</button>
@@ -1725,20 +1758,50 @@ function adjustCreatine(){
   `);
 }
 function saveCreatineDose(){
-  const val=parseInt(document.getElementById('creatine-dose-inp').value)||5;
-  const dose=Math.max(1,Math.min(20,val));
-  if(!state.supplements) state.supplements=[];
-  const d=today();
-  let entry=state.supplements.find(s=>s.date===d);
-  if(entry){
-    entry.creatineDose=dose;
-    if(entry.creatine>0) entry.creatine=dose;
-  } else {
-    entry={date:d,timestamp:Date.now(),creatine:dose,creatineDose:dose,vitamins:false};
-    state.supplements.unshift(entry);
-  }
+  const val=parseFloat(document.getElementById('creatine-dose-inp').value)||5;
+  const dose=Math.max(0.5,Math.min(20,Math.round(val*2)/2)); // snap to 0.5
+  const entry=ensureTodaySupp();
+  entry.creatineDose=dose;
+  if(entry.creatine>0) entry.creatine=dose;
   saveImmediate(); hideModal(); render();
   showToast('Creatine set to '+dose+'g');
+}
+function openVitaminSettings(){
+  const list=getVitaminList();
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">MY VITAMINS</div>
+    <div id="vit-list" style="margin-bottom:14px;">
+      ${list.map((v,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <input class="input vit-name-inp" value="${v.replace(/"/g,'&quot;')}" style="flex:1;padding:10px 12px;font-size:13px;"/>
+          <button class="btn ghost small" onclick="this.parentElement.remove()" style="color:var(--danger);border-color:var(--danger)44;padding:8px 10px;">✕</button>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn ghost" onclick="addVitaminRow()" style="margin-bottom:14px;font-size:11px;">+ ADD VITAMIN</button>
+    <button class="btn primary" onclick="saveVitaminList()">SAVE</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+function addVitaminRow(){
+  const list=document.getElementById('vit-list');
+  if(!list) return;
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+  div.innerHTML=`
+    <input class="input vit-name-inp" placeholder="Vitamin name" style="flex:1;padding:10px 12px;font-size:13px;"/>
+    <button class="btn ghost small" onclick="this.parentElement.remove()" style="color:var(--danger);border-color:var(--danger)44;padding:8px 10px;">✕</button>
+  `;
+  list.appendChild(div);
+  div.querySelector('input').focus();
+}
+function saveVitaminList(){
+  const inputs=document.querySelectorAll('.vit-name-inp');
+  const names=[...inputs].map(i=>i.value.trim()).filter(Boolean);
+  if(!names.length){ showToast('Add at least one vitamin'); return; }
+  state.vitaminTypes=names;
+  saveImmediate(); hideModal(); render();
+  showToast('Vitamins updated');
 }
 function suppWeekCount(key){
   const weekStart=new Date();
@@ -1747,30 +1810,56 @@ function suppWeekCount(key){
   return (state.supplements||[]).filter(s=>{
     const d=new Date(s.timestamp);
     if(d<weekStart) return false;
-    return key==='creatine'?s.creatine>0:s.vitamins;
+    if(key==='creatine') return s.creatine>0;
+    // Vitamins: count day if ALL vitamins taken
+    const list=getVitaminList();
+    if(typeof s.vitamins==='object'&&s.vitamins) return list.every(v=>s.vitamins[v]);
+    return s.vitamins===true;
   }).length;
 }
 function renderSuppCard(){
-  const entry=getTodaySupp();
-  const creatineOn=entry&&entry.creatine>0;
-  const vitaminsOn=entry&&entry.vitamins;
-  const dose=entry&&entry.creatineDose?entry.creatineDose:5;
+  const entry=ensureTodaySupp();
+  const creatineOn=entry.creatine>0;
+  const dose=entry.creatineDose||5;
   const crWeek=suppWeekCount('creatine');
   const vitWeek=suppWeekCount('vitamins');
+  const vitList=getVitaminList();
+  const vitsTaken=typeof entry.vitamins==='object'?vitList.filter(v=>entry.vitamins[v]).length:0;
+  const allVitsOn=vitsTaken===vitList.length;
+
+  // Today's weigh-in
+  const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
+  const hr=new Date().getHours();
+  const timeLabel=hr<12?'Morning':hr<17?'Afternoon':'Night';
 
   return `
-    <div style="display:flex;gap:10px;margin-bottom:14px;">
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
       <button onclick="toggleCreatine()" class="supp-toggle${creatineOn?' on':''}" style="flex:1;">
         <span class="supp-check">${creatineOn?'✓':''}</span>
         <span class="supp-label">Creatine</span>
         <span class="supp-dose" onclick="event.stopPropagation();adjustCreatine()">${dose}g</span>
         <span class="supp-week">${crWeek}/7 this week</span>
       </button>
-      <button onclick="toggleVitamins()" class="supp-toggle${vitaminsOn?' on':''}" style="flex:1;">
-        <span class="supp-check">${vitaminsOn?'✓':''}</span>
+      <div class="supp-toggle${allVitsOn?' on':''}" style="flex:1;" onclick="toggleAllVitamins()">
+        <span class="supp-check">${allVitsOn?'✓':vitsTaken>0?vitsTaken+'/'+vitList.length:''}</span>
         <span class="supp-label">Vitamins</span>
+        <div class="supp-vit-list">
+          ${vitList.map(v=>{
+            const on=typeof entry.vitamins==='object'&&entry.vitamins[v];
+            const safe=v.replace(/"/g,'&quot;');
+            return `<span class="supp-vit-chip${on?' on':''}" onclick="event.stopPropagation();toggleVitamin(&quot;${safe}&quot;)">${v}</span>`;
+          }).join('')}
+        </div>
         <span class="supp-week">${vitWeek}/7 this week</span>
-      </button>
+        <span class="supp-edit-vits" onclick="event.stopPropagation();openVitaminSettings()">edit</span>
+      </div>
+    </div>
+    <div class="supp-weighin" onclick="openWeighIn()">
+      <span class="supp-weighin-icon">⚖️</span>
+      ${todayBW
+        ?`<span class="supp-weighin-val">${todayBW.weight} lbs</span><span class="supp-weighin-time">${todayBW.timeOfDay||timeLabel.toLowerCase()}</span>`
+        :`<span class="supp-weighin-prompt">Weigh in · ${timeLabel}</span>`
+      }
     </div>`;
 }
 

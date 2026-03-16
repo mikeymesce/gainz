@@ -19,6 +19,7 @@ export function migrateState(s) {
   if(!s.customSplits) s.customSplits = [...(PROGRAMS[s.program||'ppl']?.splits||['Push','Pull','Legs','Core'])];
   if(!s.templates) s.templates = [];
   if(!s.supplements) s.supplements = [];
+  if(!s.vitaminTypes) s.vitaminTypes = ['Vitamin D','Fish Oil','Multivitamin'];
   s.schemaVersion = SCHEMA_VERSION;
   return s;
 }

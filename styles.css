@@ -612,6 +612,43 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   color:var(--accent);border-color:rgba(232,213,160,0.2);
   background:rgba(232,213,160,0.06);
 }
+.supp-vit-list{
+  display:flex;flex-wrap:wrap;gap:4px;justify-content:center;
+}
+.supp-vit-chip{
+  font-size:9px;color:var(--dim);
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:10px;padding:3px 8px;
+  cursor:pointer;transition:all 0.15s;
+}
+.supp-vit-chip.on{
+  color:var(--accent);background:rgba(232,213,160,0.08);
+  border-color:rgba(232,213,160,0.25);
+}
+.supp-edit-vits{
+  font-size:9px;color:var(--dim);cursor:pointer;
+  letter-spacing:0.5px;transition:color 0.15s;
+}
+.supp-edit-vits:active{color:var(--accent);}
+.supp-weighin{
+  display:flex;align-items:center;gap:10px;
+  background:var(--cardBg);border:1px solid var(--borderCard);
+  border-radius:12px;padding:10px 14px;margin-bottom:14px;
+  cursor:pointer;transition:all 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.supp-weighin:active{transform:scale(0.98);}
+.supp-weighin-icon{font-size:16px;}
+.supp-weighin-val{
+  font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);
+}
+.supp-weighin-time{
+  font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;
+  margin-left:auto;
+}
+.supp-weighin-prompt{
+  font-size:11px;color:var(--dim);letter-spacing:0.5px;
+}
 .supp-week{
   font-size:9px;color:var(--dim);letter-spacing:0.5px;
 }
