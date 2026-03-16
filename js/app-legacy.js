@@ -2774,7 +2774,8 @@ function renderMe(){
     }
   })));
 
-  const statsStrip=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+  const creatineWeek=suppWeekCount('creatine');
+  const statsStrip=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
     <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;text-align:center;padding:14px 8px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--accent);line-height:1;">${streak}</div>
       <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:3px;text-transform:uppercase;">Streak</div>
@@ -2782,6 +2783,10 @@ function renderMe(){
     <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;text-align:center;padding:14px 8px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--accent);line-height:1;">${thisWeek}</div>
       <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:3px;text-transform:uppercase;">This Week</div>
+    </div>
+    <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;text-align:center;padding:14px 8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#52c87a;line-height:1;">${creatineWeek}/7</div>
+      <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:3px;text-transform:uppercase;">Creatine</div>
     </div>
     <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;text-align:center;padding:14px 8px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:${best1RM?'26':'36'}px;color:#52c87a;line-height:1;">${best1RM?best1RM.val+"lb":"—"}</div>
