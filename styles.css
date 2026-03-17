@@ -53,6 +53,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   padding:calc(16px + env(safe-area-inset-top)) 20px 14px;
   display:flex;justify-content:space-between;align-items:center;flex-shrink:0;
   border-bottom:1px solid var(--border);
+  position:relative;
 }
 .logo{
   font-family:'Bebas Neue',sans-serif;
@@ -62,6 +63,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   -webkit-touch-callout:none;
   transition:all 0.1s;
   text-shadow:0 0 20px rgba(232,213,160,0.25);
+  position:absolute;left:50%;transform:translateX(-50%);
 }
 .logo.pressing{letter-spacing:5px;opacity:0.75;}
 .header-right{display:flex;align-items:center;gap:14px;}
