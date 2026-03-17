@@ -123,7 +123,7 @@ export function dismissCinematic() {
   const ob = document.getElementById('onboard-splash');
   requestAnimationFrame(() => { if (ob) ob.style.opacity = '1'; });
 
-  setTimeout(() => { el.style.display = 'none'; }, 1500);
+  setTimeout(() => { el.style.display = 'none'; }, 600);
 }
 
 // ── All onboarding cards — shuffled each time ──

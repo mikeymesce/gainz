@@ -12,18 +12,18 @@
 </head>
 <body>
 <div id="ambient-particles"></div>
-<div id="cinematic-splash" style="display:none;">
+<div id="cinematic-splash" style="display:none;" onclick="dismissCinematic()">
   <div class="cin-container" id="cin-container"></div>
-  <div class="cin-skip" onclick="dismissCinematic()">SKIP</div>
+  <div class="cin-skip">SKIP</div>
 </div>
-<div id="onboard-splash" style="display:none;">
+<div id="onboard-splash" style="display:none;" onclick="dismissSplash()">
   <div class="ob-logo">GAINZ</div>
   <div class="ob-tagline">Track. Progress. Dominate.</div>
-  <div class="ob-cards-wrap" id="ob-cards-wrap">
+  <div class="ob-cards-wrap" id="ob-cards-wrap" onclick="event.stopPropagation()">
     <div class="ob-cards-track" id="ob-cards-track"></div>
   </div>
   <div class="ob-dots" id="ob-dots"></div>
-  <div style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;opacity:0;animation:obSlideIn 0.8s ease 4.2s forwards;">SWIPE TO EXPLORE</div>
+  <div style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;opacity:0;animation:obSlideIn 0.8s ease 4.2s forwards;">SWIPE OR TAP TO SKIP</div>
   <button class="ob-skip" onclick="dismissSplash()">SKIP →</button>
 </div>
 <div id="app">
