@@ -770,28 +770,39 @@ function renderWorkoutSummary(){
   }
 
   // 3 Pillars — rotating post-workout tips: nutrition, sleep, exercise
+  // Tips with myth:true get a "MYTH BUSTED" label
   const PILLAR_TIPS = [
     { pillar: 'NUTRITION', icon: '🥩', tips: [
-      { tip: 'Eat 20–40g protein within 2 hours of training to maximize muscle repair.', src: 'Schoenfeld & Aragon, J Int Soc Sports Nutr, 2018' },
+      { myth: true, tip: '"You need protein within 30 minutes of lifting." Nope. A 2025 meta-analysis of 65 studies found protein timing has zero effect on muscle gains. Just hit your daily target.', src: 'Liao et al., Nutrients, 2025' },
       { tip: 'Creatine (3–5g/day) is the most studied and effective strength supplement. Take it daily — timing doesn\'t matter.', src: 'Kreider et al., J Int Soc Sports Nutr, 2017' },
       { tip: 'You need ~0.7–1g of protein per pound of bodyweight daily to build muscle. Spread it across 3–5 meals.', src: 'Morton et al., Br J Sports Med, 2018' },
+      { myth: true, tip: '"Your body can only absorb 30g of protein per meal." Wrong. Subjects given 100g protein post-workout used it all — muscle protein synthesis was significantly higher with no ceiling.', src: 'Trommelen et al., Cell Reports Medicine, 2023' },
+      { myth: true, tip: '"High protein damages your kidneys." No evidence of this in healthy adults — even at extreme intakes. This myth comes from guidelines for people who already have kidney disease.', src: 'Antonio et al., J Int Soc Sports Nutr, 2024' },
+      { myth: true, tip: '"You have to eat perfectly clean to get results." Flexible dieting (80/20) produces the same body composition results as strict dieting — with better long-term adherence.', src: 'Conlin et al., J Int Soc Sports Nutr, 2021' },
       { tip: 'Carbs after training refill glycogen stores faster. Pair them with protein for best recovery.', src: 'Kerksick et al., J Int Soc Sports Nutr, 2017' },
       { tip: 'Dehydration of just 2% bodyweight impairs strength performance. Drink water throughout the day, not just at the gym.', src: 'Judelson et al., Sports Med, 2007' },
       { tip: 'Caffeine 30–60 min before lifting improves strength and endurance by 3–7%. But skip it within 8 hours of bedtime.', src: 'Grgic et al., Br J Sports Med, 2020' },
     ]},
     { pillar: 'SLEEP', icon: '😴', tips: [
-      { tip: 'Sleep 7–9 hours. Getting less than 6 hours drops testosterone by 10–15% and kills recovery.', src: 'Leproult & Van Cauter, JAMA, 2011' },
+      { tip: 'Getting less than 6 hours of sleep drops testosterone by 10–15% and kills recovery. Protect your sleep.', src: 'Leproult & Van Cauter, JAMA, 2011' },
       { tip: 'Growth hormone peaks during deep sleep. Consistent bedtime = more deep sleep = more gains.', src: 'Van Cauter & Plat, Sleep, 1996' },
       { tip: 'Cool your room to 65–68°F (18–20°C). Core temp drop is one of the strongest triggers for deep sleep.', src: 'Harding et al., Energy & Buildings, 2020' },
       { tip: 'Stop screens 30–60 min before bed. Blue light suppresses melatonin by up to 50%.', src: 'Chang et al., PNAS, 2015' },
-      { tip: 'One bad night of sleep reduces pain tolerance and increases perceived effort. Prioritize sleep like you prioritize training.', src: 'Krause et al., J Neurosci, 2019' },
+      { myth: true, tip: '"Falling asleep instantly means you\'re a good sleeper." Actually, it\'s a sign of sleep deprivation. Healthy sleep onset takes 15–20 minutes.', src: 'Robbins et al., Sleep Health, 2019' },
+      { myth: true, tip: '"Everyone needs exactly 8 hours." A study of 5,000 people across 20 countries found optimal sleep varies by individual — from 6h18m to 7h52m. Find YOUR number.', src: 'UBC/UVic Cross-Cultural Study, 2025' },
+      { myth: true, tip: '"Evening workouts ruin your sleep." Wrong — exercise at ANY time of day improves sleep quality. Only very intense training within 1 hour of bed has a small effect.', src: 'Stutz et al., Sports Med, 2019' },
       { tip: 'Naps of 20–30 min improve afternoon performance without wrecking nighttime sleep.', src: 'Waterhouse et al., J Sports Sci, 2007' },
+      { tip: 'One bad night of sleep reduces pain tolerance and increases perceived effort. Prioritize sleep like you prioritize training.', src: 'Krause et al., J Neurosci, 2019' },
     ]},
     { pillar: 'EXERCISE', icon: '💪', tips: [
       { tip: 'Progressive overload is the #1 driver of muscle growth. Add weight, reps, or sets over time — not all at once.', src: 'Schoenfeld, J Strength Cond Res, 2010' },
       { tip: 'Training a muscle 2x per week produces more growth than 1x, even with the same total volume.', src: 'Schoenfeld et al., Sports Med, 2016' },
       { tip: 'Rest 2–3 min between heavy compound sets. Short rest sounds tough but actually reduces your gains.', src: 'Schoenfeld et al., J Strength Cond Res, 2016' },
-      { tip: '10–20 hard sets per muscle per week is the sweet spot for most lifters. More isn\'t always better.', src: 'Wernbom et al., Sports Med, 2007' },
+      { myth: true, tip: '"You have to lift heavy to build muscle." Light weights with high reps build equal muscle — as long as you go close to failure. Effort matters more than load.', src: 'Schoenfeld et al., J Strength Cond Res, 2017' },
+      { myth: true, tip: '"Soreness means you had a good workout." 33% of study subjects had zero soreness but still had significant muscle growth. DOMS doesn\'t correlate with gains.', src: 'Nosaka et al., Scand J Med Sci Sports, 2002' },
+      { myth: true, tip: '"Ice baths after every workout speed recovery." They actually blunt the inflammatory response your muscles need to adapt. Chronic use reduces long-term gains.', src: 'Roberts et al., J Physiology, 2015' },
+      { myth: true, tip: '"Missed a week? You lost your gains." Muscle memory is real. Your muscle cells keep extra nuclei for years — you regain lost muscle WAY faster than you originally built it.', src: 'Gundersen, Front Physiol, 2016' },
+      { myth: true, tip: '"You\'re too old to build muscle." People in their 60s and 70s doubled their strength in just 12 weeks of training. It is literally never too late to start.', src: 'Peterson et al., Med Sci Sports Exerc, 2010' },
       { tip: 'Eccentric (lowering) phase matters. Control the weight for 2–3 seconds on the way down for maximum growth stimulus.', src: 'Schoenfeld et al., Eur J Sport Sci, 2017' },
       { tip: 'Deload every 4–6 weeks. Cutting volume in half for a week lets your body supercompensate and come back stronger.', src: 'Pritchard et al., J Strength Cond Res, 2015' },
     ]},
@@ -845,8 +856,11 @@ function renderWorkoutSummary(){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);">WORKOUT #${milestone}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px;">Milestone unlocked</div>
       </div>`:''}
-      <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:16px;margin-top:16px;">
-        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">${pillar.icon} ${pillar.pillar}</div>
+      <div style="background:#0f0f12;border:1px solid ${pillarTip.myth?'rgba(232,213,160,0.25)':'#1e1e24'};border-radius:14px;padding:16px;margin-top:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">${pillar.icon} ${pillar.pillar}</span>
+          ${pillarTip.myth?'<span style="font-size:8px;letter-spacing:1.5px;color:var(--accent);background:rgba(232,213,160,0.1);padding:2px 6px;border-radius:4px;">MYTH BUSTED</span>':''}
+        </div>
         <div style="font-size:13px;color:var(--text);line-height:1.5;">${pillarTip.tip}</div>
         <div style="font-size:9px;color:var(--dim);margin-top:8px;font-style:italic;">${pillarTip.src}</div>
       </div>
