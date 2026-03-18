@@ -769,14 +769,38 @@ function renderWorkoutSummary(){
     for(const c of COMPARISONS) if(w.totalVolume>=c.lbs) tonComp=c;
   }
 
-  // Motivational lines
-  const quotes=[
-    "The iron never lies.","Discipline is choosing between what you want now and what you want most.",
-    "You don't have to be extreme, just consistent.","The only bad workout is the one that didn't happen.",
-    "Strong people are harder to kill.","Trust the process.","Every rep counts.",
-    "You're building something most people quit on.","Progress, not perfection.",
+  // 3 Pillars — rotating post-workout tips: nutrition, sleep, exercise
+  const PILLAR_TIPS = [
+    { pillar: 'NUTRITION', icon: '🥩', tips: [
+      { tip: 'Eat 20–40g protein within 2 hours of training to maximize muscle repair.', src: 'Schoenfeld & Aragon, J Int Soc Sports Nutr, 2018' },
+      { tip: 'Creatine (3–5g/day) is the most studied and effective strength supplement. Take it daily — timing doesn\'t matter.', src: 'Kreider et al., J Int Soc Sports Nutr, 2017' },
+      { tip: 'You need ~0.7–1g of protein per pound of bodyweight daily to build muscle. Spread it across 3–5 meals.', src: 'Morton et al., Br J Sports Med, 2018' },
+      { tip: 'Carbs after training refill glycogen stores faster. Pair them with protein for best recovery.', src: 'Kerksick et al., J Int Soc Sports Nutr, 2017' },
+      { tip: 'Dehydration of just 2% bodyweight impairs strength performance. Drink water throughout the day, not just at the gym.', src: 'Judelson et al., Sports Med, 2007' },
+      { tip: 'Caffeine 30–60 min before lifting improves strength and endurance by 3–7%. But skip it within 8 hours of bedtime.', src: 'Grgic et al., Br J Sports Med, 2020' },
+    ]},
+    { pillar: 'SLEEP', icon: '😴', tips: [
+      { tip: 'Sleep 7–9 hours. Getting less than 6 hours drops testosterone by 10–15% and kills recovery.', src: 'Leproult & Van Cauter, JAMA, 2011' },
+      { tip: 'Growth hormone peaks during deep sleep. Consistent bedtime = more deep sleep = more gains.', src: 'Van Cauter & Plat, Sleep, 1996' },
+      { tip: 'Cool your room to 65–68°F (18–20°C). Core temp drop is one of the strongest triggers for deep sleep.', src: 'Harding et al., Energy & Buildings, 2020' },
+      { tip: 'Stop screens 30–60 min before bed. Blue light suppresses melatonin by up to 50%.', src: 'Chang et al., PNAS, 2015' },
+      { tip: 'One bad night of sleep reduces pain tolerance and increases perceived effort. Prioritize sleep like you prioritize training.', src: 'Krause et al., J Neurosci, 2019' },
+      { tip: 'Naps of 20–30 min improve afternoon performance without wrecking nighttime sleep.', src: 'Waterhouse et al., J Sports Sci, 2007' },
+    ]},
+    { pillar: 'EXERCISE', icon: '💪', tips: [
+      { tip: 'Progressive overload is the #1 driver of muscle growth. Add weight, reps, or sets over time — not all at once.', src: 'Schoenfeld, J Strength Cond Res, 2010' },
+      { tip: 'Training a muscle 2x per week produces more growth than 1x, even with the same total volume.', src: 'Schoenfeld et al., Sports Med, 2016' },
+      { tip: 'Rest 2–3 min between heavy compound sets. Short rest sounds tough but actually reduces your gains.', src: 'Schoenfeld et al., J Strength Cond Res, 2016' },
+      { tip: '10–20 hard sets per muscle per week is the sweet spot for most lifters. More isn\'t always better.', src: 'Wernbom et al., Sports Med, 2007' },
+      { tip: 'Eccentric (lowering) phase matters. Control the weight for 2–3 seconds on the way down for maximum growth stimulus.', src: 'Schoenfeld et al., Eur J Sport Sci, 2017' },
+      { tip: 'Deload every 4–6 weeks. Cutting volume in half for a week lets your body supercompensate and come back stronger.', src: 'Pritchard et al., J Strength Cond Res, 2015' },
+    ]},
   ];
-  const quote=quotes[Math.floor(Math.random()*quotes.length)];
+  // Rotate pillars: use workout count to cycle nutrition → sleep → exercise
+  const pillarIdx = (state.workouts.length - 1) % PILLAR_TIPS.length;
+  const pillar = PILLAR_TIPS[pillarIdx];
+  const tipIdx = Math.floor((state.workouts.length - 1) / PILLAR_TIPS.length) % pillar.tips.length;
+  const pillarTip = pillar.tips[tipIdx];
 
   // Workout count milestone
   const woCount=state.workouts.length;
@@ -821,7 +845,11 @@ function renderWorkoutSummary(){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);">WORKOUT #${milestone}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px;">Milestone unlocked</div>
       </div>`:''}
-      <div style="text-align:center;margin-top:20px;padding:14px;font-size:13px;color:var(--dim);font-style:italic;line-height:1.5;">"${quote}"</div>
+      <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:16px;margin-top:16px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">${pillar.icon} ${pillar.pillar}</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.5;">${pillarTip.tip}</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:8px;font-style:italic;">${pillarTip.src}</div>
+      </div>
       <button class="btn primary" onclick="dismissSummary()" style="width:100%;margin-top:12px;font-size:13px;">DONE ✓</button>
     </div>
   </div>`;
