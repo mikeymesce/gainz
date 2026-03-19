@@ -153,7 +153,9 @@ function rebuildPickerList(){
     }).join("");
     return;
   }
-  let avail = (ALL_SPLITS[activeWorkout.split]||[]).filter(e=>!activeWorkout.exercises.find(x=>x.name===e));
+  let avail = activeWorkout.split==="Quick"
+    ? [...new Set(Object.values(ALL_SPLITS).flat())].filter(e=>!activeWorkout.exercises.find(x=>x.name===e))
+    : (ALL_SPLITS[activeWorkout.split]||[]).filter(e=>!activeWorkout.exercises.find(x=>x.name===e));
   if(pickerFilter==="research") avail = avail.filter(e=>!!RESEARCH_TIPS[e]);
   const hasRes = ex => !!RESEARCH_TIPS[ex];
   list.innerHTML = avail.map(ex=>
@@ -427,6 +429,9 @@ let exMenuOpen=null;    // exercise name whose ⋮ overflow menu is open
 let histEditMode=false;
 let meTab="history";
 let progressSearch="";
+function quickStart(){
+  startWorkout("Quick");
+}
 function startWorkout(split){
   activeWorkout={split,exercises:[],startTime:Date.now(),notes:""};
   setHistory=[];
@@ -904,8 +909,36 @@ function renderWorkoutSummary(){
     </div>
   </div>`;
 }
+function detectSplit(exercises){
+  const exNames=exercises.map(e=>e.name);
+  let best=null, bestCount=0;
+  for(const [split,splitExercises] of Object.entries(ALL_SPLITS)){
+    const count=exNames.filter(n=>splitExercises.includes(n)).length;
+    if(count>bestCount){ bestCount=count; best=split; }
+  }
+  return best;
+}
+function finishQuickWorkout(chosenSplit){
+  hideModal();
+  activeWorkout.split=chosenSplit;
+  finishWorkout();
+}
 function finishWorkout(){
   if(!activeWorkout.exercises.length){ showModal(`<div style="font-size:13px;color:var(--accent);margin-bottom:14px;">Log at least one exercise first 💪</div><button class="btn ghost" onclick="hideModal()">OK</button>`); return; }
+  // Quick Start: ask user to categorize before saving
+  if(activeWorkout.split==="Quick"){
+    const detected=detectSplit(activeWorkout.exercises);
+    const splits=Object.keys(ALL_SPLITS);
+    showModal(`
+      <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">CATEGORIZE WORKOUT</div>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:16px;">What type of session was this?</div>
+      ${splits.map(s=>`<button class="btn ghost" onclick="finishQuickWorkout('${s}')" style="width:100%;margin-bottom:8px;${s===detected?'border-color:var(--accent);color:var(--accent);':''}">
+        ${splitName(s)}${s===detected?' ← suggested':''}
+      </button>`).join('')}
+      <button class="btn ghost" onclick="finishQuickWorkout('Quick')" style="width:100%;margin-top:4px;color:var(--dim);">Keep as "Quick"</button>
+    `);
+    return;
+  }
   const yest=new Date(); yest.setDate(yest.getDate()-1);
   const streak=state.lastWorkoutDate===yest.toDateString()?state.streak+1:state.lastWorkoutDate===todayStr()?state.streak:1;
   const notesEl=document.getElementById("session-notes"); if(notesEl) activeWorkout.notes=notesEl.value;
@@ -1015,8 +1048,9 @@ function renderNav(){
     const isActive=screen===s||(s==="settings"&&screen==="prHistory");
     const isLog=s==="log";
     const glowing=activeWorkout&&isLog;
-    const logDisabled=isLog&&!activeWorkout;
-    return `<button class="nav-btn ${isActive?"active":""}" onclick="screen='${s}';historyDetail=null;progressEx=null;render()" style="${logDisabled?"opacity:0.3;pointer-events:none;":""}">
+    const logDisabled=false;
+    const logAction=isLog&&!activeWorkout?'quickStart()':'screen=\''+s+'\';historyDetail=null;progressEx=null;render()';
+    return `<button class="nav-btn ${isActive?"active":""}" onclick="${logAction}" style="">
       <span class="icon" style="${glowing?"color:var(--accent);":""}">${glowing?"●":ic}</span>
       <span style="${glowing?"color:var(--accent);":""}">${lb}</span>
     </button>`;
