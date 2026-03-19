@@ -8,7 +8,11 @@ export function today(){ return new Date().toLocaleDateString("en-US",{weekday:"
 export function todayStr(){ return new Date().toDateString(); }
 export function fmt(s){ s=Math.max(0,s); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
 export function fmtMs(ms){ const s=Math.floor(ms/1000),m=Math.floor(s/60); return `${m}:${String(s%60).padStart(2,"0")}`; }
-export function vol(sets){ return sets.reduce((a,s)=>a+(s.bw||s.warmup?0:(parseFloat(s.weight)||0))*(parseInt(s.reps)||0),0); }
+export function vol(sets){ return sets.reduce((a,s)=>{
+  let v=(s.bw||s.warmup?0:(parseFloat(s.weight)||0))*(parseInt(s.reps)||0);
+  if(s.drops) v+=s.drops.reduce((da,d)=>da+(parseFloat(d.weight)||0)*(parseInt(d.reps)||0),0);
+  return a+v;
+},0); }
 export function est1RM(w,r){ const wn=parseFloat(w)||0,rn=parseInt(r)||1; return rn===1?Math.round(wn):Math.round(wn*(1+rn/30)); }
 export function sid(n){ return (n||"").replace(/[^a-zA-Z0-9]/g,"-"); }
 export function esc(v){ return JSON.stringify(v).replace(/"/g,'&quot;'); }

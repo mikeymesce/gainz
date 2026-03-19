@@ -594,6 +594,41 @@ function deleteSet(exName,idx){
   const ex=activeWorkout?.exercises.find(e=>e.name===exName);
   if(ex){ ex.sets.splice(idx,1); render(); }
 }
+let dropInputOpen=null; // {exName, setIdx}
+function openDropInput(exName,setIdx){
+  dropInputOpen={exName,setIdx};
+  render();
+  setTimeout(()=>{const el=document.getElementById('drop-w');if(el)el.focus();},100);
+}
+function closeDropInput(){ dropInputOpen=null; render(); }
+function addDrop(exName,setIdx){
+  const ex=activeWorkout?.exercises.find(e=>e.name===exName);
+  if(!ex) return;
+  const set=ex.sets[setIdx];
+  if(!set) return;
+  const w=(document.getElementById('drop-w')?.value||'').trim();
+  const r=(document.getElementById('drop-r')?.value||'').trim();
+  if(!w||!r){showToast('Enter weight and reps');return;}
+  if(!set.drops) set.drops=[];
+  set.drops.push({weight:w,reps:r});
+  haptic('light');
+  try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){}
+  logDebug('↳ Drop added: '+exName+' set '+(setIdx+1)+' → '+w+'lb x '+r);
+  dropInputOpen={exName,setIdx}; // keep open for more drops
+  render();
+}
+function toggleSauna(){
+  if(activeWorkout.sauna) activeWorkout.sauna=null;
+  else activeWorkout.sauna={minutes:0,tempF:0};
+  render();
+}
+function deleteDrop(exName,setIdx,dropIdx){
+  const ex=activeWorkout?.exercises.find(e=>e.name===exName);
+  if(!ex) return;
+  const set=ex.sets[setIdx];
+  if(set&&set.drops){ set.drops.splice(dropIdx,1); if(!set.drops.length) delete set.drops; }
+  render();
+}
 function deleteExerciseConfirm(name){
   if(!confirm("Remove "+name+"?")) return;
   deleteExercise(name);
@@ -891,6 +926,10 @@ function renderWorkoutSummary(){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent);line-height:1;">${heaviest.weight}lb x ${heaviest.reps}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px;">${heaviest.name}</div>
       </div>`:''}
+      ${w.sauna?`<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-top:16px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:6px;">🧖 Sauna</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent);line-height:1;">${w.sauna.minutes} min${w.sauna.tempF?' @ '+w.sauna.tempF+'°F':''}</div>
+      </div>`:''}
       ${tonComp?`<div style="text-align:center;margin-top:14px;font-size:12px;color:var(--muted);">You moved more than ${tonComp.label} today.</div>`:''}
       ${milestone?`<div style="background:rgba(232,213,160,0.08);border:1px solid rgba(232,213,160,0.2);border-radius:14px;padding:16px;margin-top:16px;text-align:center;">
         <div style="font-size:28px;margin-bottom:4px;">🎯</div>
@@ -942,7 +981,13 @@ function finishWorkout(){
   const yest=new Date(); yest.setDate(yest.getDate()-1);
   const streak=state.lastWorkoutDate===yest.toDateString()?state.streak+1:state.lastWorkoutDate===todayStr()?state.streak:1;
   const notesEl=document.getElementById("session-notes"); if(notesEl) activeWorkout.notes=notesEl.value;
-  const w={...activeWorkout,date:today(),timestamp:Date.now(),duration:Date.now()-activeWorkout.startTime,totalVolume:activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0)};
+  // Capture sauna inputs
+  if(activeWorkout.sauna){
+    const sMin=document.getElementById('sauna-min'); if(sMin) activeWorkout.sauna.minutes=parseInt(sMin.value)||0;
+    const sTemp=document.getElementById('sauna-temp'); if(sTemp) activeWorkout.sauna.tempF=parseInt(sTemp.value)||0;
+    if(!activeWorkout.sauna.minutes&&!activeWorkout.sauna.tempF) activeWorkout.sauna=null;
+  }
+  const w={...activeWorkout,date:today(),timestamp:Date.now(),duration:Date.now()-activeWorkout.startTime,totalVolume:activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0),sauna:activeWorkout.sauna||null};
   state.workouts.unshift(w); state.streak=streak; state.lastWorkoutDate=todayStr();
   if(state.workouts.length>500) state.workouts=state.workouts.slice(0,500);
   saveAndSync();
@@ -2660,18 +2705,37 @@ function renderLog(){
       </div>`:''}
     </div>`;
 
-    const setRows=e.sets.map((s,i)=>`
+    const setRows=e.sets.map((s,i)=>{
+      const dropRows=s.drops?s.drops.map((d,di)=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 12px 4px 28px;font-size:11px;color:var(--dim);">
+          <span>↳ ${d.weight}lb × ${d.reps}</span>
+          <button class="set-del" onclick="deleteDrop(${esc(e.name)},${i},${di})" style="font-size:9px;">✕</button>
+        </div>`).join(''):'';
+      const dropOpen=dropInputOpen&&dropInputOpen.exName===e.name&&dropInputOpen.setIdx===i;
+      const dropForm=dropOpen?`
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px 6px 28px;">
+          <input id="drop-w" class="input" type="number" inputmode="decimal" placeholder="lb" style="width:60px;font-size:13px;padding:6px 8px;text-align:center;"/>
+          <span style="color:var(--dim);font-size:11px;">×</span>
+          <input id="drop-r" class="input" type="number" inputmode="numeric" placeholder="reps" style="width:50px;font-size:13px;padding:6px 8px;text-align:center;"/>
+          <button class="btn ghost" onclick="addDrop(${esc(e.name)},${i})" style="padding:5px 10px;font-size:11px;">+</button>
+          <button class="set-del" onclick="closeDropInput()" style="font-size:11px;">✕</button>
+        </div>`:'';
+      const setVol=(!s.bw&&!s.warmup)?parseFloat(s.weight)*parseInt(s.reps)+(s.drops?s.drops.reduce((a,d)=>a+(parseFloat(d.weight)||0)*(parseInt(d.reps)||0),0):0):0;
+      return `
       <div class="set-row" data-ex="${e.name.replace(/"/g,'&quot;')}" data-idx="${i}">
         <span style="display:flex;align-items:center;gap:6px;">
           ${s.warmup?`<span style="font-size:9px;background:rgba(100,160,255,0.15);border:1px solid rgba(100,160,255,0.3);border-radius:4px;padding:1px 5px;color:#7aacff;font-weight:700;letter-spacing:1px;">W</span>`:""}
           ${s.pr?`<span class="pr-ticket">PR</span>`:""}
+          ${s.drops?`<span style="font-size:9px;background:rgba(232,213,160,0.15);border:1px solid rgba(232,213,160,0.3);border-radius:4px;padding:1px 5px;color:var(--accent);font-weight:700;letter-spacing:1px;">DROP</span>`:""}
           Set ${i+1}: ${s.bw?"BW":s.weight+"lb"} × ${s.reps}
         </span>
         <span style="display:flex;align-items:center;gap:6px;">
-          ${(!s.bw&&!s.warmup)?`<span class="set-vol">${(parseFloat(s.weight)*parseInt(s.reps)).toLocaleString()}lb</span>`:""}
+          ${(!s.bw&&!s.warmup&&setVol)?`<span class="set-vol">${setVol.toLocaleString()}lb</span>`:""}
+          <button style="background:none;border:none;color:var(--dim);font-size:9px;padding:2px 4px;cursor:pointer;letter-spacing:0.5px;" onclick="event.stopPropagation();openDropInput(${esc(e.name)},${i})">+DROP</button>
           <button class="set-del" onclick="deleteSet(${esc(e.name)},${i})">✕</button>
         </span>
-      </div>`).join("");
+      </div>${dropRows}${dropForm}`;
+    }).join("");
 
     const isExpanded=expandedLastSession.has(e.name);
     const lastHint=lastSess&&lastSess.sets.length?`
@@ -2810,6 +2874,29 @@ function renderLog(){
       <textarea id="session-notes" class="notes-inp" placeholder="How'd it feel? Sleep, energy, notes..." rows="2"
         oninput="activeWorkout.notes=this.value;"
         style="font-size:12px;color:var(--muted);padding:10px 0;border-bottom:1px solid #1e1e24;width:100%;background:none;resize:none;outline:none;border:none;border-bottom:1px solid #1e1e24;font-family:'DM Sans',sans-serif;">${activeWorkout.notes||""}</textarea>
+    </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid #1e1e24;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:8px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;">Sauna</div>
+        <button onclick="toggleSauna()" style="background:${activeWorkout.sauna?'var(--accent)':'#1e1e24'};border:none;border-radius:12px;width:40px;height:22px;position:relative;cursor:pointer;transition:background 0.2s;">
+          <span style="position:absolute;top:2px;${activeWorkout.sauna?'right:2px':'left:2px'};width:18px;height:18px;background:${activeWorkout.sauna?'#080808':'#666'};border-radius:50%;transition:all 0.2s;"></span>
+        </button>
+      </div>
+      ${activeWorkout.sauna?`
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">Minutes</div>
+          <input id="sauna-min" type="number" inputmode="numeric" value="${activeWorkout.sauna.minutes||''}" placeholder="15"
+            oninput="activeWorkout.sauna.minutes=parseInt(this.value)||0;"
+            style="width:100%;font-size:16px;text-align:center;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);padding:8px;font-family:'DM Sans',sans-serif;"/>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">Temp (°F)</div>
+          <input id="sauna-temp" type="number" inputmode="numeric" value="${activeWorkout.sauna.tempF||''}" placeholder="180"
+            oninput="activeWorkout.sauna.tempF=parseInt(this.value)||0;"
+            style="width:100%;font-size:16px;text-align:center;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);padding:8px;font-family:'DM Sans',sans-serif;"/>
+        </div>
+      </div>`:''}
     </div>
     <div style="height:80px;"></div>`:""}
   `;
@@ -3106,14 +3193,19 @@ function renderHistDetail(){
             style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 8px;color:var(--danger);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;">✕</button>
         </div>`;
       }
+      const histDropRows=s.drops?s.drops.map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 12px 4px 28px;font-size:11px;color:var(--dim);">
+          <span>↳ ${d.weight}lb × ${d.reps}</span>
+        </div>`).join(''):'';
       return `<div class="set-row">
         <span style="display:flex;align-items:center;gap:6px;">
           ${s.warmup?`<span style="font-size:9px;background:rgba(100,160,255,0.15);border:1px solid rgba(100,160,255,0.3);border-radius:4px;padding:1px 5px;color:#7aacff;font-weight:700;">W</span>`:""}
           ${s.pr?`<span class="pr-ticket">PR</span>`:""}
+          ${s.drops?`<span style="font-size:9px;background:rgba(232,213,160,0.15);border:1px solid rgba(232,213,160,0.3);border-radius:4px;padding:1px 5px;color:var(--accent);font-weight:700;">DROP</span>`:""}
           Set ${i+1}: ${s.bw?"BW":s.weight+"lb"} × ${s.reps}
         </span>
         ${!s.bw&&!s.warmup?`<span class="set-vol">${(parseFloat(s.weight)*parseInt(s.reps)).toLocaleString()}lb</span>`:""}
-      </div>`;
+      </div>${histDropRows}`;
     }).join("");
 
     return `<div class="card${e.superset?" ss-card":""}">
@@ -3136,6 +3228,7 @@ function renderHistDetail(){
   const setCount=w.exercises.reduce((a,e)=>a+e.sets.length,0);
 
   const sessionNotes=w.notes?`<div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Session Notes</div><div style="font-size:12px;color:var(--muted);line-height:1.5;">${w.notes}</div></div>`:'';
+  const saunaCard=w.sauna?`<div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">🧖 Sauna</div><div style="font-size:14px;color:var(--text);">${w.sauna.minutes} min${w.sauna.tempF?' @ '+w.sauna.tempF+'°F':''}</div></div>`:'';
   return `
     <div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:center;flex-wrap:wrap;gap:8px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;line-height:1;">${splitName(w.split)}</div>
@@ -3168,6 +3261,7 @@ function renderHistDetail(){
       </div>
     </div>
     ${sessionNotes}
+    ${saunaCard}
     ${exCards}`;
 }
 
