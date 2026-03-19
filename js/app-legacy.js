@@ -742,6 +742,42 @@ function dismissSummary(){
   if(el){ el.style.animation="summaryOut 0.3s ease forwards"; setTimeout(()=>{ workoutSummary=null; render(); },280); }
   else render();
 }
+function editWorkoutDuration(){
+  if(!workoutSummary) return;
+  const curMins=Math.round(workoutSummary.duration/60000);
+  const curH=Math.floor(curMins/60);
+  const curM=curMins%60;
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">EDIT DURATION</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
+      <input id="dur-h" type="number" inputmode="numeric" min="0" max="23" value="${curH}"
+        style="width:60px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;color:var(--text);padding:8px;"/>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--muted);">h</span>
+      <input id="dur-m" type="number" inputmode="numeric" min="0" max="59" value="${curM}"
+        style="width:60px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;color:var(--text);padding:8px;"/>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--muted);">m</span>
+    </div>
+    <button class="btn primary" onclick="saveDurationEdit()">SAVE</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+function saveDurationEdit(){
+  const h=parseInt(document.getElementById('dur-h').value)||0;
+  const m=parseInt(document.getElementById('dur-m').value)||0;
+  const newDur=(h*60+m)*60000;
+  if(newDur<=0){ hideModal(); return; }
+  workoutSummary.duration=newDur;
+  // Update in saved history too
+  const saved=state.workouts.find(w=>w.timestamp===workoutSummary.timestamp);
+  if(saved) saved.duration=newDur;
+  saveImmediate();
+  hideModal();
+  // Update the displayed duration
+  const durMins=h*60+m;
+  const durStr=durMins>=60?h+"h "+m+"m":durMins+"min";
+  const el=document.getElementById('summary-dur');
+  if(el) el.textContent=durStr;
+}
 function renderWorkoutSummary(){
   const w=workoutSummary;
   if(!w) return "";
@@ -831,9 +867,9 @@ function renderWorkoutSummary(){
           <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;text-transform:uppercase;">LB Moved</div>
           <div style="margin-top:4px;">${volDiffEl}</div>
         </div>
-        <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:16px;text-align:center;">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--accent);line-height:1;">${durStr}</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;text-transform:uppercase;">Duration</div>
+        <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:16px;text-align:center;cursor:pointer;" onclick="editWorkoutDuration()">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--accent);line-height:1;" id="summary-dur">${durStr}</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;text-transform:uppercase;">Duration ✎</div>
         </div>
         <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:16px;text-align:center;">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--accent);line-height:1;">${w.exercises.length}</div>
