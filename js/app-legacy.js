@@ -1494,6 +1494,77 @@ function homeCalNav(dir){
   if(el){ el.innerHTML=buildHomeCalInner(); el.style.maxHeight=el.scrollHeight+'px'; }
 }
 
+function _calDateStr(year,month,day){
+  return new Date(year,month,day).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function _calGetSupp(year,month,day){
+  const dateStr=_calDateStr(year,month,day);
+  return (state.supplements||[]).find(s=>s.date===dateStr);
+}
+function _calGetBW(year,month,day){
+  const dateStr=_calDateStr(year,month,day);
+  const entries=(state.bodyweight||[]).filter(b=>b.date===dateStr);
+  if(!entries.length) return null;
+  const avg=entries.reduce((a,b)=>a+b.weight,0)/entries.length;
+  return Math.round(avg*10)/10;
+}
+function openCalDay(day){
+  const dateStr=_calDateStr(homeCalYear,homeCalMonth,day);
+  const wo=(state.workouts||[]).filter(w=>{const d=new Date(w.timestamp);return d.getDate()===day&&d.getMonth()===homeCalMonth&&d.getFullYear()===homeCalYear;});
+  const supp=_calGetSupp(homeCalYear,homeCalMonth,day);
+  const bwAvg=_calGetBW(homeCalYear,homeCalMonth,day);
+  const hadCreatine=supp&&supp.creatine>0;
+  const isFuture=new Date(homeCalYear,homeCalMonth,day)>new Date();
+
+  let content=`<div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text);margin-bottom:14px;">${dateStr}</div>`;
+
+  // Workouts
+  if(wo.length){
+    content+=wo.map(w=>`<div style="background:rgba(232,213,160,0.08);border:1px solid rgba(232,213,160,0.2);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:13px;color:var(--accent);font-weight:600;">${splitName(w.split)} Day</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${w.exercises.length} exercises · ${w.totalVolume?w.totalVolume.toLocaleString()+'lb':''}${w.duration?' · '+Math.round(w.duration/60000)+'min':''}</div>
+    </div>`).join('');
+  } else if(!isFuture){
+    content+=`<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">Rest day</div>`;
+  }
+
+  // Bodyweight
+  if(bwAvg){
+    content+=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Scale: <span style="color:var(--text);font-weight:600;">${bwAvg} lb</span></div>`;
+  }
+
+  // Creatine toggle
+  if(!isFuture){
+    content+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #1e1e24;margin-top:6px;">
+      <span style="font-size:12px;color:var(--muted);">Creatine${hadCreatine?' ('+supp.creatine+'g)':''}</span>
+      <button onclick="toggleCalCreatine(${homeCalYear},${homeCalMonth},${day})" style="background:${hadCreatine?'var(--accent)':'#1e1e24'};border:none;border-radius:12px;width:40px;height:22px;position:relative;cursor:pointer;transition:background 0.2s;">
+        <span style="position:absolute;top:2px;${hadCreatine?'right:2px':'left:2px'};width:18px;height:18px;background:${hadCreatine?'#080808':'#666'};border-radius:50%;transition:all 0.2s;"></span>
+      </button>
+    </div>`;
+  }
+
+  content+=`<button class="btn ghost" onclick="hideModal()" style="width:100%;margin-top:10px;">CLOSE</button>`;
+  showModal(content);
+}
+function toggleCalCreatine(year,month,day){
+  const dateStr=_calDateStr(year,month,day);
+  if(!state.supplements) state.supplements=[];
+  let entry=state.supplements.find(s=>s.date===dateStr);
+  if(!entry){
+    const dose=(state.supplements.find(s=>s.creatineDose)||{}).creatineDose||5;
+    entry={date:dateStr,timestamp:new Date(year,month,day).getTime(),creatine:0,creatineDose:dose,vitamins:{}};
+    state.supplements.unshift(entry);
+  }
+  if(entry.creatine>0) entry.creatine=0;
+  else entry.creatine=entry.creatineDose||5;
+  saveAndSync();
+  haptic('light');
+  // Refresh the modal
+  openCalDay(day);
+  // Refresh calendar behind modal
+  const el=document.getElementById('home-cal');
+  if(el) el.innerHTML=buildHomeCalInner();
+}
 function buildHomeCalInner(){
   const mn=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const firstDay=new Date(homeCalYear,homeCalMonth,1).getDay();
@@ -1510,6 +1581,16 @@ function buildHomeCalInner(){
     }
   });
 
+  // Build creatine + bodyweight lookup for this month
+  const creatineDays={};
+  const bwDays={};
+  for(let d=1;d<=daysInMonth;d++){
+    const supp=_calGetSupp(homeCalYear,homeCalMonth,d);
+    if(supp&&supp.creatine>0) creatineDays[d]=true;
+    const bw=_calGetBW(homeCalYear,homeCalMonth,d);
+    if(bw) bwDays[d]=bw;
+  }
+
   const dayHeaders=['S','M','T','W','T','F','S'].map(d=>
     `<div style="font-size:9px;color:var(--dim);text-align:center;padding:4px 0;letter-spacing:1px;">${d}</div>`
   ).join('');
@@ -1520,18 +1601,24 @@ function buildHomeCalInner(){
     const wo=woDates[day];
     const isToday=day===todayDate.getDate()&&homeCalMonth===todayDate.getMonth()&&homeCalYear===todayDate.getFullYear();
     const hasWorkout=!!wo;
-    const splits=wo?wo.map(w=>w.split).join(', '):'';
+    const hasCreatine=!!creatineDays[day];
+    const bw=bwDays[day];
     const bg=hasWorkout?'rgba(232,213,160,0.15)':'transparent';
     const border=isToday?'border:1px solid var(--accent);':'border:1px solid transparent;';
     const color=hasWorkout?'var(--accent)':isToday?'var(--text)':'var(--dim)';
-    const dot=hasWorkout?`<div style="width:4px;height:4px;border-radius:50%;background:var(--accent);margin:1px auto 0;"></div>`:'';
-    return `<div style="text-align:center;padding:6px 2px;border-radius:8px;background:${bg};${border}cursor:default;" ${hasWorkout?`title="${splits}"`:''}>
+    const woDot=hasWorkout?`<div style="width:4px;height:4px;border-radius:50%;background:var(--accent);display:inline-block;"></div>`:'';
+    const crDot=hasCreatine?`<div style="width:4px;height:4px;border-radius:50%;background:#52c87a;display:inline-block;"></div>`:'';
+    const dots=(woDot||crDot)?`<div style="display:flex;justify-content:center;gap:3px;margin-top:1px;">${woDot}${crDot}</div>`:'';
+    const bwLabel=bw?`<div style="font-size:7px;color:var(--dim);margin-top:0;line-height:1;">${bw}</div>`:'';
+    return `<div onclick="openCalDay(${day})" style="text-align:center;padding:4px 2px;border-radius:8px;background:${bg};${border}cursor:pointer;min-height:38px;" >
       <div style="font-size:12px;color:${color};font-weight:${hasWorkout?'600':'400'};">${day}</div>
-      ${dot}
+      ${dots}
+      ${bwLabel}
     </div>`;
   }).join('');
 
   const woCount=Object.keys(woDates).length;
+  const crCount=Object.keys(creatineDays).length;
   const isCurrentMonth=homeCalMonth===new Date().getMonth()&&homeCalYear===new Date().getFullYear();
 
   return `
@@ -1543,7 +1630,10 @@ function buildHomeCalInner(){
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
       ${dayHeaders}${blanks}${days}
     </div>
-    <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted);">${woCount} workout${woCount!==1?'s':''} this month</div>`;
+    <div style="display:flex;justify-content:center;gap:12px;margin-top:10px;font-size:10px;color:var(--muted);">
+      <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);vertical-align:middle;"></span> ${woCount} workout${woCount!==1?'s':''}</span>
+      <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#52c87a;vertical-align:middle;"></span> ${crCount} creatine</span>
+    </div>`;
 }
 
 function buildHomeCal(){
