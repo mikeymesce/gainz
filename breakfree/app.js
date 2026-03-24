@@ -7,6 +7,8 @@ const STORAGE_KEY = 'breakfree_data';
 
 let state = loadState();
 let screen = 'home';
+let calMonth = new Date().getMonth();
+let calYear = new Date().getFullYear();
 
 function defaultState(){
   return {
@@ -173,6 +175,148 @@ function parseGptResult(){
   else showToast('No meals found — check the format');
 }
 
+// ── Calendar helpers ──
+function _calDateStr(y,m,d){
+  return new Date(y,m,d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function _calGetDay(y,m,d){
+  const ds=_calDateStr(y,m,d);
+  return (state.days||[]).find(day=>day.date===ds);
+}
+function _calGetWeight(y,m,d){
+  const ds=_calDateStr(y,m,d);
+  return (state.entries||[]).find(e=>e.date===ds);
+}
+function calNav(dir){
+  calMonth+=dir;
+  if(calMonth>11){calMonth=0;calYear++;}
+  if(calMonth<0){calMonth=11;calYear--;}
+  render();
+}
+function openCalDay(day){
+  const dateStr=_calDateStr(calYear,calMonth,day);
+  const dayData=_calGetDay(calYear,calMonth,day);
+  const weightData=_calGetWeight(calYear,calMonth,day);
+  const isFuture=new Date(calYear,calMonth,day)>new Date();
+  if(isFuture) return;
+
+  const meals=dayData&&dayData.meals?dayData.meals:[];
+  const calIn=dayData?dayData.caloriesIn||0:0;
+  const calBurn=dayData?dayData.caloriesBurned||0:0;
+  const net=calIn-calBurn;
+
+  const mealRows=meals.map((m,i)=>`
+    <div class="meal-card">
+      <div style="font-size:12px;color:var(--text);">${m.name}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:14px;color:var(--accent);font-weight:600;">${m.calories}</span>
+        <button onclick="deleteCalMeal('${dateStr}',${i})" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
+      </div>
+    </div>`).join('');
+
+  showModal(`
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text);margin-bottom:4px;">${dateStr}</div>
+
+    ${weightData?`<div style="font-size:12px;color:var(--accent);margin-bottom:12px;">⚖️ ${weightData.weight} lb</div>`
+    :`<div style="margin-bottom:12px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="cal-bw" class="input" type="number" inputmode="decimal" placeholder="Weight (lb)" style="flex:1;font-size:14px;text-align:center;" step="0.1"/>
+        <button class="btn primary small" onclick="logCalWeight('${dateStr}',${calYear},${calMonth},${day})">LOG</button>
+      </div>
+    </div>`}
+
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="flex:1;background:var(--bg3);border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);">${calIn}</div>
+        <div style="font-size:7px;color:var(--dim);letter-spacing:1px;">EATEN</div>
+      </div>
+      <div style="flex:1;background:var(--bg3);border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--green);">${calBurn}</div>
+        <div style="font-size:7px;color:var(--dim);letter-spacing:1px;">BURNED</div>
+      </div>
+      <div style="flex:1;background:var(--bg3);border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);">${net}</div>
+        <div style="font-size:7px;color:var(--dim);letter-spacing:1px;">NET</div>
+      </div>
+    </div>
+
+    ${meals.length?`<div style="font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">MEALS</div>${mealRows}`
+    :'<div style="font-size:11px;color:var(--dim);margin-bottom:8px;">No meals logged</div>'}
+
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn ghost small" style="flex:1;" onclick="hideModal();addCalMeal('${dateStr}',${calYear},${calMonth},${day})">+ ADD MEAL</button>
+      <button class="btn ghost small" style="flex:1;" onclick="hideModal();editCalBurned('${dateStr}',${calYear},${calMonth},${day},${calBurn})">🔥 BURNED</button>
+    </div>
+
+    <button class="btn ghost" style="width:100%;margin-top:10px;" onclick="hideModal()">CLOSE</button>
+  `);
+}
+function addCalMeal(dateStr,y,m,d){
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">ADD MEAL — ${dateStr}</div>
+    <input id="cm-name" class="input" placeholder="What was eaten?" style="margin-bottom:8px;"/>
+    <input id="cm-cal" class="input" type="number" inputmode="numeric" placeholder="Calories" style="margin-bottom:14px;"/>
+    <button class="btn primary" style="width:100%;" onclick="saveCalMeal('${dateStr}',${y},${m},${d})">ADD</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal();openCalDay(${d})">BACK</button>
+  `);
+}
+function saveCalMeal(dateStr,y,m,d){
+  const name=document.getElementById('cm-name')?.value?.trim();
+  const cal=parseInt(document.getElementById('cm-cal')?.value);
+  if(!name||!cal){showToast('Enter meal and calories');return;}
+  if(!state.days) state.days=[];
+  let day=state.days.find(dd=>dd.date===dateStr);
+  if(!day){
+    day={date:dateStr,timestamp:new Date(y,m,d).getTime(),meals:[],caloriesIn:0,caloriesBurned:0};
+    state.days.push(day);
+    state.days.sort((a,b)=>b.timestamp-a.timestamp);
+  }
+  day.meals.push({name,calories:cal,time:Date.now()});
+  day.caloriesIn=day.meals.reduce((a,mm)=>a+mm.calories,0);
+  save(); hideModal(); openCalDay(d);
+}
+function deleteCalMeal(dateStr,idx){
+  const day=(state.days||[]).find(dd=>dd.date===dateStr);
+  if(!day) return;
+  day.meals.splice(idx,1);
+  day.caloriesIn=day.meals.reduce((a,mm)=>a+mm.calories,0);
+  save(); hideModal();
+  // Re-derive day number from dateStr to reopen
+  render();
+}
+function editCalBurned(dateStr,y,m,d,current){
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">CALORIES BURNED — ${dateStr}</div>
+    <input id="cb-inp" class="input" type="number" inputmode="numeric" value="${current||''}" placeholder="0"
+      style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:32px;margin-bottom:14px;"/>
+    <button class="btn primary" style="width:100%;" onclick="saveCalBurned('${dateStr}',${y},${m},${d})">SAVE</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal();openCalDay(${d})">BACK</button>
+  `);
+}
+function saveCalBurned(dateStr,y,m,d){
+  const val=parseInt(document.getElementById('cb-inp')?.value)||0;
+  if(!state.days) state.days=[];
+  let day=state.days.find(dd=>dd.date===dateStr);
+  if(!day){
+    day={date:dateStr,timestamp:new Date(y,m,d).getTime(),meals:[],caloriesIn:0,caloriesBurned:0};
+    state.days.push(day);
+    state.days.sort((a,b)=>b.timestamp-a.timestamp);
+  }
+  day.caloriesBurned=val;
+  save(); hideModal(); openCalDay(d);
+}
+function logCalWeight(dateStr,y,m,d){
+  const val=parseFloat(document.getElementById('cal-bw')?.value);
+  if(!val||val<50||val>500){showToast('Enter a valid weight');return;}
+  const existing=state.entries.find(e=>e.date===dateStr);
+  if(existing){existing.weight=val;existing.timestamp=Date.now();}
+  else{
+    state.entries.push({date:dateStr,timestamp:new Date(y,m,d).getTime(),weight:val});
+    state.entries.sort((a,b)=>b.timestamp-a.timestamp);
+  }
+  save(); hideModal(); openCalDay(d);
+}
+
 // ── Rendering ──
 function render(){
   const c=document.getElementById('content');
@@ -187,7 +331,7 @@ function renderNav(){
   const tabs=[
     ['home','◎','TODAY'],
     ['log','✚','LOG'],
-    ['chart','◨','TRENDS'],
+    ['chart','📅','CALENDAR'],
     ['settings','⚙','MORE'],
   ];
   document.getElementById('nav').innerHTML=tabs.map(([key,icon,label])=>`
@@ -262,6 +406,17 @@ function renderHome(){
       <button class="btn ghost" style="flex-shrink:0;" onclick="openWeighIn()">⚖️</button>
     </div>
 
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button onclick="copyPrompt()" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:10px;cursor:pointer;text-align:left;">
+        <div style="font-size:10px;color:var(--accent);margin-bottom:2px;">ASK CHATGPT</div>
+        <div style="font-size:9px;color:var(--dim);">Copy prompt → tell it what you ate</div>
+      </button>
+      <button onclick="openPasteResult()" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:10px;cursor:pointer;text-align:left;">
+        <div style="font-size:10px;color:var(--accent);margin-bottom:2px;">PASTE RESULT</div>
+        <div style="font-size:9px;color:var(--dim);">Paste ChatGPT's answer here</div>
+      </button>
+    </div>
+
     <button onclick="openBurnedModal()" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:10px;margin-top:8px;cursor:pointer;text-align:center;">
       <span style="font-size:11px;color:var(--muted);">🔥 Active calories burned: </span>
       <span style="font-size:13px;color:var(--green);font-weight:600;">${day.caloriesBurned}</span>
@@ -315,6 +470,51 @@ function renderLog(){
 }
 
 function renderChart(){
+  // Calendar
+  const mn=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const todayDate=new Date(); todayDate.setHours(0,0,0,0);
+  const isCurrentMonth=calMonth===todayDate.getMonth()&&calYear===todayDate.getFullYear();
+
+  const dayHeaders=['S','M','T','W','T','F','S'].map(d=>
+    `<div style="font-size:9px;color:var(--dim);text-align:center;padding:4px 0;">${d}</div>`).join('');
+  const blanks=[...Array(firstDay)].map(()=>'<div></div>').join('');
+  const calDays=[...Array(daysInMonth)].map((_,i)=>{
+    const day=i+1;
+    const isToday=day===todayDate.getDate()&&isCurrentMonth;
+    const dayData=_calGetDay(calYear,calMonth,day);
+    const weightData=_calGetWeight(calYear,calMonth,day);
+    const hasCal=dayData&&dayData.caloriesIn>0;
+    const hasWeight=!!weightData;
+    const bg=hasCal?'rgba(232,160,184,0.12)':'transparent';
+    const border=isToday?'border:1px solid var(--accent);':'border:1px solid transparent;';
+    const color=hasCal?'var(--accent)':isToday?'var(--text)':'var(--dim)';
+    const dots=[];
+    if(hasCal) dots.push('var(--accent)');
+    if(hasWeight) dots.push('var(--green)');
+    const dotHtml=dots.length?`<div style="display:flex;justify-content:center;gap:2px;margin-top:1px;">${dots.map(c=>`<div style="width:3px;height:3px;border-radius:50%;background:${c};"></div>`).join('')}</div>`:'';
+    const wLabel=hasWeight?`<div style="font-size:6px;color:var(--dim);line-height:1;">${weightData.weight}</div>`:'';
+    return `<div onclick="openCalDay(${day})" style="text-align:center;padding:3px 1px;border-radius:8px;background:${bg};${border}cursor:pointer;min-height:36px;">
+      <div style="font-size:11px;color:${color};font-weight:${hasCal?'600':'400'};">${day}</div>
+      ${dotHtml}${wLabel}
+    </div>`;
+  }).join('');
+
+  const calendar=`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <button onclick="calNav(-1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;">‹</button>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--text);letter-spacing:1px;">${mn[calMonth]} ${calYear}</div>
+        <button onclick="calNav(1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;">${isCurrentMonth?'':'›'}</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${dayHeaders}${blanks}${calDays}</div>
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:8px;font-size:9px;color:var(--dim);">
+        <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);vertical-align:middle;"></span> calories</span>
+        <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--green);vertical-align:middle;"></span> weigh-in</span>
+      </div>
+    </div>`;
+
   // Last 14 days of calories
   const last14=(state.days||[]).slice(0,14).reverse();
   const last14w=(state.entries||[]).slice(0,14).reverse();
@@ -360,7 +560,7 @@ function renderChart(){
   const weekAvgWeight=weekWeighIns.length?Math.round(weekWeighIns.reduce((a,e)=>a+e.weight,0)/weekWeighIns.length*10)/10:null;
 
   return `
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;margin-bottom:16px;">Trends</div>
+    ${calendar}
 
     ${weekDays.length?`
     <div class="card">
