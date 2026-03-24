@@ -63,7 +63,7 @@ function showCinematic() {
     const delay = Math.random() * 6;
     const dur = 5 + Math.random() * 5;
     const size = 1 + Math.random() * 2;
-    particlesHTML += `<div class="cin-particle" style="left:${x}%;bottom:-10px;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s;"></div>`;
+    particlesHTML += `<div class="cin-particle" style="left:${x}%;bottom:-30vh;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s;"></div>`;
   }
   particlesHTML += '</div>';
 
