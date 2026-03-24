@@ -371,7 +371,12 @@ function renderHome(){
       </div>
     </div>`).join('');
 
+  // Sign-in prompt
+  const signedIn=getSB()&&sbClient?'checking':'no';
+  const signInBanner=`<div id="signin-banner"></div>`;
+
   return `
+    ${signInBanner}
     <div style="text-align:center;margin-bottom:12px;">
       <div style="font-size:12px;color:var(--muted);">${greeting}, Morgan</div>
     </div>
@@ -424,7 +429,7 @@ function renderHome(){
 
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button class="btn primary" style="flex:1;" onclick="openQuickAdd()">+ ADD MEAL</button>
-      <button class="btn ghost" style="flex-shrink:0;" onclick="openWeighIn()">⚖️</button>
+      <button class="btn ghost" style="flex:1;" onclick="openWeighIn()">${todayW?'⚖️ '+todayW.weight+' LB':'⚖️ WEIGH IN'}</button>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:8px;">
@@ -834,5 +839,51 @@ setTimeout(async()=>{
   }
 },1000);
 
+// Check sign-in status and show banner if needed
+async function checkSignInBanner(){
+  const el=document.getElementById('signin-banner');
+  if(!el) return;
+  const user=await getUser();
+  if(user){
+    el.innerHTML='';
+  } else {
+    el.innerHTML=`
+      <div style="background:rgba(232,160,184,0.08);border:1px solid rgba(232,160,184,0.2);border-radius:14px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--accent);font-weight:600;margin-bottom:6px;">Back up your data</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;">Sign in so you never lose your progress</div>
+        <div style="display:flex;gap:8px;">
+          <input id="home-email" class="input" type="email" placeholder="email" style="flex:1;font-size:12px;padding:8px 10px;"/>
+          <input id="home-pass" class="input" type="password" placeholder="password" style="flex:1;font-size:12px;padding:8px 10px;"/>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button onclick="document.getElementById('sync-email')||0;homeSignIn()" class="btn primary small" style="flex:1;">SIGN IN</button>
+          <button onclick="homeSignUp()" class="btn ghost small" style="flex:1;">SIGN UP</button>
+        </div>
+      </div>`;
+  }
+}
+async function homeSignIn(){
+  const c=getSB(); if(!c){showToast('Sync not available');return;}
+  const email=document.getElementById('home-email')?.value?.trim();
+  const pass=document.getElementById('home-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  const {error}=await c.auth.signInWithPassword({email,password:pass});
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Signed in — syncing...');
+  const cloud=await syncFromCloud();
+  if(cloud){state={...defaultState(),...cloud};save();}
+  render();
+}
+async function homeSignUp(){
+  const c=getSB(); if(!c){showToast('Sync not available');return;}
+  const email=document.getElementById('home-email')?.value?.trim();
+  const pass=document.getElementById('home-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  const {error}=await c.auth.signUp({email,password:pass});
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Account created — check email to confirm, then sign in');
+}
+
 // ── Init ──
 render();
+setTimeout(checkSignInBanner,500);
