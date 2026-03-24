@@ -398,7 +398,7 @@ function renderHome(){
       const overBudget=remaining<0;
       const barColor=overBudget?'var(--red)':remaining<300?'#e8c050':'var(--accent)';
       return `
-    <div class="card" style="text-align:center;">
+    <div id="budget-card" class="card" style="text-align:center;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:${overBudget?'var(--red)':'var(--accent)'};line-height:1;">${remaining}</div>
       <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;">${overBudget?'OVER BUDGET':'CALORIES LEFT TODAY'}</div>
       <div style="margin:12px 0 10px;">
@@ -444,7 +444,7 @@ function renderHome(){
     <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;margin-top:4px;">Today's meals</div>
     ${mealRows||'<div style="font-size:12px;color:var(--dim);margin-bottom:6px;">No meals logged yet</div>'}
 
-    <button onclick="openWeighIn()" style="width:100%;background:${todayW?'rgba(110,231,160,0.06)':'var(--bg3)'};border:1px solid ${todayW?'rgba(110,231,160,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+    <button id="weighin-btn" onclick="openWeighIn()" style="width:100%;background:${todayW?'rgba(110,231,160,0.06)':'var(--bg3)'};border:1px solid ${todayW?'rgba(110,231,160,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
       <div>
         <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Daily Weigh-In</div>
         <div style="font-size:13px;color:${todayW?'var(--green)':'var(--text)'};margin-top:3px;">${todayW?'✓ '+todayW.weight+' lb logged':'Tap to weigh in today'}</div>
@@ -457,7 +457,7 @@ function renderHome(){
       <button class="btn ghost" style="flex:1;" onclick="openBurnedModal()">🔥 LOG BURNED</button>
     </div>
 
-    <button onclick="copyPrompt()" style="width:100%;background:linear-gradient(135deg,rgba(232,160,184,0.1),rgba(240,192,212,0.05));border:1px solid rgba(232,160,184,0.25);border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:12px;">
+    <button id="gpt-btn" onclick="copyPrompt()" style="width:100%;background:linear-gradient(135deg,rgba(232,160,184,0.1),rgba(240,192,212,0.05));border:1px solid rgba(232,160,184,0.25);border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:12px;">
       <div style="font-size:24px;flex-shrink:0;">🤖</div>
       <div style="text-align:left;flex:1;">
         <div style="font-size:12px;color:var(--accent);font-weight:600;">Don't know the calories? Ask ChatGPT</div>
@@ -473,17 +473,6 @@ function renderHome(){
 
     ${state.streak>1?`<div style="text-align:center;margin-top:12px;font-size:11px;color:var(--accent);">🔥 ${state.streak} day weigh-in streak</div>`:''}
 
-    ${!state.entries.length&&!day.meals.length?`
-    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-top:14px;">
-      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:12px;">Quick tips</div>
-      <div style="font-size:12px;color:var(--muted);line-height:1.8;">
-        <div style="margin-bottom:8px;">🔢 The big number up top is your <span style="color:var(--text);">1,500 calorie budget</span> — it counts down as you eat so you always know how much you have left today.</div>
-        <div style="margin-bottom:8px;">📊 The <span style="color:var(--text);">progress bar</span> tracks how close you are to your goal weight. Watch it fill up over time.</div>
-        <div style="margin-bottom:8px;">📅 The <span style="color:var(--text);">Calendar tab</span> tracks your full history — calories in, calories out, and weigh-ins — so you can see how what you eat actually impacts your weight day after day.</div>
-        <div style="margin-bottom:8px;">📈 You'll get <span style="color:var(--text);">weekly reports</span> based on your data with averages, trends, and pretty graphs and shit.</div>
-        <div>⚖️ Weigh in daily and log every meal — the more data you give it, the smarter it gets.</div>
-      </div>
-    </div>`:''}
   `;
 }
 
@@ -937,6 +926,107 @@ function popGuest(){
   hideModal();
 }
 
+// ═══════════════════════════════════════════
+// TOUR — Pink tip bubbles
+// ═══════════════════════════════════════════
+const TOUR_STEPS=[
+  {sel:'#budget-card',title:'Your daily budget',desc:'This counts down from 1,500 as you eat. You\'ll always know exactly how many calories you have left today.',pos:'below'},
+  {sel:'#weighin-btn',title:'Daily weigh-in',desc:'Tap here to log your weight. The progress bar tracks how close you are to your goal — watch it fill up over time.',pos:'below'},
+  {sel:'#gpt-btn',title:'Don\'t know the calories?',desc:'Tap this to copy a prompt. Paste it into ChatGPT, tell it what you ate, and paste the answer back. Easy.',pos:'above'},
+  {sel:'#nav',title:'Calendar & trends',desc:'The Calendar tab tracks everything — calories, weigh-ins, and how your eating actually impacts your weight day after day. Weekly reports with pretty graphs and shit.',pos:'above'},
+];
+let tourStep=-1;
+let tourTipEl=null;
+
+function maybeShowTour(){
+  if(localStorage.getItem('bf_seen_tour')) return;
+  if(tourStep>=0) return;
+  tourStep=0;
+  showTourStep();
+}
+
+function showTourStep(){
+  removeTour();
+  if(tourStep>=TOUR_STEPS.length){
+    localStorage.setItem('bf_seen_tour','1');
+    tourStep=-1;
+    return;
+  }
+  const step=TOUR_STEPS[tourStep];
+  const target=document.querySelector(step.sel);
+  if(!target){tourStep++;showTourStep();return;}
+
+  const content=document.querySelector('.content');
+  if(!content) return;
+
+  // Overlay
+  const overlay=document.createElement('div');
+  overlay.id='tour-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:90;';
+  overlay.addEventListener('click',advanceTour);
+  document.body.appendChild(overlay);
+
+  // Highlight target
+  target.style.position='relative';
+  target.style.zIndex='91';
+  target._tour=true;
+
+  // Dots
+  const dots=TOUR_STEPS.map((_,i)=>
+    `<span style="display:inline-block;width:${i===tourStep?'14px':'5px'};height:5px;border-radius:3px;background:${i===tourStep?'#1a0a12':'rgba(26,10,18,0.25)'};transition:all 0.2s;"></span>`
+  ).join('');
+
+  // Tooltip
+  const tip=document.createElement('div');
+  tip.className='tour-tip';
+  tip.innerHTML=`
+    <div class="tour-title">${step.title}</div>
+    <div class="tour-desc">${step.desc}</div>
+    <div style="display:flex;gap:4px;justify-content:center;margin-top:8px;">${dots}</div>
+    <div style="font-size:9px;text-align:center;margin-top:6px;opacity:0.5;">tap anywhere to continue</div>
+  `;
+
+  const tRect=target.getBoundingClientRect();
+  if(step.pos==='above'){
+    tip.style.position='fixed';
+    tip.style.bottom=(window.innerHeight-tRect.top+10)+'px';
+    tip.style.left='50%';
+    tip.style.transform='translateX(-50%)';
+    tip.classList.add('arrow-down');
+    document.body.appendChild(tip);
+  } else {
+    const cRect=content.getBoundingClientRect();
+    tip.style.top=(tRect.bottom-cRect.top+content.scrollTop+10)+'px';
+    tip.style.left='50%';
+    tip.style.transform='translateX(-50%)';
+    tip.classList.add('arrow-up');
+    content.style.position='relative';
+    content.appendChild(tip);
+    requestAnimationFrame(()=>{
+      const tipR=tip.getBoundingClientRect();
+      if(tipR.bottom>window.innerHeight-80){
+        content.scrollBy({top:tipR.bottom-window.innerHeight+100,behavior:'smooth'});
+      }
+    });
+  }
+  tourTipEl=tip;
+}
+
+function advanceTour(){tourStep++;showTourStep();}
+
+function removeTour(){
+  const ov=document.getElementById('tour-overlay');
+  if(ov) ov.remove();
+  if(tourTipEl){tourTipEl.remove();tourTipEl=null;}
+  document.querySelectorAll('[style]').forEach(el=>{
+    if(el._tour){el.style.zIndex='';el._tour=false;}
+  });
+}
+
 // ── Init ──
 render();
-setTimeout(checkSignInPopup,800);
+setTimeout(()=>{
+  checkSignInPopup();
+  // Show tour after sign-in popup is handled
+  setTimeout(maybeShowTour,1500);
+},800);
