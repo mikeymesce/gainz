@@ -15,9 +15,20 @@
 </head>
 <body>
 
-<div id="splash" onclick="dismissSplash()">
-  <div class="splash-logo">BREAK FREE</div>
-  <div class="splash-tag">your body. your goal.</div>
+<div id="splash">
+  <div style="max-width:340px;text-align:center;padding:0 20px;">
+    <div class="splash-logo">BREAK FREE</div>
+    <div class="splash-tag">your body. your goal.</div>
+    <div id="splash-intro" style="opacity:0;animation:fadeUp 0.8s ease 1.2s forwards;">
+      <div style="font-size:13px;color:var(--text);line-height:1.7;margin-top:28px;margin-bottom:24px;">
+        I made this for you. 💕<br><br>
+        Log what you eat, and this app tracks your calories and weight — so you can see real progress every day.<br><br>
+        <span style="color:var(--accent);">Don't know the calories?</span> No problem — there's a built-in ChatGPT button. Just tell it what you ate and paste the answer back. It does the math for you.
+      </div>
+      <button onclick="dismissSplash()" class="btn primary" style="width:100%;font-size:16px;padding:16px;">GET STARTED</button>
+      <div style="font-size:9px;color:var(--dim);margin-top:12px;letter-spacing:1px;">tap to skip this next time</div>
+    </div>
+  </div>
 </div>
 
 <div id="app">

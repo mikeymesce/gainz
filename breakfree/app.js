@@ -53,8 +53,12 @@ function dismissSplash(){
   const el=document.getElementById('splash'); if(!el) return;
   el.classList.add('fade-out');
   setTimeout(()=>{el.style.display='none';},500);
+  localStorage.setItem('breakfree_seen_intro','1');
 }
-setTimeout(dismissSplash,3500);
+// Auto-dismiss after 3s only if they've seen the intro before
+if(localStorage.getItem('breakfree_seen_intro')){
+  setTimeout(dismissSplash,2000);
+}
 
 // ── Day helpers ──
 function getToday(){
@@ -381,15 +385,6 @@ function renderHome(){
       <div style="font-size:12px;color:var(--muted);">${greeting}, Morgan</div>
     </div>
 
-    ${daysLeft>0?`
-    <div style="background:linear-gradient(135deg,rgba(232,160,184,0.08),rgba(240,192,212,0.04));border:1px solid rgba(232,160,184,0.15);border-radius:16px;padding:14px;margin-bottom:12px;text-align:center;">
-      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">✈️ Trip Countdown</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--accent);line-height:1;">${daysLeft}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px;">days left</div>
-      ${lbsToGo>0?`<div style="font-size:11px;color:var(--text);margin-top:8px;">${lbsToGo.toFixed(1)} lb to go · <span style="color:var(--accent);">${lbsPerWeek} lb/week</span> to hit goal</div>`
-      :`<div style="font-size:11px;color:var(--green);margin-top:8px;">Goal reached! 🎉</div>`}
-    </div>`:''}
-
     <div class="card" style="text-align:center;">
       <div style="display:flex;justify-content:space-around;margin-bottom:12px;">
         <div>
@@ -446,6 +441,26 @@ function renderHome(){
     </div>
 
     ${state.streak>1?`<div style="text-align:center;margin-top:10px;font-size:11px;color:var(--accent);">🔥 ${state.streak} day weigh-in streak</div>`:''}
+
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-top:14px;">
+      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">How to use</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.7;">
+        <div style="margin-bottom:6px;">1. Tap <span style="color:var(--accent);">+ ADD MEAL</span> to log what you ate with calories</div>
+        <div style="margin-bottom:6px;">2. Don't know the calories? Tap <span style="color:var(--accent);">ASK CHATGPT</span> — it copies a prompt. Paste it into ChatGPT and tell it what you ate. Copy the answer and tap <span style="color:var(--accent);">PASTE RESULT</span></div>
+        <div style="margin-bottom:6px;">3. Tap <span style="color:var(--accent);">⚖️ WEIGH IN</span> every morning to track your weight</div>
+        <div style="margin-bottom:6px;">4. Tap <span style="color:var(--accent);">🔥 BURNED</span> to log active calories from exercise</div>
+        <div>5. Check the <span style="color:var(--accent);">CALENDAR</span> tab to see your history and trends</div>
+      </div>
+    </div>
+
+    ${daysLeft>0?`
+    <div style="background:linear-gradient(135deg,rgba(232,160,184,0.08),rgba(240,192,212,0.04));border:1px solid rgba(232,160,184,0.15);border-radius:16px;padding:14px;margin-top:12px;text-align:center;">
+      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">✈️ Trip Countdown</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--accent);line-height:1;">${daysLeft}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;">days left</div>
+      ${lbsToGo>0?`<div style="font-size:11px;color:var(--text);margin-top:8px;">${lbsToGo.toFixed(1)} lb to go · <span style="color:var(--accent);">${lbsPerWeek} lb/week</span> to hit goal</div>`
+      :`<div style="font-size:11px;color:var(--green);margin-top:8px;">Goal reached! 🎉</div>`}
+    </div>`:''}
   `;
 }
 
