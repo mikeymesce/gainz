@@ -427,9 +427,11 @@ function renderHome(){
     <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Today's meals</div>
     ${mealRows||'<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">No meals logged yet</div>'}
 
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn primary" style="flex:1;" onclick="openQuickAdd()">+ ADD MEAL</button>
-      <button class="btn ghost" style="flex:1;" onclick="openWeighIn()">${todayW?'⚖️ '+todayW.weight+' LB':'⚖️ WEIGH IN'}</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+      <button class="btn primary" style="width:100%;" onclick="openQuickAdd()">+ ADD MEAL</button>
+      <button class="btn ghost" style="width:100%;" onclick="openWeighIn()">${todayW?'⚖️ '+todayW.weight+' LB':'⚖️ WEIGH IN'}</button>
+      <button class="btn ghost" style="width:100%;" onclick="openBurnedModal()">🔥 ${day.caloriesBurned} BURNED</button>
+      <button class="btn ghost" style="width:100%;" onclick="openCaloriesConsumedModal()">🍽 ${day.caloriesIn} EATEN</button>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:8px;">
@@ -442,12 +444,6 @@ function renderHome(){
         <div style="font-size:9px;color:var(--dim);">Paste ChatGPT's answer here</div>
       </button>
     </div>
-
-    <button onclick="openBurnedModal()" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:10px;margin-top:8px;cursor:pointer;text-align:center;">
-      <span style="font-size:11px;color:var(--muted);">🔥 Active calories burned: </span>
-      <span style="font-size:13px;color:var(--green);font-weight:600;">${day.caloriesBurned}</span>
-      <span style="font-size:10px;color:var(--dim);"> · tap to edit</span>
-    </button>
 
     ${state.streak>1?`<div style="text-align:center;margin-top:10px;font-size:11px;color:var(--accent);">🔥 ${state.streak} day weigh-in streak</div>`:''}
   `;
@@ -683,6 +679,24 @@ function openWeighIn(){
   setTimeout(()=>{const i=document.getElementById('bw-inp');if(i)i.focus();},100);
 }
 
+function openCaloriesConsumedModal(){
+  const day=getToday();
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">CALORIES EATEN TODAY</div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:10px;">Total from ${day.meals.length} meal${day.meals.length!==1?'s':''}</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--accent);text-align:center;margin-bottom:14px;">${day.caloriesIn}</div>
+    ${day.meals.length?`<div style="margin-bottom:14px;">${day.meals.map((m,i)=>`
+      <div class="meal-card">
+        <span style="font-size:12px;color:var(--text);">${m.name}</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:13px;color:var(--accent);">${m.calories}</span>
+          <button onclick="deleteMeal(${i});hideModal();openCaloriesConsumedModal();" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
+        </div>
+      </div>`).join('')}</div>`:''}
+    <button class="btn primary" style="width:100%;" onclick="hideModal();openQuickAdd();">+ ADD ANOTHER MEAL</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CLOSE</button>
+  `);
+}
 function openBurnedModal(){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">ACTIVE CALORIES BURNED</div>
