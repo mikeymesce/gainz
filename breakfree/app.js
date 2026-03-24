@@ -380,22 +380,41 @@ function renderHome(){
       <div style="font-size:12px;color:var(--muted);">${greeting}, Morgan</div>
     </div>
 
+    ${(()=>{
+      const budget=1500;
+      const remaining=budget-day.caloriesIn+day.caloriesBurned;
+      const used=Math.min(100,Math.max(0,((day.caloriesIn-day.caloriesBurned)/budget)*100));
+      const overBudget=remaining<0;
+      const barColor=overBudget?'var(--red)':remaining<300?'#e8c050':'var(--accent)';
+      return `
     <div class="card" style="text-align:center;">
-      <div style="display:flex;justify-content:space-around;margin-bottom:12px;">
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--accent);line-height:1;">${day.caloriesIn}</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">EATEN</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:${overBudget?'var(--red)':'var(--accent)'};line-height:1;">${remaining}</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;">${overBudget?'OVER BUDGET':'CALORIES LEFT TODAY'}</div>
+      <div style="margin:12px 0 14px;">
+        <div class="progress-track" style="height:8px;">
+          <div style="height:100%;width:${used}%;background:${barColor};border-radius:3px;transition:width 0.5s ease;"></div>
         </div>
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--green);line-height:1;">${day.caloriesBurned}</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">BURNED</div>
-        </div>
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:${net>0?'var(--text)':'var(--green)'};line-height:1;">${net}</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">NET</div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--dim);margin-top:4px;">
+          <span>0</span>
+          <span>${budget} cal budget</span>
         </div>
       </div>
-    </div>
+      <div style="display:flex;justify-content:space-around;">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);line-height:1;">${day.caloriesIn}</div>
+          <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">EATEN</div>
+        </div>
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green);line-height:1;">${day.caloriesBurned}</div>
+          <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">BURNED</div>
+        </div>
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${net>0?'var(--text)':'var(--green)'};line-height:1;">${net}</div>
+          <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">NET</div>
+        </div>
+      </div>
+    </div>`;
+    })()}
 
     ${stats?`
     <div class="card">
