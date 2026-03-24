@@ -375,12 +375,7 @@ function renderHome(){
       </div>
     </div>`).join('');
 
-  // Sign-in prompt
-  const signedIn=getSB()&&sbClient?'checking':'no';
-  const signInBanner=`<div id="signin-banner"></div>`;
-
   return `
-    ${signInBanner}
     <div style="text-align:center;margin-bottom:12px;">
       <div style="font-size:12px;color:var(--muted);">${greeting}, Morgan</div>
     </div>
@@ -868,51 +863,52 @@ setTimeout(async()=>{
   }
 },1000);
 
-// Check sign-in status and show banner if needed
-async function checkSignInBanner(){
-  const el=document.getElementById('signin-banner');
-  if(!el) return;
+// Sign-in popup on first load
+async function checkSignInPopup(){
+  if(localStorage.getItem('breakfree_guest')) return;
   const user=await getUser();
-  if(user){
-    el.innerHTML='';
-  } else {
-    el.innerHTML=`
-      <div style="background:rgba(232,160,184,0.08);border:1px solid rgba(232,160,184,0.2);border-radius:14px;padding:14px;margin-bottom:12px;">
-        <div style="font-size:11px;color:var(--accent);font-weight:600;margin-bottom:6px;">Back up your data</div>
-        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;">Sign in so you never lose your progress</div>
-        <div style="display:flex;gap:8px;">
-          <input id="home-email" class="input" type="email" placeholder="email" style="flex:1;font-size:12px;padding:8px 10px;"/>
-          <input id="home-pass" class="input" type="password" placeholder="password" style="flex:1;font-size:12px;padding:8px 10px;"/>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button onclick="document.getElementById('sync-email')||0;homeSignIn()" class="btn primary small" style="flex:1;">SIGN IN</button>
-          <button onclick="homeSignUp()" class="btn ghost small" style="flex:1;">SIGN UP</button>
-        </div>
-      </div>`;
-  }
+  if(user) return;
+  showModal(`
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);letter-spacing:3px;">BREAK FREE</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Sign in to save your progress</div>
+    </div>
+    <input id="pop-email" class="input" type="email" placeholder="email" style="margin-bottom:8px;font-size:13px;"/>
+    <input id="pop-pass" class="input" type="password" placeholder="password" style="margin-bottom:12px;font-size:13px;"/>
+    <div id="pop-error" style="font-size:10px;color:var(--red);margin-bottom:8px;display:none;"></div>
+    <button onclick="popSignIn()" class="btn primary" style="width:100%;">SIGN IN</button>
+    <button onclick="popSignUp()" class="btn ghost" style="width:100%;margin-top:8px;">CREATE ACCOUNT</button>
+    <button onclick="popGuest()" style="background:none;border:none;color:var(--dim);font-size:11px;margin-top:14px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:1px;width:100%;text-align:center;">CONTINUE AS GUEST</button>
+  `);
 }
-async function homeSignIn(){
+async function popSignIn(){
   const c=getSB(); if(!c){showToast('Sync not available');return;}
-  const email=document.getElementById('home-email')?.value?.trim();
-  const pass=document.getElementById('home-pass')?.value;
+  const email=document.getElementById('pop-email')?.value?.trim();
+  const pass=document.getElementById('pop-pass')?.value;
   if(!email||!pass){showToast('Enter email and password');return;}
   const {error}=await c.auth.signInWithPassword({email,password:pass});
-  if(error){showToast('Error: '+error.message);return;}
+  if(error){const el=document.getElementById('pop-error');if(el){el.textContent=error.message;el.style.display='block';}return;}
+  hideModal();
   showToast('Signed in — syncing...');
   const cloud=await syncFromCloud();
   if(cloud){state={...defaultState(),...cloud};save();}
   render();
 }
-async function homeSignUp(){
+async function popSignUp(){
   const c=getSB(); if(!c){showToast('Sync not available');return;}
-  const email=document.getElementById('home-email')?.value?.trim();
-  const pass=document.getElementById('home-pass')?.value;
+  const email=document.getElementById('pop-email')?.value?.trim();
+  const pass=document.getElementById('pop-pass')?.value;
   if(!email||!pass){showToast('Enter email and password');return;}
   const {error}=await c.auth.signUp({email,password:pass});
-  if(error){showToast('Error: '+error.message);return;}
+  if(error){const el=document.getElementById('pop-error');if(el){el.textContent=error.message;el.style.display='block';}return;}
+  hideModal();
   showToast('Account created — check email to confirm, then sign in');
+}
+function popGuest(){
+  localStorage.setItem('breakfree_guest','1');
+  hideModal();
 }
 
 // ── Init ──
 render();
-setTimeout(checkSignInBanner,500);
+setTimeout(checkSignInPopup,800);
