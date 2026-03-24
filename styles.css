@@ -746,13 +746,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   100%{text-shadow:0 0 0 transparent;}
 }
 .cin-skip{
-  position:fixed;bottom:40px;right:28px;
-  font-family:'DM Sans',sans-serif;font-size:10px;
-  letter-spacing:2px;color:rgba(255,255,255,0.12);
+  position:fixed;bottom:calc(40px + env(safe-area-inset-bottom));left:28px;
+  font-family:'DM Sans',sans-serif;font-size:13px;
+  letter-spacing:3px;color:rgba(255,255,255,0.45);
   cursor:pointer;z-index:1001;
   transition:color 0.3s;
+  padding:8px 16px;
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:8px;
 }
-.cin-skip:hover{color:rgba(255,255,255,0.35);}
+.cin-skip:hover{color:rgba(255,255,255,0.7);}
 /* Slow dissolve */
 .cin-container.cin-content-fade .cin-headline,
 .cin-container.cin-content-fade .cin-punch,
