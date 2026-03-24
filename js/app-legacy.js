@@ -427,6 +427,8 @@ let activeSSPrompt=null; // name of exercise user should do next in superset
 let ssPickerOpen=null;  // exercise name whose SS picker is open
 let exMenuOpen=null;    // exercise name whose ⋮ overflow menu is open
 let histEditMode=false;
+let histEditDirty=false; // track if edits were made
+let histEditSnapshot=null; // snapshot before editing
 let meTab="history";
 let progressSearch="";
 function quickStart(){
@@ -1029,7 +1031,13 @@ function abandonWorkout(){
 // ═══════════════════════════════════════════
 function goBack(){
   if(progressEx){ progressEx=null; render(); return; }
-  if(historyDetail){ historyDetail=null; histEditMode=false; render(); return; }
+  if(historyDetail){
+    if(histEditMode&&histEditDirty){
+      toggleHistEdit(); // will show save/discard modal
+      return;
+    }
+    historyDetail=null; histEditMode=false; histEditDirty=false; histEditSnapshot=null; render(); return;
+  }
   if(screen==="prHistory"){ screen="settings"; render(); return; }
   if(screen==="settings"){ screen="start"; render(); return; }
   if(screen==="log" && activeWorkout){ abandonWorkout(); return; }
@@ -1520,10 +1528,16 @@ function openCalDay(day){
 
   // Workouts
   if(wo.length){
-    content+=wo.map(w=>`<div style="background:rgba(232,213,160,0.08);border:1px solid rgba(232,213,160,0.2);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
-      <div style="font-size:13px;color:var(--accent);font-weight:600;">${splitName(w.split)} Day</div>
+    content+=wo.map(w=>{
+      const wIdx=state.workouts.indexOf(w);
+      return `<div onclick="openCalWorkout(${wIdx})" style="background:rgba(232,213,160,0.08);border:1px solid rgba(232,213,160,0.2);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:13px;color:var(--accent);font-weight:600;">${splitName(w.split)} Day</div>
+        <span style="font-size:10px;color:var(--dim);">tap to view/edit ›</span>
+      </div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px;">${w.exercises.length} exercises · ${w.totalVolume?w.totalVolume.toLocaleString()+'lb':''}${w.duration?' · '+Math.round(w.duration/60000)+'min':''}</div>
-    </div>`).join('');
+    </div>`;
+    }).join('');
   } else if(!isFuture){
     content+=`<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">Rest day</div>`;
   }
@@ -1545,6 +1559,15 @@ function openCalDay(day){
 
   content+=`<button class="btn ghost" onclick="hideModal()" style="width:100%;margin-top:10px;">CLOSE</button>`;
   showModal(content);
+}
+function openCalWorkout(wIdx){
+  const w=state.workouts[wIdx];
+  if(!w) return;
+  hideModal();
+  historyDetail=w;
+  histEditMode=false;
+  screen='me';
+  render();
 }
 function toggleCalCreatine(year,month,day){
   const dateStr=_calDateStr(year,month,day);
@@ -2993,6 +3016,48 @@ function renderLog(){
 }
 
 // ── HISTORY EDIT HELPERS ──
+function toggleHistEdit(){
+  if(!histEditMode){
+    // Entering edit mode — take snapshot
+    histEditMode=true;
+    histEditDirty=false;
+    histEditSnapshot=JSON.parse(JSON.stringify(historyDetail));
+    render();
+  } else {
+    // Leaving edit mode
+    if(histEditDirty){
+      showModal(`
+        <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">SAVE CHANGES?</div>
+        <div style="font-size:13px;color:var(--text);margin-bottom:20px;">You edited this workout. Save your changes?</div>
+        <button class="btn primary" onclick="confirmHistEdit(true)">SAVE CHANGES</button>
+        <button class="btn ghost" onclick="confirmHistEdit(false)" style="margin-top:8px;">DISCARD</button>
+      `);
+    } else {
+      histEditMode=false;
+      render();
+    }
+  }
+}
+function confirmHistEdit(save){
+  hideModal();
+  if(!save&&histEditSnapshot){
+    // Revert to snapshot
+    const wIdx=state.workouts.indexOf(historyDetail);
+    if(wIdx>=0){
+      state.workouts[wIdx]=histEditSnapshot;
+      historyDetail=state.workouts[wIdx];
+    }
+    saveImmediate();
+    showToast('Changes discarded');
+  } else {
+    saveImmediate();
+    showToast('Workout updated');
+  }
+  histEditMode=false;
+  histEditSnapshot=null;
+  histEditDirty=false;
+  render();
+}
 function deleteWorkout(idx){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">DELETE WORKOUT?</div>
@@ -3001,39 +3066,36 @@ function deleteWorkout(idx){
     <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
   `);
 }
+function _histRecalc(wIdx){
+  state.workouts[wIdx].totalVolume=state.workouts[wIdx].exercises.reduce((a,e)=>a+vol(e.sets),0);
+  historyDetail=state.workouts[wIdx];
+  histEditDirty=true;
+  render();
+}
 function histSaveSet(wIdx, exName, sIdx, w, r){
   const ex=state.workouts[wIdx]?.exercises.find(e=>e.name===exName);
   if(!ex||!ex.sets[sIdx]) return;
   ex.sets[sIdx].weight=w;
   ex.sets[sIdx].reps=r;
-  // Recalc workout volume
-  state.workouts[wIdx].totalVolume=state.workouts[wIdx].exercises.reduce((a,e)=>a+vol(e.sets),0);
-  historyDetail=state.workouts[wIdx];
-  saveImmediate(); render();
+  _histRecalc(wIdx);
 }
 function histDeleteSet(wIdx, exName, sIdx){
   const ex=state.workouts[wIdx]?.exercises.find(e=>e.name===exName);
   if(!ex) return;
   ex.sets.splice(sIdx,1);
-  state.workouts[wIdx].totalVolume=state.workouts[wIdx].exercises.reduce((a,e)=>a+vol(e.sets),0);
-  historyDetail=state.workouts[wIdx];
-  saveImmediate(); render();
+  _histRecalc(wIdx);
 }
 function histDeleteExercise(wIdx, exName){
   if(!confirm('Remove '+exName+' from this workout?')) return;
   state.workouts[wIdx].exercises=state.workouts[wIdx].exercises.filter(e=>e.name!==exName);
-  state.workouts[wIdx].totalVolume=state.workouts[wIdx].exercises.reduce((a,e)=>a+vol(e.sets),0);
-  historyDetail=state.workouts[wIdx];
-  saveImmediate(); render();
+  _histRecalc(wIdx);
 }
 function histAddSet(wIdx, exName){
   const ex=state.workouts[wIdx]?.exercises.find(e=>e.name===exName);
   if(!ex) return;
   const last=ex.sets[ex.sets.length-1];
   ex.sets.push(last?{...last,pr:false,warmup:false}:{weight:'135',reps:'10',bw:false,pr:false,time:Date.now()});
-  state.workouts[wIdx].totalVolume=state.workouts[wIdx].exercises.reduce((a,e)=>a+vol(e.sets),0);
-  historyDetail=state.workouts[wIdx];
-  saveImmediate(); render();
+  _histRecalc(wIdx);
 }
 function renderMe(){
   // Sub-screens within Me
@@ -3324,7 +3386,7 @@ function renderHistDetail(){
       <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;line-height:1;">${splitName(w.split)}</div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:10px;color:var(--dim)">${w.date}${w.duration?` · ${fmtMs(w.duration)}`:""}</span>
-        <button onclick="histEditMode=!histEditMode;render()"
+        <button onclick="toggleHistEdit()"
           style="background:${edit?"rgba(232,213,160,0.1)":"none"};border:1px solid ${edit?"var(--accent)":"var(--border2)"};border-radius:6px;padding:4px 10px;color:${edit?"var(--accent)":"var(--muted)"};font-family:inherit;font-size:11px;cursor:pointer;">
           ${edit?"✓ DONE":"✏️ EDIT"}
         </button>
