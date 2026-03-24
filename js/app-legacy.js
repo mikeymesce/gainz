@@ -1900,7 +1900,10 @@ function renderHome(){
         <div class="sb-header-time">${greetWord}.</div>
       </div>
       <div style="text-align:right;">
-        <div class="sb-header-date" onclick="toggleHomeCal()" style="cursor:pointer;">${today()} ${homeCalOpen?'▲':'▼'}</div>
+        <button class="sb-header-date" onclick="toggleHomeCal()" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px 12px;font-family:'DM Sans',sans-serif;">
+          <div style="font-size:12px;color:var(--text);">📅 ${today()} ${homeCalOpen?'▲':'▼'}</div>
+          ${!homeCalOpen?'<div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">TAP FOR CALENDAR</div>':''}
+        </button>
       </div>
     </div>
 
@@ -2220,13 +2223,18 @@ function renderDailyCheckin(){
   if(todayBW) checks.push('⚖️');
   const allDone=creatineOn&&allVitsOn&&todayBW;
   const statusText=allDone?'All done ✓':checks.length?checks.join(' ')+' done':'Tap to check in';
+  const items=[];
+  items.push(creatineOn?'✓ Creatine':'Creatine');
+  items.push(allVitsOn?'✓ Vitamins':vitsTaken>0?vitsTaken+'/'+vitList.length+' Vitamins':'Vitamins');
+  items.push(todayBW?'✓ '+todayBW.weight+'lb':'Weigh-in');
+  const subtitle=items.join(' · ');
 
-  return `<button onclick="openDailyCheckin()" style="width:100%;background:${allDone?'rgba(82,200,122,0.06)':'var(--bg2)'};border:1px solid ${allDone?'rgba(82,200,122,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
-    <div style="display:flex;align-items:center;gap:10px;">
+  return `<button onclick="openDailyCheckin()" style="width:100%;background:${allDone?'rgba(82,200,122,0.06)':'var(--bg2)'};border:1px solid ${allDone?'rgba(82,200,122,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer;text-align:left;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
       <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Daily Check-in</div>
-      <div style="font-size:11px;color:${allDone?'var(--green)':'var(--accent)'};">${statusText}</div>
+      <span style="font-size:12px;color:var(--dim);">›</span>
     </div>
-    <span style="font-size:12px;color:var(--dim);">›</span>
+    <div style="font-size:11px;color:${allDone?'var(--green)':'var(--dim)'};">${subtitle}</div>
   </button>`;
 }
 function openDailyCheckin(){
