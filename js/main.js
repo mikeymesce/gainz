@@ -55,7 +55,7 @@ import {
   buildProgChart, setProgChartMode
 } from './progress-chart.js';
 import {
-  getUser, signUp, signIn, signOut, isLoggedIn,
+  getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud,
   renderCloudSyncCard, renderSyncUI
 } from './supabase.js';
@@ -100,7 +100,7 @@ Object.assign(window, {
   // Progress chart
   buildProgChart, setProgChartMode,
   // Cloud sync
-  getUser, signUp, signIn, signOut, isLoggedIn,
+  getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud,
   renderCloudSyncCard, renderSyncUI,
 });

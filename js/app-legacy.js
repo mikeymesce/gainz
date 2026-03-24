@@ -77,6 +77,13 @@ async function cloudSignUp(){
   }
   showToast('Account created — check email to confirm, then sign in');
 }
+async function cloudResetPw(){
+  const email=document.getElementById('sync-email')?.value?.trim();
+  if(!email){showToast('Enter your email first');return;}
+  const {error}=await resetPassword(email);
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Password reset email sent — check your inbox');
+}
 async function cloudSignOut(){
   await signOut();
   showToast('Signed out');

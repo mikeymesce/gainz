@@ -46,6 +46,15 @@ export async function signOut() {
   await client.auth.signOut();
 }
 
+export async function resetPassword(email) {
+  const client = getClient();
+  if (!client) return { error: 'Supabase not loaded' };
+  const { data, error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://mikeymesce.github.io/gainz/'
+  });
+  return { data, error };
+}
+
 export async function isLoggedIn() {
   const user = await getUser();
   return !!user;
@@ -171,6 +180,7 @@ export async function renderSyncUI() {
         <button onclick="cloudSignIn()" class="btn primary small" style="flex:1;">SIGN IN</button>
         <button onclick="cloudSignUp()" class="btn ghost small" style="flex:1;">SIGN UP</button>
       </div>
+      <button onclick="cloudResetPw()" style="background:none;border:none;color:var(--dim);font-size:10px;margin-top:10px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;">Forgot password?</button>
       <div id="sync-error" style="font-size:10px;color:var(--danger);margin-top:8px;display:none;"></div>`;
   }
 }
