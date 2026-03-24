@@ -112,16 +112,24 @@ function setBurned(val){
 // ── ChatGPT prompt ──
 const GPT_PROMPT = `Hey! You are my calorie tracker. I'm going to tell you exactly what I ate — please calculate the calories for each item. Be as accurate as possible based on typical serving sizes.
 
-Reply in ONLY this format, nothing else:
+IMPORTANT: I'm copying your response directly into my calorie tracking app. It can ONLY read this exact format:
 
-FOOD | CALORIES
+FOOD NAME | NUMBER
 
-For example:
+Rules:
+- One item per line
+- Use a | between the food name and the calorie number
+- The number should be JUST the number, no "cal" or "kcal" after it
+- Round to the nearest 10
+- No totals, no explanations, no extra text — ONLY the list
+- If I give you multiple items, list each one separately
+
+Example of EXACTLY what your response should look like:
 Chicken caesar salad | 520
 Iced oat milk latte | 170
-Two eggs scrambled with cheese | 280
+Two scrambled eggs with cheese | 280
 
-List every item on its own line. Round to the nearest 10. No explanations, no totals, just the list. Here's what I had:`;
+Here's what I had:`;
 
 function copyPrompt(){
   navigator.clipboard.writeText(GPT_PROMPT).then(()=>{
