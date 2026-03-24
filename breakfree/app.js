@@ -399,7 +399,7 @@ function renderHome(){
       const barColor=overBudget?'var(--red)':remaining<300?'#e8c050':'var(--accent)';
       return `
     <div id="budget-card" class="card" style="text-align:center;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:${overBudget?'var(--red)':'var(--accent)'};line-height:1;">${remaining}</div>
+      <div id="budget-num" style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:${overBudget?'var(--red)':'var(--accent)'};line-height:1;">${remaining}</div>
       <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;">${overBudget?'OVER BUDGET':'CALORIES LEFT TODAY'}</div>
       <div style="margin:12px 0 10px;">
         <div class="progress-track" style="height:8px;">
@@ -930,7 +930,7 @@ function popGuest(){
 // TOUR — Pink tip bubbles
 // ═══════════════════════════════════════════
 const TOUR_STEPS=[
-  {sel:'#budget-card',title:'Your daily budget',desc:'This counts down from 1,500 as you eat. You\'ll always know exactly how many calories you have left today.',pos:'below'},
+  {sel:'#budget-num',title:'Your daily budget',desc:'This counts down from 1,500 as you eat. You\'ll always know exactly how many calories you have left today.',pos:'below'},
   {sel:'#weighin-btn',title:'Daily weigh-in',desc:'Tap here to log your weight. The progress bar tracks how close you are to your goal — watch it fill up over time.',pos:'below'},
   {sel:'#gpt-btn',title:'Don\'t know the calories?',desc:'Tap this to copy a prompt. Paste it into ChatGPT, tell it what you ate, and paste the answer back. Easy.',pos:'above'},
   {sel:'#nav',title:'Calendar & trends',desc:'The Calendar tab tracks everything — calories, weigh-ins, and how your eating actually impacts your weight day after day. Weekly reports with pretty graphs and shit.',pos:'above'},
