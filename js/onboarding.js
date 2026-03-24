@@ -39,6 +39,7 @@ const CIN_STATS = [
 ];
 
 let cinTimer = null;
+let cinCanDismiss = false; // prevent accidental early taps
 
 export function maybeShowCinematic() {
   const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0');
@@ -86,6 +87,9 @@ function showCinematic() {
   el.style.display = 'flex';
   el.classList.remove('cin-fade-out');
   el.style.opacity = '1';
+  cinCanDismiss = false;
+  // Allow dismiss after headline has animated in (2s)
+  setTimeout(() => { cinCanDismiss = true; }, 2000);
 
   const headline = container.querySelector('.cin-headline');
   const punch = container.querySelector('.cin-punch');
@@ -104,14 +108,17 @@ function showCinematic() {
   // Fade out the text content first, then crossfade to onboarding
   cinTimer = setTimeout(() => {
     container.classList.add('cin-content-fade');
+    cinCanDismiss = true; // auto-dismiss always allowed
     setTimeout(() => dismissCinematic(), 200);
   }, t);
 }
 
 export function dismissCinematic() {
+  if (!cinCanDismiss) return; // ignore early taps
   if (cinTimer) { clearTimeout(cinTimer); cinTimer = null; }
   const el = document.getElementById('cinematic-splash');
   if (!el || el.style.display === 'none') return;
+  cinCanDismiss = false; // prevent double-dismiss
 
   // Prepare onboarding underneath (invisible)
   maybeShowSplash();
@@ -121,9 +128,9 @@ export function dismissCinematic() {
 
   // Delay GAINZ appearing so it emerges as cinematic dissolves
   const ob = document.getElementById('onboard-splash');
-  requestAnimationFrame(() => { if (ob) ob.style.opacity = '1'; });
+  setTimeout(() => { if (ob) ob.style.opacity = '1'; }, 300);
 
-  setTimeout(() => { el.style.display = 'none'; }, 600);
+  setTimeout(() => { el.style.display = 'none'; }, 500);
 }
 
 // ── All onboarding cards — shuffled each time ──

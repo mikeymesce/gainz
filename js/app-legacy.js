@@ -1893,10 +1893,8 @@ function renderHome(){
   // One-liner fun stat
   const funLine=funStat.sub?`${funStat.val} ${funStat.label.toLowerCase()} — ${funStat.sub.toLowerCase()}`:`${funStat.val} ${funStat.label.toLowerCase()}`;
 
-  const weeklyReport=renderWeeklyReport();
   return `
     ${banner}
-    ${weeklyReport}
     <div class="sb-header">
       <div>
         <div class="sb-header-time">${greetWord}.</div>
@@ -1931,18 +1929,7 @@ function renderHome(){
       </div>
     </div>
 
-    ${renderSuppCard()}
-
-    ${renderCardioCard()}
-
-    <div class="sb-insight" onclick="cycleFunStat()" style="cursor:pointer;-webkit-tap-highlight-color:transparent;">
-      <div class="sb-insight-val">${funStat.val}</div>
-      <div style="flex:1;">
-        <div class="sb-insight-label">${funStat.label}</div>
-        ${funStat.sub?`<div class="sb-insight-sub">${funStat.sub}</div>`:''}
-      </div>
-      <div style="font-size:10px;color:var(--dim);flex-shrink:0;">tap ›</div>
-    </div>
+    ${renderDailyCheckin()}
 
     <div id="split-carousel" style="overflow:hidden;padding:4px 0 8px;margin-bottom:8px;">
       <div id="split-carousel-track" style="display:flex;gap:10px;width:max-content;">
@@ -2211,6 +2198,49 @@ function renderSuppCard(){
         :`<span class="supp-weighin-prompt">Weigh in · ${timeLabel}</span>`
       }
     </div>`;
+}
+
+// ═══════════════════════════════════════════
+// DAILY CHECK-IN — Merged supplements + cardio + weigh-in
+// ═══════════════════════════════════════════
+function renderDailyCheckin(){
+  const entry=ensureTodaySupp();
+  const creatineOn=entry.creatine>0;
+  const dose=entry.creatineDose||5;
+  const crWeek=suppWeekCount('creatine');
+  const vitList=getVitaminList();
+  const vitsTaken=typeof entry.vitamins==='object'?vitList.filter(v=>entry.vitamins[v]).length:0;
+  const allVitsOn=vitsTaken===vitList.length;
+  const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
+  const hr=new Date().getHours();
+  const timeLabel=hr<12?'Morning':hr<17?'Afternoon':'Night';
+  const todayCardio=getTodayCardio();
+  const weekStart=new Date(); weekStart.setDate(weekStart.getDate()-weekStart.getDay()); weekStart.setHours(0,0,0,0);
+  const weekCardioMins=(state.cardio||[]).filter(c=>new Date(c.timestamp)>=weekStart).reduce((a,c)=>a+c.minutes,0);
+
+  return `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
+    <div style="font-size:8px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Daily Check-in</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button onclick="toggleCreatine()" style="flex:1;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
+        <div style="font-size:14px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">CREATINE · ${crWeek}/7</div>
+      </button>
+      <button onclick="toggleAllVitamins()" style="flex:1;background:${allVitsOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${allVitsOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
+        <div style="font-size:14px;font-weight:700;color:${allVitsOn?'var(--green)':vitsTaken>0?'var(--accent)':'var(--dim)'};">${allVitsOn?'✓':vitsTaken>0?vitsTaken+'/'+vitList.length:''} Vits</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">VITAMINS</div>
+      </button>
+      <button onclick="openWeighIn()" style="flex:1;background:${todayBW?'rgba(232,213,160,0.08)':'#0f0f12'};border:1px solid ${todayBW?'rgba(232,213,160,0.2)':'#1e1e24'};border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
+        <div style="font-size:14px;font-weight:700;color:${todayBW?'var(--accent)':'var(--dim)'};">${todayBW?todayBW.weight+'lb':'⚖️'}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">${todayBW?'WEIGHED IN':'WEIGH IN'}</div>
+      </button>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:11px;color:var(--muted);">${todayCardio.length?todayCardio.map(c=>c.type+' '+c.minutes+'m').join(' · '):'No cardio today'}${weekCardioMins?' · '+weekCardioMins+' min this wk':''}</div>
+      <button onclick="openCardioLog()" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:3px 8px;color:var(--accent);font-size:9px;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:1px;">+ CARDIO</button>
+    </div>
+  </div>`;
 }
 
 // ═══════════════════════════════════════════
@@ -3291,8 +3321,9 @@ function renderMe(){
     }
   })));
 
+  const weeklyReport=renderWeeklyReport();
   const creatineWeek=suppWeekCount('creatine');
-  const statsStrip=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+  const statsStrip=`${weeklyReport}<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
     <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;text-align:center;padding:14px 8px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--accent);line-height:1;">${streak}</div>
       <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:3px;text-transform:uppercase;">Streak</div>
