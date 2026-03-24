@@ -55,6 +55,19 @@ function dismissSplash(){
   setTimeout(()=>{el.style.display='none';},500);
   localStorage.setItem('breakfree_seen_intro','1');
 }
+function saveSetupAndStart(){
+  const start=parseFloat(document.getElementById('setup-start')?.value)||state.goalStart;
+  const current=parseFloat(document.getElementById('setup-current')?.value);
+  const goal=parseFloat(document.getElementById('setup-goal')?.value)||state.goalTarget;
+  state.goalStart=start;
+  state.goalTarget=goal;
+  if(current&&current>=50&&current<=500){
+    logWeight(current);
+  }
+  save();
+  dismissSplash();
+  render();
+}
 // Splash always stays until tapped — no auto-dismiss
 
 // ── Day helpers ──

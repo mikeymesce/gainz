@@ -20,12 +20,26 @@
     <div class="splash-logo">BREAK FREE</div>
     <div class="splash-tag">your body. your goal.</div>
     <div id="splash-intro" style="opacity:0;animation:fadeUp 0.8s ease 1.2s forwards;">
-      <div style="font-size:13px;color:var(--text);line-height:1.7;margin-top:28px;margin-bottom:24px;">
+      <div style="font-size:13px;color:var(--text);line-height:1.7;margin-top:28px;margin-bottom:20px;">
         Log what you eat, and this app tracks your calories and weight — so you can see real progress every day.<br><br>
         <span style="color:var(--accent);">Don't know the calories?</span> Tap "Ask ChatGPT" to copy a prompt. Paste it into ChatGPT, tell it whatever food you had, then copy its answer and paste it back here. Do this for every meal throughout the day.
       </div>
-      <button onclick="dismissSplash()" class="btn primary" style="width:100%;font-size:16px;padding:16px;">GET STARTED</button>
-      <div style="font-size:9px;color:var(--dim);margin-top:12px;letter-spacing:1px;">tap to skip this next time</div>
+      <div id="splash-setup" style="text-align:left;margin-bottom:20px;">
+        <div style="margin-bottom:10px;">
+          <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">STARTING WEIGHT</div>
+          <input id="setup-start" type="number" class="input" inputmode="decimal" placeholder="135" style="text-align:center;font-size:18px;"/>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">CURRENT WEIGHT</div>
+          <input id="setup-current" type="number" class="input" inputmode="decimal" placeholder="135" style="text-align:center;font-size:18px;"/>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">GOAL WEIGHT</div>
+          <input id="setup-goal" type="number" class="input" inputmode="decimal" placeholder="115" style="text-align:center;font-size:18px;"/>
+        </div>
+      </div>
+      <button onclick="saveSetupAndStart()" class="btn primary" style="width:100%;font-size:16px;padding:16px;">GET STARTED</button>
+      <button onclick="dismissSplash()" style="background:none;border:none;color:var(--dim);font-size:10px;margin-top:10px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:1px;">SKIP</button>
     </div>
   </div>
 </div>
