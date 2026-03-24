@@ -114,7 +114,9 @@ function setBurned(val){
 // ── ChatGPT prompt ──
 const GPT_PROMPT = `Hey! You are my calorie tracker. I'm going to tell you exactly what I ate — please calculate the calories for each item. Be as accurate as possible based on typical serving sizes.
 
-IMPORTANT: I'm copying your response directly into my calorie tracking app. It can ONLY read this exact format:
+My daily goal is a 600–800 calorie deficit so I'm trying to stay around 1,200–1,400 calories per day. If I'm getting close to that limit, give me a heads up at the bottom like "⚠️ You're at X total so far today — X left to stay on track" but ONLY after the food list.
+
+IMPORTANT: I'm copying the food list directly into my calorie tracking app. The food list MUST be in this exact format:
 
 FOOD NAME | NUMBER
 
@@ -123,10 +125,10 @@ Rules:
 - Use a | between the food name and the calorie number
 - The number should be JUST the number, no "cal" or "kcal" after it
 - Round to the nearest 10
-- No totals, no explanations, no extra text — ONLY the list
+- No totals, no explanations, no extra text in the food list
 - If I give you multiple items, list each one separately
 
-Example of EXACTLY what your response should look like:
+Example of EXACTLY what the food list should look like:
 Chicken caesar salad | 520
 Iced oat milk latte | 170
 Two scrambled eggs with cheese | 280
@@ -347,6 +349,16 @@ function renderHome(){
   const net=day.caloriesIn-day.caloriesBurned;
   const stats=getWeightStats();
 
+  // Countdown to trip — May 5, 2026 5:32 AM ET
+  const tripDate=new Date('2026-05-05T05:32:00-04:00');
+  const now=new Date();
+  const msLeft=tripDate-now;
+  const daysLeft=Math.max(0,Math.ceil(msLeft/86400000));
+  const weeksLeft=Math.max(0.1,daysLeft/7);
+  const currentWeight=stats?stats.current:state.goalStart;
+  const lbsToGo=Math.max(0,currentWeight-state.goalTarget);
+  const lbsPerWeek=weeksLeft>0?(lbsToGo/weeksLeft).toFixed(1):'0';
+
   // Today's meals
   const mealRows=day.meals.map((m,i)=>`
     <div class="meal-card">
@@ -360,9 +372,18 @@ function renderHome(){
     </div>`).join('');
 
   return `
-    <div style="text-align:center;margin-bottom:16px;">
+    <div style="text-align:center;margin-bottom:12px;">
       <div style="font-size:12px;color:var(--muted);">${greeting}, Morgan</div>
     </div>
+
+    ${daysLeft>0?`
+    <div style="background:linear-gradient(135deg,rgba(232,160,184,0.08),rgba(240,192,212,0.04));border:1px solid rgba(232,160,184,0.15);border-radius:16px;padding:14px;margin-bottom:12px;text-align:center;">
+      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">✈️ Trip Countdown</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--accent);line-height:1;">${daysLeft}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;">days left</div>
+      ${lbsToGo>0?`<div style="font-size:11px;color:var(--text);margin-top:8px;">${lbsToGo.toFixed(1)} lb to go · <span style="color:var(--accent);">${lbsPerWeek} lb/week</span> to hit goal</div>`
+      :`<div style="font-size:11px;color:var(--green);margin-top:8px;">Goal reached! 🎉</div>`}
+    </div>`:''}
 
     <div class="card" style="text-align:center;">
       <div style="display:flex;justify-content:space-around;margin-bottom:12px;">
