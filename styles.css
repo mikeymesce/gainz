@@ -108,11 +108,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 /* ── NAV — quiet, accent only on active ── */
 .nav{
-  position:absolute;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;
+  position:fixed;bottom:0;left:0;right:0;
   background:var(--bg);
   border-top:1px solid var(--borderCard);
   display:flex;justify-content:space-around;
   padding:10px 0 calc(10px + env(safe-area-inset-bottom));
+  z-index:100;
 }
 .nav-btn{
   background:none;border:none;color:var(--dim);

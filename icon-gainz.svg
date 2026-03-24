@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#080808"/>
+  <rect x="16" y="16" width="480" height="480" rx="80" fill="none" stroke="#e8d5a0" stroke-width="2" opacity="0.15"/>
+  <text x="256" y="290" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="120" letter-spacing="12" fill="#e8d5a0">GAINZ</text>
+  <rect x="140" y="320" width="232" height="2" rx="1" fill="#e8d5a0" opacity="0.3"/>
+</svg>
