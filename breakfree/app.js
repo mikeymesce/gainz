@@ -630,6 +630,11 @@ function renderSettings(){
     </div>
 
     <div class="card">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">CLOUD SYNC</div>
+      <div id="sync-ui" style="font-size:12px;color:var(--dim);">Loading...</div>
+    </div>
+
+    <div class="card">
       <div style="font-size:9px;color:var(--dim);margin-bottom:8px;">Export data</div>
       <button class="btn ghost" style="width:100%;" onclick="exportData()">DOWNLOAD BACKUP</button>
     </div>
@@ -639,6 +644,7 @@ function renderSettings(){
       <div style="font-size:9px;color:var(--dim);margin-top:4px;">your body. your goal.</div>
     </div>
   `;
+  setTimeout(renderSyncUI, 50);
 }
 
 // ── Modals ──
@@ -701,6 +707,132 @@ function exportData(){
   URL.revokeObjectURL(url);
   showToast('Data exported');
 }
+
+// ═══════════════════════════════════════════
+// CLOUD SYNC — Supabase auth + data backup
+// ═══════════════════════════════════════════
+const SB_URL='https://bvnkzimwskuruhdmzpbt.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bmt6aW13c2t1cnVoZG16cGJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MTc3NzgsImV4cCI6MjA4OTE5Mzc3OH0.6layiAl75f5YeAQRzU55j41JBAS9_e1QL0tpq-l3DpE';
+let sbClient=null;
+
+function getSB(){
+  if(sbClient) return sbClient;
+  if(!window.supabase) return null;
+  sbClient=window.supabase.createClient(SB_URL,SB_KEY);
+  return sbClient;
+}
+
+async function getUser(){
+  const c=getSB(); if(!c) return null;
+  const {data}=await c.auth.getUser();
+  return data?.user||null;
+}
+
+async function cloudSignIn(){
+  const c=getSB(); if(!c){showToast('Sync not available');return;}
+  const email=document.getElementById('sync-email')?.value?.trim();
+  const pass=document.getElementById('sync-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  const {error}=await c.auth.signInWithPassword({email,password:pass});
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Signed in — syncing...');
+  const cloud=await syncFromCloud();
+  if(cloud){
+    state={...defaultState(),...cloud};
+    save();
+  }
+  render();
+}
+
+async function cloudSignUp(){
+  const c=getSB(); if(!c){showToast('Sync not available');return;}
+  const email=document.getElementById('sync-email')?.value?.trim();
+  const pass=document.getElementById('sync-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  const {error}=await c.auth.signUp({email,password:pass});
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Account created — check email to confirm, then sign in');
+}
+
+async function cloudSignOut(){
+  const c=getSB(); if(!c) return;
+  await c.auth.signOut();
+  showToast('Signed out');
+  render();
+}
+
+async function cloudResetPw(){
+  const c=getSB(); if(!c) return;
+  const email=document.getElementById('sync-email')?.value?.trim();
+  if(!email){showToast('Enter your email first');return;}
+  const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:'https://mikeymesce.github.io/gainz/breakfree/'});
+  if(error){showToast('Error: '+error.message);return;}
+  showToast('Password reset email sent');
+}
+
+async function syncToCloud(){
+  const c=getSB(); if(!c||!navigator.onLine) return;
+  const user=await getUser(); if(!user) return;
+  state._lastSyncedAt=Date.now();
+  await c.from('user_state').upsert({user_id:user.id,state:state,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+}
+
+async function syncFromCloud(){
+  const c=getSB(); if(!c||!navigator.onLine) return null;
+  const user=await getUser(); if(!user) return null;
+  const {data}=await c.from('user_state').select('state').eq('user_id',user.id).single();
+  return data?.state||null;
+}
+
+async function cloudSyncNow(){
+  showToast('Syncing...');
+  await syncToCloud();
+  showToast('Synced ✓');
+}
+
+async function renderSyncUI(){
+  const el=document.getElementById('sync-ui');
+  if(!el) return;
+  const user=await getUser();
+  if(user){
+    el.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
+        <div style="font-size:12px;color:var(--text);">${user.email}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cloudSyncNow()" class="btn ghost small" style="flex:1;">SYNC NOW</button>
+        <button onclick="cloudSignOut()" class="btn ghost small" style="color:var(--red);border-color:rgba(224,112,112,0.3);">SIGN OUT</button>
+      </div>`;
+  } else {
+    el.innerHTML=`
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Sign in to back up your data</div>
+      <input id="sync-email" class="input" type="email" placeholder="email" style="margin-bottom:8px;font-size:13px;"/>
+      <input id="sync-pass" class="input" type="password" placeholder="password" style="margin-bottom:10px;font-size:13px;"/>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cloudSignIn()" class="btn primary small" style="flex:1;">SIGN IN</button>
+        <button onclick="cloudSignUp()" class="btn ghost small" style="flex:1;">SIGN UP</button>
+      </div>
+      <button onclick="cloudResetPw()" style="background:none;border:none;color:var(--dim);font-size:10px;margin-top:8px;cursor:pointer;font-family:'DM Sans',sans-serif;">Forgot password?</button>`;
+  }
+}
+
+// Auto-sync after saving
+const _origSave=save;
+save=function(){
+  _origSave();
+  syncToCloud(); // fire and forget
+};
+
+// Auto-pull on load
+setTimeout(async()=>{
+  const cloud=await syncFromCloud();
+  if(cloud&&cloud._lastSyncedAt&&(!state._lastSyncedAt||cloud._lastSyncedAt>state._lastSyncedAt)){
+    state={...defaultState(),...cloud};
+    _origSave();
+    render();
+  }
+},1000);
 
 // ── Init ──
 render();
