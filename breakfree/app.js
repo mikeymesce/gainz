@@ -444,10 +444,17 @@ function renderHome(){
     <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;margin-top:4px;">Today's meals</div>
     ${mealRows||'<div style="font-size:12px;color:var(--dim);margin-bottom:6px;">No meals logged yet</div>'}
 
+    <button onclick="openWeighIn()" style="width:100%;background:${todayW?'rgba(110,231,160,0.06)':'var(--bg3)'};border:1px solid ${todayW?'rgba(110,231,160,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Daily Weigh-In</div>
+        <div style="font-size:13px;color:${todayW?'var(--green)':'var(--text)'};margin-top:3px;">${todayW?'✓ '+todayW.weight+' lb logged':'Tap to weigh in today'}</div>
+      </div>
+      <span style="font-size:20px;">${todayW?'✓':'⚖️'}</span>
+    </button>
+
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button class="btn primary" style="flex:1;" onclick="openQuickAdd()">+ ADD MEAL</button>
-      <button class="btn ghost" style="flex-shrink:0;" onclick="openWeighIn()">${todayW?'⚖️ '+todayW.weight:'⚖️ WEIGH IN'}</button>
-      <button class="btn ghost" style="flex-shrink:0;" onclick="openBurnedModal()">🔥 BURNED</button>
+      <button class="btn ghost" style="flex:1;" onclick="openBurnedModal()">🔥 LOG BURNED</button>
     </div>
 
     <button onclick="copyPrompt()" style="width:100%;background:linear-gradient(135deg,rgba(232,160,184,0.1),rgba(240,192,212,0.05));border:1px solid rgba(232,160,184,0.25);border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:12px;">
