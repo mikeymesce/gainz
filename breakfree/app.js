@@ -55,10 +55,7 @@ function dismissSplash(){
   setTimeout(()=>{el.style.display='none';},500);
   localStorage.setItem('breakfree_seen_intro','1');
 }
-// Auto-dismiss after 3s only if they've seen the intro before
-if(localStorage.getItem('breakfree_seen_intro')){
-  setTimeout(dismissSplash,2000);
-}
+// Splash always stays until tapped — no auto-dismiss
 
 // ── Day helpers ──
 function getToday(){
