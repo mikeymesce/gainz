@@ -42,13 +42,7 @@ let cinTimer = null;
 let cinCanDismiss = false; // prevent accidental early taps
 
 export function maybeShowCinematic() {
-  const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0');
-  if (views >= 10) {
-    // Hide cinematic overlay so app is visible
-    const el = document.getElementById('cinematic-splash');
-    if (el) el.style.display = 'none';
-    return false;
-  }
+  // Always show cinematic — it's a motivational moment every open
   showCinematic();
   return true;
 }
@@ -88,8 +82,8 @@ function showCinematic() {
   el.classList.remove('cin-fade-out');
   el.style.opacity = '1';
   cinCanDismiss = false;
-  // Allow dismiss after headline has animated in (2s)
-  setTimeout(() => { cinCanDismiss = true; }, 2000);
+  // Allow dismiss after a brief moment (prevents accidental double-tap on app open)
+  setTimeout(() => { cinCanDismiss = true; }, 500);
 
   const headline = container.querySelector('.cin-headline');
   const punch = container.querySelector('.cin-punch');
@@ -120,17 +114,17 @@ export function dismissCinematic() {
   if (!el || el.style.display === 'none') return;
   cinCanDismiss = false; // prevent double-dismiss
 
-  // Prepare onboarding underneath (invisible)
-  maybeShowSplash();
-
-  // Start cinematic background fade out
+  // Fade out cinematic — go straight to app, skip onboarding
   el.classList.add('cin-fade-out');
-
-  // Delay GAINZ appearing so it emerges as cinematic dissolves
-  const ob = document.getElementById('onboard-splash');
-  setTimeout(() => { if (ob) ob.style.opacity = '1'; }, 300);
-
   setTimeout(() => { el.style.display = 'none'; }, 500);
+
+  // Also hide onboarding if it was somehow showing
+  const ob = document.getElementById('onboard-splash');
+  if (ob) { ob.style.display = 'none'; }
+
+  // Increment view count for quote rotation
+  const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0') + 1;
+  localStorage.setItem('gainz_onboard_views', String(views));
 }
 
 // ── All onboarding cards — shuffled each time ──

@@ -1936,10 +1936,9 @@ function renderHome(){
       ${(()=>{
         const splits=getActiveSplits();
         const EXTRAS=[
+          {key:'_cardio',label:'Cardio',icon:'🏃',color:'#26de81',action:'openCardioLog()'},
           {key:'HIIT',label:'HIIT',icon:'⚡',color:'#ff4757'},
-          {key:'Cycling',label:'Cycle',icon:'🚴',color:'#ff6b35'},
           {key:'Yoga',label:'Yoga',icon:'🧘',color:'#7ecba1'},
-          {key:'Running',label:'Run',icon:'🏃',color:'#26de81'},
         ];
         const recIdx=splits.indexOf(rec);
         const programPills=splits.map((s,i)=>{
@@ -1958,7 +1957,7 @@ function renderHome(){
         });
         const divider=`<div style="width:1px;flex-shrink:0;background:var(--border2);margin:8px 2px;border-radius:1px;"></div>`;
         const extraPills=EXTRAS.map(e=>
-          `<div class="split-pill" data-key="${e.key}" data-label="${e.label}" onclick="startWorkout('${e.key}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
+          `<div class="split-pill" data-key="${e.key}" data-label="${e.label}" onclick="${e.action||"startWorkout('"+e.key+"')"}" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
             <div class="split-pill-inner" style="font-size:18px;background:${e.color}11;border:1px solid ${e.color}33;border-radius:12px;padding:10px 10px 6px;line-height:1;">
               ${e.icon}
               <div style="font-family:'Bebas Neue',sans-serif;font-size:12px;color:${e.color};margin-top:4px;letter-spacing:1px;">${e.label}</div>
@@ -2212,35 +2211,63 @@ function renderDailyCheckin(){
   const vitsTaken=typeof entry.vitamins==='object'?vitList.filter(v=>entry.vitamins[v]).length:0;
   const allVitsOn=vitsTaken===vitList.length;
   const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
-  const hr=new Date().getHours();
-  const timeLabel=hr<12?'Morning':hr<17?'Afternoon':'Night';
-  const todayCardio=getTodayCardio();
-  const weekStart=new Date(); weekStart.setDate(weekStart.getDate()-weekStart.getDay()); weekStart.setHours(0,0,0,0);
-  const weekCardioMins=(state.cardio||[]).filter(c=>new Date(c.timestamp)>=weekStart).reduce((a,c)=>a+c.minutes,0);
 
-  return `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
-    <div style="font-size:8px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Daily Check-in</div>
+  // Build status indicators
+  const checks=[];
+  if(creatineOn) checks.push('💊');
+  if(allVitsOn) checks.push('💊');
+  else if(vitsTaken>0) checks.push(`${vitsTaken}/${vitList.length}`);
+  if(todayBW) checks.push('⚖️');
+  const allDone=creatineOn&&allVitsOn&&todayBW;
+  const statusText=allDone?'All done ✓':checks.length?checks.join(' ')+' done':'Tap to check in';
 
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <button onclick="toggleCreatine()" style="flex:1;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
-        <div style="font-size:14px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">CREATINE · ${crWeek}/7</div>
+  return `<button onclick="openDailyCheckin()" style="width:100%;background:${allDone?'rgba(82,200,122,0.06)':'var(--bg2)'};border:1px solid ${allDone?'rgba(82,200,122,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Daily Check-in</div>
+      <div style="font-size:11px;color:${allDone?'var(--green)':'var(--accent)'};">${statusText}</div>
+    </div>
+    <span style="font-size:12px;color:var(--dim);">›</span>
+  </button>`;
+}
+function openDailyCheckin(){
+  const entry=ensureTodaySupp();
+  const creatineOn=entry.creatine>0;
+  const dose=entry.creatineDose||5;
+  const crWeek=suppWeekCount('creatine');
+  const vitList=getVitaminList();
+  const vitsTaken=typeof entry.vitamins==='object'?vitList.filter(v=>entry.vitamins[v]).length:0;
+  const allVitsOn=vitsTaken===vitList.length;
+  const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
+  const last=state.bodyweight&&state.bodyweight[0]?state.bodyweight[0].weight:'';
+
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY CHECK-IN</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button onclick="toggleCreatine();openDailyCheckin();" style="flex:1;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">CREATINE · ${crWeek}/7</div>
       </button>
-      <button onclick="toggleAllVitamins()" style="flex:1;background:${allVitsOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${allVitsOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
-        <div style="font-size:14px;font-weight:700;color:${allVitsOn?'var(--green)':vitsTaken>0?'var(--accent)':'var(--dim)'};">${allVitsOn?'✓':vitsTaken>0?vitsTaken+'/'+vitList.length:''} Vits</div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">VITAMINS</div>
-      </button>
-      <button onclick="openWeighIn()" style="flex:1;background:${todayBW?'rgba(232,213,160,0.08)':'#0f0f12'};border:1px solid ${todayBW?'rgba(232,213,160,0.2)':'#1e1e24'};border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
-        <div style="font-size:14px;font-weight:700;color:${todayBW?'var(--accent)':'var(--dim)'};">${todayBW?todayBW.weight+'lb':'⚖️'}</div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">${todayBW?'WEIGHED IN':'WEIGH IN'}</div>
+      <button onclick="toggleAllVitamins();openDailyCheckin();" style="flex:1;background:${allVitsOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${allVitsOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;font-weight:700;color:${allVitsOn?'var(--green)':vitsTaken>0?'var(--accent)':'var(--dim)'};">${allVitsOn?'✓ All':vitsTaken>0?vitsTaken+'/'+vitList.length:'—'}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">VITAMINS</div>
       </button>
     </div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:11px;color:var(--muted);">${todayCardio.length?todayCardio.map(c=>c.type+' '+c.minutes+'m').join(' · '):'No cardio today'}${weekCardioMins?' · '+weekCardioMins+' min this wk':''}</div>
-      <button onclick="openCardioLog()" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:3px 8px;color:var(--accent);font-size:9px;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:1px;">+ CARDIO</button>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">WEIGH IN${todayBW?' · logged '+todayBW.weight+'lb':''}</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="bw-inp" type="number" class="input" placeholder="${last||'185'}" value="" step="0.1"
+          style="flex:1;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:28px;"
+          inputmode="decimal"/>
+        <span style="font-size:12px;color:var(--dim);">lbs</span>
+        <button class="btn primary small" onclick="const v=document.getElementById('bw-inp').value;if(v){logBW(v);openDailyCheckin();}">LOG</button>
+      </div>
     </div>
-  </div>`;
+
+    <button class="btn ghost" onclick="hideModal();render();" style="width:100%;">DONE</button>
+  `);
+  setTimeout(()=>{const i=document.getElementById('bw-inp');if(i&&!todayBW)i.focus();},100);
 }
 
 // ═══════════════════════════════════════════
