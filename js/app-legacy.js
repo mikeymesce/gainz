@@ -1542,6 +1542,14 @@ function openCalDay(day){
     content+=`<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">Rest day</div>`;
   }
 
+  // Cardio
+  const dayCardio=(state.cardio||[]).filter(c=>{const d=new Date(c.timestamp);return d.getDate()===day&&d.getMonth()===homeCalMonth&&d.getFullYear()===homeCalYear;});
+  if(dayCardio.length){
+    content+=dayCardio.map(c=>`<div style="background:rgba(82,200,122,0.08);border:1px solid rgba(82,200,122,0.2);border-radius:10px;padding:8px 12px;margin-bottom:8px;">
+      <span style="font-size:12px;color:var(--green);">${c.type} · ${c.minutes} min${c.distance?' · '+c.distance+' mi':''}</span>
+    </div>`).join('');
+  }
+
   // Bodyweight
   if(bwAvg){
     content+=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Scale: <span style="color:var(--text);font-weight:600;">${bwAvg} lb</span></div>`;
@@ -1885,8 +1893,10 @@ function renderHome(){
   // One-liner fun stat
   const funLine=funStat.sub?`${funStat.val} ${funStat.label.toLowerCase()} — ${funStat.sub.toLowerCase()}`:`${funStat.val} ${funStat.label.toLowerCase()}`;
 
+  const weeklyReport=renderWeeklyReport();
   return `
     ${banner}
+    ${weeklyReport}
     <div class="sb-header">
       <div>
         <div class="sb-header-time">${greetWord}.</div>
@@ -1919,6 +1929,8 @@ function renderHome(){
     </div>
 
     ${renderSuppCard()}
+
+    ${renderCardioCard()}
 
     <div class="sb-insight" onclick="cycleFunStat()" style="cursor:pointer;-webkit-tap-highlight-color:transparent;">
       <div class="sb-insight-val">${funStat.val}</div>
@@ -2196,6 +2208,157 @@ function renderSuppCard(){
         :`<span class="supp-weighin-prompt">Weigh in · ${timeLabel}</span>`
       }
     </div>`;
+}
+
+// ═══════════════════════════════════════════
+// CARDIO — Quick cardio logging
+// ═══════════════════════════════════════════
+const CARDIO_TYPES=['Run','Walk','Bike','Swim','Rowing','Elliptical','Stair Climber','Jump Rope','Hike','Sport'];
+
+function getTodayCardio(){
+  if(!state.cardio) state.cardio=[];
+  return state.cardio.filter(c=>c.date===today());
+}
+function openCardioLog(){
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">LOG CARDIO</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+      ${CARDIO_TYPES.map(t=>`<button class="btn ghost small" onclick="document.getElementById('cardio-type').value='${t}';document.querySelectorAll('.cardio-type-btn').forEach(b=>b.style.borderColor='');this.style.borderColor='var(--accent)'" class="cardio-type-btn" style="font-size:11px;padding:6px 10px;">${t}</button>`).join('')}
+    </div>
+    <input id="cardio-type" class="input" placeholder="Activity" style="margin-bottom:10px;font-size:14px;" value="Run"/>
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      <div style="flex:1;">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">Minutes</div>
+        <input id="cardio-min" type="number" inputmode="numeric" class="input" placeholder="30" style="font-size:16px;text-align:center;"/>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">Distance (mi)</div>
+        <input id="cardio-dist" type="number" inputmode="decimal" class="input" placeholder="optional" style="font-size:16px;text-align:center;"/>
+      </div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">Notes (optional)</div>
+      <input id="cardio-notes" class="input" placeholder="How'd it feel?" style="font-size:13px;"/>
+    </div>
+    <button class="btn primary" onclick="saveCardio()">LOG CARDIO</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+  setTimeout(()=>{const el=document.getElementById('cardio-min');if(el)el.focus();},100);
+}
+function saveCardio(){
+  const type=(document.getElementById('cardio-type')?.value||'').trim()||'Cardio';
+  const mins=parseInt(document.getElementById('cardio-min')?.value)||0;
+  const dist=parseFloat(document.getElementById('cardio-dist')?.value)||0;
+  const notes=(document.getElementById('cardio-notes')?.value||'').trim();
+  if(!mins){showToast('Enter how many minutes');return;}
+  if(!state.cardio) state.cardio=[];
+  state.cardio.unshift({
+    date:today(),timestamp:Date.now(),
+    type,minutes:mins,distance:dist||null,notes:notes||null
+  });
+  if(state.cardio.length>200) state.cardio=state.cardio.slice(0,200);
+  saveAndSync();
+  hideModal();
+  haptic('light');
+  showToast(type+' logged — '+mins+' min');
+  render();
+}
+function deleteCardio(idx){
+  if(!state.cardio) return;
+  state.cardio.splice(idx,1);
+  saveImmediate(); render();
+}
+function renderCardioCard(){
+  const todayEntries=getTodayCardio();
+  const weekStart=new Date(); weekStart.setDate(weekStart.getDate()-weekStart.getDay()); weekStart.setHours(0,0,0,0);
+  const weekCardio=(state.cardio||[]).filter(c=>new Date(c.timestamp)>=weekStart);
+  const weekMins=weekCardio.reduce((a,c)=>a+c.minutes,0);
+
+  return `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:12px 14px;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${todayEntries.length?'8':'0'}px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Cardio${weekMins>0?' · '+weekMins+' min this week':''}</div>
+      <button onclick="openCardioLog()" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:4px 10px;color:var(--accent);font-size:10px;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:1px;">+ LOG</button>
+    </div>
+    ${todayEntries.map((c,i)=>{
+      const globalIdx=(state.cardio||[]).indexOf(c);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;${i>0?'border-top:1px solid var(--border);':''}">
+        <span style="font-size:12px;color:var(--text);">${c.type} · ${c.minutes} min${c.distance?' · '+c.distance+' mi':''}</span>
+        <button onclick="deleteCardio(${globalIdx})" style="background:none;border:none;color:var(--dim);font-size:10px;cursor:pointer;">✕</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// WEEKLY REPORT CARD — Generated Sunday
+// ═══════════════════════════════════════════
+function getWeeklyReport(){
+  const now=new Date();
+  // Get the last completed week (Sun-Sat)
+  const thisWeekStart=new Date(now); thisWeekStart.setDate(now.getDate()-now.getDay()); thisWeekStart.setHours(0,0,0,0);
+  const lastWeekStart=new Date(thisWeekStart); lastWeekStart.setDate(lastWeekStart.getDate()-7);
+  const lastWeekEnd=new Date(thisWeekStart);
+
+  const weekWo=state.workouts.filter(w=>{const d=new Date(w.timestamp);return d>=lastWeekStart&&d<lastWeekEnd;});
+  const prevWeekStart=new Date(lastWeekStart); prevWeekStart.setDate(prevWeekStart.getDate()-7);
+  const prevWo=state.workouts.filter(w=>{const d=new Date(w.timestamp);return d>=prevWeekStart&&d<lastWeekStart;});
+
+  if(!weekWo.length) return null;
+
+  const totalVol=weekWo.reduce((a,w)=>a+(w.totalVolume||0),0);
+  const prevVol=prevWo.reduce((a,w)=>a+(w.totalVolume||0),0);
+  const volChange=prevVol>0?Math.round(((totalVol-prevVol)/prevVol)*100):null;
+  const totalDur=weekWo.reduce((a,w)=>a+(w.duration||0),0);
+  const prCount=weekWo.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.filter(s=>s.pr).length,0),0);
+  const splits=weekWo.map(w=>splitName(w.split));
+  const weekCardio=(state.cardio||[]).filter(c=>{const d=new Date(c.timestamp);return d>=lastWeekStart&&d<lastWeekEnd;});
+  const cardioMins=weekCardio.reduce((a,c)=>a+c.minutes,0);
+  const creatineDays=(state.supplements||[]).filter(s=>{
+    // Match by parsing the date string against the week range
+    const parts=s.date; // "Sun, Mar 22" format
+    if(!s.creatine||s.creatine<=0) return false;
+    return s.timestamp&&new Date(s.timestamp)>=lastWeekStart&&new Date(s.timestamp)<lastWeekEnd;
+  }).length;
+
+  return {
+    workouts:weekWo.length,
+    totalVol,volChange,
+    totalDur:Math.round(totalDur/60000),
+    prCount,splits,
+    cardioMins,creatineDays,
+    weekLabel:lastWeekStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+new Date(lastWeekEnd.getTime()-86400000).toLocaleDateString('en-US',{month:'short',day:'numeric'})
+  };
+}
+function renderWeeklyReport(){
+  // Only show on Sunday, or if they haven't dismissed it yet this week
+  const now=new Date();
+  const dismissKey='gainz_report_dismissed_'+now.getFullYear()+'_'+Math.ceil((now.getTime()-new Date(now.getFullYear(),0,1).getTime())/604800000);
+  if(localStorage.getItem(dismissKey)) return '';
+
+  const r=getWeeklyReport();
+  if(!r) return '';
+
+  const grade=r.workouts>=5?'A':r.workouts>=4?'A-':r.workouts>=3?'B+':r.workouts>=2?'B':r.workouts>=1?'C':'D';
+
+  return `<div style="background:linear-gradient(135deg,rgba(232,213,160,0.06),rgba(232,213,160,0.02));border:1px solid rgba(232,213,160,0.15);border-radius:14px;padding:16px;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Weekly Report · ${r.weekLabel}</div>
+      <button onclick="localStorage.setItem('${dismissKey}','1');render();" style="background:none;border:none;color:var(--dim);font-size:12px;cursor:pointer;">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--accent);line-height:1;">${grade}</div>
+      <div>
+        <div style="font-size:13px;color:var(--text);">${r.workouts} workout${r.workouts!==1?'s':''} · ${r.totalDur} min</div>
+        <div style="font-size:11px;color:var(--muted);">${r.totalVol.toLocaleString()} lb moved${r.volChange!==null?' · '+(r.volChange>=0?'+':'')+r.volChange+'% vs prior wk':''}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;">
+      ${r.prCount?`<span style="color:var(--accent);">🏆 ${r.prCount} PR${r.prCount!==1?'s':''}</span>`:''}
+      ${r.cardioMins?`<span style="color:var(--green);">🏃 ${r.cardioMins} min cardio</span>`:''}
+      <span style="color:var(--muted);">💊 Creatine ${r.creatineDays}/7 days</span>
+      <span style="color:var(--dim);">Splits: ${[...new Set(r.splits)].join(', ')}</span>
+    </div>
+  </div>`;
 }
 
 // ═══════════════════════════════════════════
@@ -2850,10 +3013,10 @@ function renderLog(){
       </div>${dropRows}${dropForm}`;
     }).join("");
 
-    const isExpanded=expandedLastSession.has(e.name);
+    const isExpanded=!expandedLastSession.has(e.name); // default open, toggle to hide
     const lastHint=lastSess&&lastSess.sets.length?`
       <div class="hint-row" style="flex-wrap:wrap;gap:4px;">
-        <button class="hint-btn" onclick="toggleLastSession(${esc(e.name)})" style="font-size:10px;padding:3px 8px;color:var(--dim);">${isExpanded?'▲ hide last':'Last: '+( lastSess.sets.slice(-1)[0].bw?'BW':lastSess.sets.slice(-1)[0].weight+'lb')+' × '+lastSess.sets.slice(-1)[0].reps+(isExpanded?'':' ▼')}</button>
+        <button class="hint-btn" onclick="toggleLastSession(${esc(e.name)})" style="font-size:10px;padding:3px 8px;color:var(--dim);">${isExpanded?'▲ hide last':'▼ show last session'}</button>
       </div>
       ${isExpanded?`<div style="background:var(--bg3);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
         <div style="font-size:9px;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px;">LAST SESSION</div>
