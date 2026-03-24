@@ -472,6 +472,18 @@ function renderHome(){
     </button>
 
     ${state.streak>1?`<div style="text-align:center;margin-top:12px;font-size:11px;color:var(--accent);">🔥 ${state.streak} day weigh-in streak</div>`:''}
+
+    ${!state.entries.length&&!day.meals.length?`
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-top:14px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:12px;">Quick tips</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+        <div style="margin-bottom:8px;">🔢 The big number up top is your <span style="color:var(--text);">1,500 calorie budget</span> — it counts down as you eat so you always know how much you have left today.</div>
+        <div style="margin-bottom:8px;">📊 The <span style="color:var(--text);">progress bar</span> tracks how close you are to your goal weight. Watch it fill up over time.</div>
+        <div style="margin-bottom:8px;">📅 The <span style="color:var(--text);">Calendar tab</span> tracks your full history — calories in, calories out, and weigh-ins — so you can see how what you eat actually impacts your weight day after day.</div>
+        <div style="margin-bottom:8px;">📈 You'll get <span style="color:var(--text);">weekly reports</span> based on your data with averages, trends, and pretty graphs and shit.</div>
+        <div>⚖️ Weigh in daily and log every meal — the more data you give it, the smarter it gets.</div>
+      </div>
+    </div>`:''}
   `;
 }
 
