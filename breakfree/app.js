@@ -424,9 +424,19 @@ function renderHome(){
           <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">NET</div>
         </div>
       </div>
-      ${stats?`<div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:12px;color:var(--text);">⚖️ ${stats.current} lb</div>
-        <div style="font-size:10px;color:var(--dim);">${stats.toGo>0?stats.toGo.toFixed(1)+' lb to go · '+Math.round(stats.progress)+'%':'Goal reached!'}</div>
+      ${stats?`<div style="border-top:1px solid var(--border);padding-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-size:13px;color:var(--text);font-weight:600;">⚖️ ${stats.current} lb</div>
+          <div style="font-size:10px;color:var(--dim);">${stats.toGo>0?stats.toGo.toFixed(1)+' lb to go':'Goal reached!'}</div>
+        </div>
+        <div style="height:12px;background:var(--bg3);border-radius:6px;overflow:hidden;">
+          <div style="height:100%;width:${stats.progress}%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:6px;transition:width 0.5s ease;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--dim);margin-top:4px;">
+          <span>${state.goalStart} lb</span>
+          <span style="color:var(--accent);">${Math.round(stats.progress)}%</span>
+          <span>${state.goalTarget} lb</span>
+        </div>
       </div>`:''}
     </div>`;
     })()}
