@@ -386,8 +386,9 @@ function renderHome(){
     </div>`).join('');
 
   return `
-    <div style="text-align:center;margin-bottom:12px;">
-      <div style="font-size:12px;color:var(--muted);">${greeting}, Morgan</div>
+    <div style="text-align:center;margin-bottom:14px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">${greeting}, Morgan</div>
+      <div style="font-size:8px;letter-spacing:3px;color:var(--dim);text-transform:lowercase;">your body. your goal.</div>
     </div>
 
     ${(()=>{
@@ -400,7 +401,7 @@ function renderHome(){
     <div class="card" style="text-align:center;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:${overBudget?'var(--red)':'var(--accent)'};line-height:1;">${remaining}</div>
       <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;">${overBudget?'OVER BUDGET':'CALORIES LEFT TODAY'}</div>
-      <div style="margin:12px 0 14px;">
+      <div style="margin:12px 0 10px;">
         <div class="progress-track" style="height:8px;">
           <div style="height:100%;width:${used}%;background:${barColor};border-radius:3px;transition:width 0.5s ease;"></div>
         </div>
@@ -409,73 +410,51 @@ function renderHome(){
           <span>${budget} cal budget</span>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-around;">
+      <div style="display:flex;justify-content:space-around;margin-bottom:${stats?'10':'0'}px;">
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);line-height:1;">${day.caloriesIn}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);line-height:1;">${day.caloriesIn}</div>
           <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">EATEN</div>
         </div>
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green);line-height:1;">${day.caloriesBurned}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--green);line-height:1;">${day.caloriesBurned}</div>
           <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">BURNED</div>
         </div>
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${net>0?'var(--text)':'var(--green)'};line-height:1;">${net}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${net>0?'var(--text)':'var(--green)'};line-height:1;">${net}</div>
           <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">NET</div>
         </div>
       </div>
+      ${stats?`<div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:12px;color:var(--text);">⚖️ ${stats.current} lb</div>
+        <div style="font-size:10px;color:var(--dim);">${stats.toGo>0?stats.toGo.toFixed(1)+' lb to go · '+Math.round(stats.progress)+'%':'Goal reached!'}</div>
+      </div>`:''}
     </div>`;
     })()}
 
-    ${stats?`
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent);line-height:1;">${stats.current} lb</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px;">${stats.totalLost>=0?stats.totalLost.toFixed(1)+' lb lost':''+Math.abs(stats.totalLost).toFixed(1)+' lb gained'}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:10px;color:var(--dim);">${Math.round(stats.progress)}% to goal</div>
-          <div style="width:80px;margin-top:4px;">
-            <div class="progress-track"><div class="progress-fill" style="width:${stats.progress}%;"></div></div>
-          </div>
-          <div style="font-size:9px;color:var(--dim);margin-top:2px;">${stats.toGo>0?stats.toGo.toFixed(1)+' lb to go':'Goal reached!'}</div>
-        </div>
-      </div>
-    </div>`:''}
-
-    <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Today's meals</div>
-    ${mealRows||'<div style="font-size:12px;color:var(--dim);margin-bottom:8px;">No meals logged yet</div>'}
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-      <button class="btn primary" style="width:100%;" onclick="openQuickAdd()">+ ADD MEAL</button>
-      <button class="btn ghost" style="width:100%;" onclick="openWeighIn()">${todayW?'⚖️ '+todayW.weight+' LB':'⚖️ WEIGH IN'}</button>
-      <button class="btn ghost" style="width:100%;" onclick="openBurnedModal()">🔥 ${day.caloriesBurned} BURNED</button>
-      <button class="btn ghost" style="width:100%;" onclick="openCaloriesConsumedModal()">🍽 ${day.caloriesIn} EATEN</button>
-    </div>
+    <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;margin-top:4px;">Today's meals</div>
+    ${mealRows||'<div style="font-size:12px;color:var(--dim);margin-bottom:6px;">No meals logged yet</div>'}
 
     <div style="display:flex;gap:8px;margin-top:8px;">
-      <button onclick="copyPrompt()" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:10px;cursor:pointer;text-align:left;">
-        <div style="font-size:10px;color:var(--accent);margin-bottom:2px;">ASK CHATGPT</div>
-        <div style="font-size:9px;color:var(--dim);">Copy prompt → tell it what you ate</div>
-      </button>
-      <button onclick="openPasteResult()" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:10px;cursor:pointer;text-align:left;">
-        <div style="font-size:10px;color:var(--accent);margin-bottom:2px;">PASTE RESULT</div>
-        <div style="font-size:9px;color:var(--dim);">Paste ChatGPT's answer here</div>
-      </button>
+      <button class="btn primary" style="flex:1;" onclick="openQuickAdd()">+ ADD MEAL</button>
+      <button class="btn ghost" style="flex-shrink:0;" onclick="openWeighIn()">${todayW?'⚖️ '+todayW.weight:'⚖️ WEIGH IN'}</button>
+      <button class="btn ghost" style="flex-shrink:0;" onclick="openBurnedModal()">🔥 BURNED</button>
     </div>
 
-    ${state.streak>1?`<div style="text-align:center;margin-top:10px;font-size:11px;color:var(--accent);">🔥 ${state.streak} day weigh-in streak</div>`:''}
-
-    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-top:14px;">
-      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">How to use</div>
-      <div style="font-size:11px;color:var(--dim);line-height:1.7;">
-        <div style="margin-bottom:6px;">1. Tap <span style="color:var(--accent);">+ ADD MEAL</span> to log what you ate with calories</div>
-        <div style="margin-bottom:6px;">2. Don't know the calories? Tap <span style="color:var(--accent);">ASK CHATGPT</span> — it copies a prompt. Paste it into ChatGPT and tell it what you ate. Copy the answer and tap <span style="color:var(--accent);">PASTE RESULT</span></div>
-        <div style="margin-bottom:6px;">3. Tap <span style="color:var(--accent);">⚖️ WEIGH IN</span> to track your weight</div>
-        <div style="margin-bottom:6px;">4. Tap <span style="color:var(--accent);">🔥 BURNED</span> to log active calories from exercise</div>
-        <div>5. Check the <span style="color:var(--accent);">CALENDAR</span> tab to see your history and trends</div>
+    <button onclick="copyPrompt()" style="width:100%;background:linear-gradient(135deg,rgba(232,160,184,0.1),rgba(240,192,212,0.05));border:1px solid rgba(232,160,184,0.25);border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:24px;flex-shrink:0;">🤖</div>
+      <div style="text-align:left;flex:1;">
+        <div style="font-size:12px;color:var(--accent);font-weight:600;">Don't know the calories? Ask ChatGPT</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:2px;">Tap to copy prompt · paste into ChatGPT · paste answer below</div>
       </div>
-    </div>
+    </button>
+    <button onclick="openPasteResult()" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:10px 14px;margin-top:6px;cursor:pointer;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:18px;flex-shrink:0;">📋</div>
+      <div style="text-align:left;flex:1;">
+        <div style="font-size:11px;color:var(--text);">Paste ChatGPT's answer here</div>
+      </div>
+    </button>
+
+    ${state.streak>1?`<div style="text-align:center;margin-top:12px;font-size:11px;color:var(--accent);">🔥 ${state.streak} day weigh-in streak</div>`:''}
   `;
 }
 
