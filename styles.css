@@ -746,7 +746,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   100%{text-shadow:0 0 0 transparent;}
 }
 .cin-skip{
-  position:fixed;bottom:calc(40px + env(safe-area-inset-bottom));left:28px;
+  position:fixed;bottom:calc(40px + env(safe-area-inset-bottom));right:28px;
   font-family:'DM Sans',sans-serif;font-size:13px;
   letter-spacing:3px;color:rgba(255,255,255,0.45);
   cursor:pointer;z-index:1001;
