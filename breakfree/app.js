@@ -114,7 +114,7 @@ function setBurned(val){
 // ── ChatGPT prompt ──
 const GPT_PROMPT = `Hey! You are my calorie tracker. I'm going to tell you exactly what I ate — please calculate the calories for each item. Be as accurate as possible based on typical serving sizes.
 
-My daily goal is a 600–800 calorie deficit so I'm trying to stay around 1,200–1,400 calories per day. If I'm getting close to that limit, give me a heads up at the bottom like "⚠️ You're at X total so far today — X left to stay on track" but ONLY after the food list.
+My daily calorie goal is to stay under 1,400 calories, especially on rest days when I don't work out. On days I exercise I have a little more room. If I'm getting close to the limit, give me a heads up at the bottom like "⚠️ You're at X total so far today — X left to stay under 1,400" but ONLY after the food list.
 
 IMPORTANT: I'm copying the food list directly into my calorie tracking app. The food list MUST be in this exact format:
 
