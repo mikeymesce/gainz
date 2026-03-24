@@ -1923,9 +1923,12 @@ function renderHome(){
       </div>
       <div style="font-size:11px;color:var(--dim);margin-bottom:14px;">${lastLine}</div>
       ${(()=>{const est=estimateDuration(rec);return est?`<div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;">⏱ ~${est} min avg</div>`:''})()}
-      <button class="sb-rec-cta" onclick="event.stopPropagation();startWorkout('${rec}')">
-        START ${splitName(rec).toUpperCase()} DAY &nbsp;&#8594;
-      </button>
+      <div style="display:flex;gap:8px;">
+        <button class="sb-rec-cta" onclick="event.stopPropagation();startWorkout('${rec}')" style="flex:1;">
+          START ${splitName(rec).toUpperCase()} DAY &nbsp;&#8594;
+        </button>
+        <button onclick="event.stopPropagation();quickStart()" style="background:none;border:1px solid rgba(232,213,160,0.25);border-radius:12px;padding:13px 16px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">QUICK START</button>
+      </div>
     </div>
 
     ${renderSuppCard()}
