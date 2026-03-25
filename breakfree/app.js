@@ -663,6 +663,13 @@ function renderSettings(){
     </div>
 
     <div class="card">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:1px;">NUTRITION API</div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:8px;line-height:1.5;">Looks up calories for foods not in the built-in database. Free from <span style="color:var(--accent);">api-ninjas.com</span></div>
+      <input id="api-key-inp" class="input" type="text" placeholder="Paste API key here" value="${state.apiKey||''}" style="font-size:12px;margin-bottom:8px;"/>
+      <button class="btn ghost small" style="width:100%;" onclick="state.apiKey=document.getElementById('api-key-inp').value.trim();save();showToast(state.apiKey?'API key saved':'API key removed');">SAVE KEY</button>
+    </div>
+
+    <div class="card">
       <div style="font-size:9px;color:var(--dim);margin-bottom:8px;">Export data</div>
       <button class="btn ghost" style="width:100%;" onclick="exportData()">DOWNLOAD BACKUP</button>
     </div>
@@ -707,6 +714,30 @@ const FOOD_DB=[
 {name:'Ezekiel Bread',calories:80,serving:'1 slice'},{name:'Rice Cakes with PB',calories:130,serving:'2 cakes + 1 tbsp'},{name:'Dates with Almond Butter',calories:200,serving:'3 dates + 1 tbsp'},
 {name:'Coconut Water',calories:45,serving:'8 oz'},{name:'Kombucha',calories:50,serving:'8 oz'},{name:'Sparkling Water',calories:0,serving:'12 oz'},
 ];
+
+// ── CalorieNinjas API fallback ──
+async function lookupCalories(query){
+  const key=state.apiKey;
+  if(!key) return null;
+  try{
+    const resp=await fetch('https://api.api-ninjas.com/v1/nutrition?query='+encodeURIComponent(query),{
+      headers:{'X-Api-Key':key}
+    });
+    if(!resp.ok) return null;
+    const data=await resp.json();
+    if(!data.items||!data.items.length) return null;
+    return data.items.map(item=>({
+      name:item.name.charAt(0).toUpperCase()+item.name.slice(1),
+      calories:Math.round(item.calories),
+      serving:Math.round(item.serving_size_g)+'g',
+      protein:Math.round(item.protein_g),
+      carbs:Math.round(item.carbohydrates_total_g),
+      fat:Math.round(item.fat_total_g),
+    }));
+  }catch(e){ return null; }
+}
+
+let apiSearchTimer=null;
 
 function searchFood(query){
   if(!query||query.length<2) return [];
@@ -811,8 +842,36 @@ function updateFoodSearch(){
       </button>`).join('');
     if(manual) manual.style.display='none';
   } else {
-    el.innerHTML='<div style="font-size:11px;color:var(--dim);padding:8px 0;">No matches found</div>';
-    if(manual){ manual.style.display='block'; document.getElementById('qa-name').value=q; }
+    // No local results — try API if key is set
+    if(state.apiKey){
+      el.innerHTML='<div style="font-size:11px;color:var(--dim);padding:8px 0;">Searching online...</div>';
+      if(apiSearchTimer) clearTimeout(apiSearchTimer);
+      apiSearchTimer=setTimeout(async()=>{
+        const apiResults=await lookupCalories(q);
+        // Check search field still has same query
+        const currentQ=document.getElementById('qa-search')?.value||'';
+        if(currentQ.toLowerCase()!==q.toLowerCase()) return;
+        if(apiResults&&apiResults.length){
+          el.innerHTML=`<div style="font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">FROM NUTRITION API</div>`+
+            apiResults.map(f=>`
+            <button onclick="openServingPicker('${f.name.replace(/'/g,"\\'")}',${f.calories},'${f.serving.replace(/'/g,"\\'")}')"
+              style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-align:left;">
+              <div>
+                <div style="font-size:13px;color:var(--text);">${f.name}</div>
+                <div style="font-size:9px;color:var(--dim);">${f.serving} · ${f.protein}g protein · ${f.carbs}g carbs · ${f.fat}g fat</div>
+              </div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);">${f.calories}</div>
+            </button>`).join('');
+          if(manual) manual.style.display='none';
+        } else {
+          el.innerHTML='<div style="font-size:11px;color:var(--dim);padding:8px 0;">No matches found</div>';
+          if(manual){ manual.style.display='block'; document.getElementById('qa-name').value=q; }
+        }
+      },500); // debounce API calls
+    } else {
+      el.innerHTML='<div style="font-size:11px;color:var(--dim);padding:8px 0;">No matches found</div>';
+      if(manual){ manual.style.display='block'; document.getElementById('qa-name').value=q; }
+    }
   }
 }
 
