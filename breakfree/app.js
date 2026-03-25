@@ -716,8 +716,9 @@ const FOOD_DB=[
 ];
 
 // ── CalorieNinjas API fallback ──
+const NUTRITION_API_KEY='4jMmTZ7RitTyaK5QaIM6qvtiDwo331tfpFGOkpGM';
 async function lookupCalories(query){
-  const key=state.apiKey;
+  const key=state.apiKey||NUTRITION_API_KEY;
   if(!key) return null;
   try{
     const resp=await fetch('https://api.api-ninjas.com/v1/nutrition?query='+encodeURIComponent(query),{
