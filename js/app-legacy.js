@@ -2087,6 +2087,19 @@ function toggleAllVitamins(){
   saveAndSync(); render();
   if(!allOn) haptic('light');
 }
+function addWater(){
+  const entry=ensureTodaySupp();
+  if(!entry.water) entry.water=0;
+  entry.water++;
+  saveAndSync(); render();
+  haptic('light');
+}
+function removeWater(){
+  const entry=ensureTodaySupp();
+  if(!entry.water||entry.water<=0) return;
+  entry.water--;
+  saveAndSync(); render();
+}
 function adjustCreatine(){
   const entry=getTodaySupp();
   const currentDose=entry?entry.creatineDose||5:5;
@@ -2222,18 +2235,15 @@ function renderDailyCheckin(){
   const allVitsOn=vitsTaken===vitList.length;
   const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
 
+  const waterCount=entry.water||0;
+
   // Build status indicators
-  const checks=[];
-  if(creatineOn) checks.push('💊');
-  if(allVitsOn) checks.push('💊');
-  else if(vitsTaken>0) checks.push(`${vitsTaken}/${vitList.length}`);
-  if(todayBW) checks.push('⚖️');
-  const allDone=creatineOn&&allVitsOn&&todayBW;
-  const statusText=allDone?'All done ✓':checks.length?checks.join(' ')+' done':'Tap to check in';
   const items=[];
   items.push(creatineOn?'✓ Creatine':'Creatine');
   items.push(allVitsOn?'✓ Vitamins':vitsTaken>0?vitsTaken+'/'+vitList.length+' Vitamins':'Vitamins');
   items.push(todayBW?'✓ '+todayBW.weight+'lb':'Weigh-in');
+  items.push(waterCount>0?'💧'+waterCount:'Water');
+  const allDone=creatineOn&&allVitsOn&&todayBW;
   const subtitle=items.join(' · ');
 
   return `<button onclick="openDailyCheckin()" style="width:100%;background:${allDone?'rgba(82,200,122,0.06)':'var(--bg2)'};border:1px solid ${allDone?'rgba(82,200,122,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer;text-align:left;">
@@ -2255,18 +2265,36 @@ function openDailyCheckin(){
   const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
   const last=state.bodyweight&&state.bodyweight[0]?state.bodyweight[0].weight:'';
 
+  const waterCount=entry.water||0;
+  const allergyOn=typeof entry.vitamins==='object'&&entry.vitamins['Allergy Pill'];
+
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY CHECK-IN</div>
 
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
       <button onclick="toggleCreatine();openDailyCheckin();" style="flex:1;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
         <div style="font-size:16px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
         <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">CREATINE · ${crWeek}/7</div>
       </button>
+      <button onclick="toggleVitamin('Allergy Pill');openDailyCheckin();" style="flex:1;background:${allergyOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${allergyOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;font-weight:700;color:${allergyOn?'var(--green)':'var(--dim)'};">${allergyOn?'✓':'—'}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">ALLERGY PILL</div>
+      </button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
       <button onclick="toggleAllVitamins();openDailyCheckin();" style="flex:1;background:${allVitsOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${allVitsOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
         <div style="font-size:16px;font-weight:700;color:${allVitsOn?'var(--green)':vitsTaken>0?'var(--accent)':'var(--dim)'};">${allVitsOn?'✓ All':vitsTaken>0?vitsTaken+'/'+vitList.length:'—'}</div>
         <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">VITAMINS</div>
       </button>
+      <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
+          <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
+          <div style="font-size:16px;font-weight:700;color:${waterCount>=8?'var(--green)':'var(--accent)'};">💧 ${waterCount}</div>
+          <button onclick="addWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
+        </div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">GLASSES · ${waterCount>=8?'✓ GOAL':'GOAL: 8'}</div>
+      </div>
     </div>
 
     <div style="margin-bottom:14px;">
