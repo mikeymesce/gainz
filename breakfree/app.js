@@ -675,20 +675,80 @@ function renderSettings(){
   setTimeout(renderSyncUI, 50);
 }
 
+// ── Food Database ──
+const FOOD_DB=[
+{name:'Chicken Breast',calories:165,serving:'4 oz'},{name:'Chicken Thigh',calories:230,serving:'4 oz'},{name:'Chicken Wing',calories:100,serving:'1 wing'},{name:'Rotisserie Chicken',calories:220,serving:'4 oz'},{name:'Ground Turkey',calories:170,serving:'4 oz'},{name:'Turkey Breast',calories:135,serving:'4 oz'},{name:'Turkey Bacon',calories:60,serving:'2 slices'},{name:'Ground Beef 80/20',calories:290,serving:'4 oz'},{name:'Ground Beef 90/10',calories:200,serving:'4 oz'},{name:'Ribeye Steak',calories:310,serving:'6 oz'},{name:'Sirloin Steak',calories:210,serving:'6 oz'},{name:'Filet Mignon',calories:230,serving:'6 oz'},{name:'NY Strip Steak',calories:280,serving:'6 oz'},{name:'Salmon Fillet',calories:230,serving:'4 oz'},{name:'Canned Tuna',calories:100,serving:'1 can'},{name:'Shrimp',calories:100,serving:'4 oz'},{name:'Tilapia',calories:110,serving:'4 oz'},{name:'Cod',calories:100,serving:'4 oz'},{name:'Egg (whole)',calories:70,serving:'1 large'},{name:'Egg Whites',calories:17,serving:'1 large'},{name:'Hard Boiled Egg',calories:78,serving:'1 large'},{name:'Scrambled Eggs',calories:180,serving:'2 eggs'},{name:'Pork Chop',calories:230,serving:'6 oz'},{name:'Bacon',calories:90,serving:'2 slices'},{name:'Ham',calories:150,serving:'4 oz'},{name:'Sausage Link',calories:170,serving:'2 links'},{name:'Hot Dog',calories:190,serving:'1 frank'},{name:'Tofu',calories:90,serving:'4 oz'},{name:'Edamame',calories:190,serving:'1 cup'},{name:'Black Beans',calories:230,serving:'1 cup'},{name:'Chickpeas',calories:270,serving:'1 cup'},{name:'Lentils',calories:230,serving:'1 cup'},
+{name:'White Rice',calories:205,serving:'1 cup'},{name:'Brown Rice',calories:215,serving:'1 cup'},{name:'Quinoa',calories:220,serving:'1 cup'},{name:'Spaghetti',calories:220,serving:'1 cup'},{name:'Penne Pasta',calories:220,serving:'1 cup'},{name:'Mac and Cheese',calories:380,serving:'1 cup'},{name:'Ramen Noodles',calories:380,serving:'1 packet'},{name:'White Bread',calories:75,serving:'1 slice'},{name:'Whole Wheat Bread',calories:80,serving:'1 slice'},{name:'Tortilla (flour)',calories:140,serving:'1 medium'},{name:'Tortilla (corn)',calories:60,serving:'1 small'},{name:'Bagel',calories:270,serving:'1 bagel'},{name:'English Muffin',calories:130,serving:'1 muffin'},{name:'Croissant',calories:230,serving:'1 croissant'},{name:'Oatmeal',calories:150,serving:'1 cup'},{name:'Baked Potato',calories:160,serving:'1 medium'},{name:'Mashed Potatoes',calories:210,serving:'1 cup'},{name:'French Fries',calories:365,serving:'medium'},{name:'Sweet Potato',calories:100,serving:'1 medium'},
+{name:'Banana',calories:105,serving:'1 medium'},{name:'Apple',calories:95,serving:'1 medium'},{name:'Orange',calories:65,serving:'1 medium'},{name:'Grapes',calories:105,serving:'1 cup'},{name:'Strawberries',calories:50,serving:'1 cup'},{name:'Blueberries',calories:85,serving:'1 cup'},{name:'Watermelon',calories:45,serving:'1 cup'},{name:'Pineapple',calories:80,serving:'1 cup'},{name:'Mango',calories:100,serving:'1 cup'},{name:'Avocado',calories:240,serving:'1 medium'},
+{name:'Broccoli',calories:55,serving:'1 cup'},{name:'Spinach',calories:7,serving:'1 cup raw'},{name:'Mixed Salad',calories:10,serving:'1 cup'},{name:'Carrots',calories:50,serving:'1 medium'},{name:'Tomato',calories:25,serving:'1 medium'},{name:'Bell Pepper',calories:30,serving:'1 medium'},{name:'Corn on the Cob',calories:90,serving:'1 ear'},{name:'Asparagus',calories:25,serving:'6 spears'},{name:'Green Beans',calories:35,serving:'1 cup'},
+{name:'Whole Milk',calories:150,serving:'1 cup'},{name:'2% Milk',calories:120,serving:'1 cup'},{name:'Almond Milk',calories:30,serving:'1 cup'},{name:'Oat Milk',calories:120,serving:'1 cup'},{name:'Cheddar Cheese',calories:110,serving:'1 oz'},{name:'Mozzarella',calories:85,serving:'1 oz'},{name:'American Cheese',calories:100,serving:'1 slice'},{name:'Cream Cheese',calories:50,serving:'1 tbsp'},{name:'Cottage Cheese',calories:110,serving:'1/2 cup'},{name:'String Cheese',calories:80,serving:'1 stick'},{name:'Greek Yogurt',calories:130,serving:'1 cup'},{name:'Butter',calories:100,serving:'1 tbsp'},{name:'Ice Cream',calories:270,serving:'1 cup'},
+{name:'Almonds',calories:165,serving:'1 oz'},{name:'Peanuts',calories:165,serving:'1 oz'},{name:'Cashews',calories:155,serving:'1 oz'},{name:'Walnuts',calories:185,serving:'1 oz'},{name:'Trail Mix',calories:140,serving:'1 oz'},{name:'Peanut Butter',calories:190,serving:'2 tbsp'},{name:'Almond Butter',calories:195,serving:'2 tbsp'},
+{name:'Protein Bar',calories:210,serving:'1 bar'},{name:'Granola Bar',calories:140,serving:'1 bar'},{name:'Rice Cake',calories:35,serving:'1 cake'},{name:'Potato Chips',calories:150,serving:'1 oz'},{name:'Tortilla Chips',calories:140,serving:'1 oz'},{name:'Popcorn',calories:95,serving:'3 cups'},{name:'Hummus',calories:70,serving:'2 tbsp'},{name:'Dark Chocolate',calories:170,serving:'1 oz'},{name:'Oreos',calories:160,serving:'3 cookies'},{name:'Chocolate Chip Cookie',calories:220,serving:'1 large'},{name:'Brownie',calories:230,serving:'1 piece'},
+{name:'Black Coffee',calories:5,serving:'8 oz'},{name:'Coffee with Cream',calories:60,serving:'8 oz'},{name:'Latte',calories:190,serving:'16 oz'},{name:'Cappuccino',calories:130,serving:'12 oz'},{name:'Iced Coffee',calories:120,serving:'16 oz'},{name:'Frappuccino',calories:380,serving:'16 oz'},{name:'Green Tea',calories:0,serving:'8 oz'},{name:'Coca-Cola',calories:140,serving:'12 oz'},{name:'Diet Coke',calories:0,serving:'12 oz'},{name:'Sprite',calories:140,serving:'12 oz'},{name:'Red Bull',calories:110,serving:'8.4 oz'},{name:'Gatorade',calories:140,serving:'20 oz'},{name:'Orange Juice',calories:110,serving:'8 oz'},{name:'Smoothie',calories:250,serving:'16 oz'},{name:'Protein Shake',calories:160,serving:'1 scoop + water'},{name:'Beer',calories:150,serving:'12 oz'},{name:'Light Beer',calories:105,serving:'12 oz'},{name:'Red Wine',calories:125,serving:'5 oz'},{name:'White Wine',calories:120,serving:'5 oz'},{name:'Margarita',calories:280,serving:'8 oz'},{name:'Vodka Soda',calories:100,serving:'1 drink'},
+{name:'Pancakes',calories:175,serving:'2 medium'},{name:'Waffle',calories:220,serving:'1 large'},{name:'French Toast',calories:300,serving:'2 slices'},{name:'Omelet (cheese)',calories:300,serving:'3 egg'},{name:'Breakfast Burrito',calories:350,serving:'1 burrito'},{name:'Breakfast Sandwich',calories:400,serving:'1 sandwich'},{name:'Cereal with Milk',calories:220,serving:'1 cup + milk'},{name:'Granola',calories:200,serving:'1/2 cup'},{name:'Acai Bowl',calories:400,serving:'1 bowl'},{name:'Donut',calories:260,serving:'1 donut'},{name:'Muffin',calories:350,serving:'1 large'},
+{name:'Big Mac',calories:550,serving:'1 sandwich'},{name:'McChicken',calories:400,serving:'1 sandwich'},{name:'Chicken McNuggets',calories:190,serving:'6 piece'},{name:'McDonald\'s Fries',calories:340,serving:'medium'},{name:'Whopper',calories:660,serving:'1 sandwich'},{name:'Chick-fil-A Sandwich',calories:440,serving:'1 sandwich'},{name:'Chick-fil-A Nuggets',calories:260,serving:'8 piece'},{name:'Subway 6" Turkey',calories:280,serving:'6 inch'},{name:'Taco Bell Crunchy Taco',calories:170,serving:'1 taco'},{name:'Taco Bell Burrito',calories:390,serving:'1 burrito'},{name:'Chipotle Burrito',calories:1000,serving:'1 burrito'},{name:'Chipotle Bowl',calories:700,serving:'1 bowl'},{name:'Pizza Slice (cheese)',calories:270,serving:'1 slice'},{name:'Pizza Slice (pepperoni)',calories:310,serving:'1 slice'},{name:'Popeyes Chicken Sandwich',calories:700,serving:'1 sandwich'},{name:'Five Guys Burger',calories:840,serving:'1 burger'},
+{name:'Chicken Caesar Salad',calories:400,serving:'1 bowl'},{name:'Garden Salad',calories:70,serving:'1 bowl'},{name:'Cobb Salad',calories:550,serving:'1 bowl'},{name:'Grilled Chicken Sandwich',calories:420,serving:'1 sandwich'},{name:'BLT',calories:350,serving:'1 sandwich'},{name:'PB&J',calories:380,serving:'1 sandwich'},{name:'Grilled Cheese',calories:370,serving:'1 sandwich'},{name:'Chicken Stir Fry',calories:350,serving:'1.5 cups'},{name:'Chicken Alfredo',calories:600,serving:'1.5 cups'},{name:'Spaghetti and Meatballs',calories:500,serving:'1.5 cups'},{name:'Lasagna',calories:380,serving:'1 piece'},{name:'Chili',calories:250,serving:'1 cup'},{name:'Chicken Noodle Soup',calories:170,serving:'1 cup'},{name:'Chicken Wings',calories:430,serving:'6 wings'},{name:'Sushi Roll',calories:250,serving:'8 pieces'},{name:'Pho',calories:450,serving:'1 bowl'},{name:'Ramen Bowl',calories:500,serving:'1 bowl'},{name:'Fried Rice',calories:350,serving:'1 cup'},{name:'Chicken Quesadilla',calories:500,serving:'1 quesadilla'},{name:'Fish Tacos',calories:300,serving:'2 tacos'},{name:'Beef Tacos',calories:340,serving:'2 tacos'},
+{name:'Ranch Dressing',calories:70,serving:'2 tbsp'},{name:'Mayo',calories:100,serving:'1 tbsp'},{name:'Ketchup',calories:20,serving:'1 tbsp'},{name:'BBQ Sauce',calories:30,serving:'1 tbsp'},{name:'Olive Oil',calories:120,serving:'1 tbsp'},{name:'Honey',calories:64,serving:'1 tbsp'},{name:'Maple Syrup',calories:52,serving:'1 tbsp'},
+{name:'Cheesecake',calories:400,serving:'1 slice'},{name:'Chocolate Cake',calories:350,serving:'1 slice'},{name:'Apple Pie',calories:300,serving:'1 slice'},{name:'Milkshake',calories:550,serving:'16 oz'},{name:'Frozen Yogurt',calories:220,serving:'1 cup'},
+];
+
+function searchFood(query){
+  if(!query||query.length<2) return [];
+  const q=query.toLowerCase();
+  const exact=FOOD_DB.filter(f=>f.name.toLowerCase().startsWith(q));
+  const partial=FOOD_DB.filter(f=>!f.name.toLowerCase().startsWith(q)&&f.name.toLowerCase().includes(q));
+  return [...exact,...partial].slice(0,8);
+}
+
 // ── Modals ──
 function openQuickAdd(){
   showModal(`
-    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">ADD MEAL</div>
-    <input id="qa-name" class="input" placeholder="What did you eat?" style="margin-bottom:8px;"/>
-    <input id="qa-cal" class="input" type="number" inputmode="numeric" placeholder="Calories" style="margin-bottom:14px;"/>
-    <button class="btn primary" style="width:100%;" onclick="addMeal(document.getElementById('qa-name').value,document.getElementById('qa-cal').value);hideModal();">ADD</button>
-    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CANCEL</button>
-    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
-      <div style="font-size:10px;color:var(--dim);margin-bottom:8px;">Don't know the calories?</div>
-      <button class="btn ghost small" style="width:100%;" onclick="hideModal();copyPrompt();">COPY CHATGPT PROMPT</button>
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">WHAT DID YOU EAT?</div>
+    <input id="qa-search" class="input" placeholder="Start typing... chicken, pizza, latte..."
+      oninput="updateFoodSearch()" autocomplete="off"
+      style="margin-bottom:8px;font-size:15px;"/>
+    <div id="food-results"></div>
+    <div id="qa-manual" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">NOT FOUND? ENTER MANUALLY</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="qa-name" class="input" placeholder="Food name" style="flex:2;font-size:13px;"/>
+        <input id="qa-cal" class="input" type="number" inputmode="numeric" placeholder="Cal" style="flex:1;font-size:13px;text-align:center;"/>
+        <button class="btn primary small" onclick="addMeal(document.getElementById('qa-name').value,document.getElementById('qa-cal').value);hideModal();">+</button>
+      </div>
     </div>
+    <button class="btn ghost" style="width:100%;margin-top:10px;" onclick="hideModal()">CANCEL</button>
   `);
-  setTimeout(()=>{const i=document.getElementById('qa-name');if(i)i.focus();},100);
+  setTimeout(()=>{const i=document.getElementById('qa-search');if(i)i.focus();},100);
+}
+
+function updateFoodSearch(){
+  const q=document.getElementById('qa-search')?.value||'';
+  const results=searchFood(q);
+  const el=document.getElementById('food-results');
+  const manual=document.getElementById('qa-manual');
+  if(!el) return;
+
+  if(q.length<2){
+    el.innerHTML='<div style="font-size:11px;color:var(--dim);padding:8px 0;">Type to search 250+ foods...</div>';
+    if(manual) manual.style.display='none';
+    return;
+  }
+
+  if(results.length){
+    el.innerHTML=results.map(f=>`
+      <button onclick="addMeal('${f.name.replace(/'/g,"\\'")}',${f.calories});hideModal();"
+        style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-align:left;">
+        <div>
+          <div style="font-size:13px;color:var(--text);">${f.name}</div>
+          <div style="font-size:9px;color:var(--dim);">${f.serving}</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);">${f.calories}</div>
+      </button>`).join('');
+    if(manual) manual.style.display='none';
+  } else {
+    el.innerHTML='<div style="font-size:11px;color:var(--dim);padding:8px 0;">No matches found</div>';
+    if(manual){ manual.style.display='block'; document.getElementById('qa-name').value=q; }
+  }
 }
 
 function openWeighIn(){
