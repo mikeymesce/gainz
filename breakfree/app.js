@@ -441,6 +441,39 @@ function renderHome(){
     </div>`;
     })()}
 
+    ${(()=>{
+      // Weekly report card — show on Sundays or if data exists
+      const wrStart=new Date(); wrStart.setDate(wrStart.getDate()-wrStart.getDay()-7); wrStart.setHours(0,0,0,0);
+      const wrEnd=new Date(); wrEnd.setDate(wrEnd.getDate()-wrEnd.getDay()); wrEnd.setHours(0,0,0,0);
+      const wrDays=(state.days||[]).filter(d=>{const t=new Date(d.timestamp);return t>=wrStart&&t<wrEnd;});
+      const wrDismiss='bf_report_'+wrStart.getTime();
+      if(!wrDays.length||localStorage.getItem(wrDismiss)) return '';
+      const wrAvg=Math.round(wrDays.reduce((a,d)=>a+(d.caloriesIn||0),0)/wrDays.length);
+      const wrBurn=Math.round(wrDays.reduce((a,d)=>a+(d.caloriesBurned||0),0)/wrDays.length);
+      const wrWeighIns=(state.entries||[]).filter(e=>{const t=new Date(e.timestamp);return t>=wrStart&&t<wrEnd;});
+      const wrWeight=wrWeighIns.length?Math.round(wrWeighIns.reduce((a,e)=>a+e.weight,0)/wrWeighIns.length*10)/10:null;
+      const wrPrevWeighIns=(state.entries||[]).filter(e=>{const t=new Date(e.timestamp);return t>=new Date(wrStart.getTime()-604800000)&&t<wrStart;});
+      const wrPrevWeight=wrPrevWeighIns.length?Math.round(wrPrevWeighIns.reduce((a,e)=>a+e.weight,0)/wrPrevWeighIns.length*10)/10:null;
+      const wrWeightChange=wrWeight&&wrPrevWeight?Math.round((wrWeight-wrPrevWeight)*10)/10:null;
+      const under=wrAvg<=(state.calBudget||1500);
+      const grade=wrDays.length>=6&&under?'A':wrDays.length>=4&&under?'B+':wrDays.length>=3?'B':'C';
+      return `
+      <div style="background:linear-gradient(135deg,rgba(232,160,184,0.08),rgba(240,192,212,0.04));border:1px solid rgba(232,160,184,0.15);border-radius:14px;padding:14px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:8px;letter-spacing:2px;color:var(--muted);">WEEKLY REPORT</div>
+          <button onclick="localStorage.setItem('${wrDismiss}','1');render();" style="background:none;border:none;color:var(--dim);font-size:12px;cursor:pointer;">✕</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:var(--accent);">${grade}</div>
+          <div>
+            <div style="font-size:12px;color:var(--text);">${wrDays.length} days tracked</div>
+            <div style="font-size:10px;color:var(--muted);">Avg ${wrAvg} cal/day · ${wrBurn} burned</div>
+          </div>
+        </div>
+        ${wrWeightChange!==null?`<div style="font-size:11px;color:${wrWeightChange<=0?'var(--green)':'var(--red)'};">${wrWeightChange<=0?'':'+'} ${wrWeightChange} lb this week${wrWeight?' · avg '+wrWeight+' lb':''}</div>`:''}
+      </div>`;
+    })()}
+
     <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;margin-top:4px;">Today's meals</div>
     ${mealRows||'<div style="font-size:12px;color:var(--dim);margin-bottom:6px;">No meals logged yet</div>'}
 

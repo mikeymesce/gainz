@@ -4,7 +4,73 @@
 
 ---
 
-## Latest — March 16 (Session 7)
+## Latest — March 24-25 (Sessions 8-10)
+
+### BREAK FREE — New App for Morgan
+- **Separate calorie + weight loss tracker** at `/breakfree/`
+- Pink/feminine theme, personalized for Morgan
+- **Calorie budget** — 1,500 cal countdown with progress bar, turns yellow/red as she approaches limit
+- **254-item food database** — instant search-as-you-type, covers proteins, veggies, fast food, snacks, drinks, vegetarian staples
+- **CalorieNinjas API** — automatic fallback for foods not in database, shows protein/carbs/fat breakdown
+- **ChatGPT integration** — copy a prompt, tell ChatGPT what you ate, paste answer back to auto-log meals
+- **Frequent foods** — most-eaten foods show at top of search for one-tap re-logging
+- **Serving size picker** — ½, 1x, 1.5x, 2x portions or enter exact calories
+- **Daily weigh-in** with goal progress bar (135 → 115 lb)
+- **Calendar tab** — full history, tap any day to see/edit meals, weight, calories burned
+- **Weekly trends** — average calories eaten/burned/net, weight chart, calorie chart
+- **Cloud sync** — Supabase login to back up data
+- **Onboarding** — splash intro explaining the app, weight setup on first open, pink tour tip bubbles
+- **Sign-in popup** on first load — sign in, create account, or continue as guest
+
+### Home Screen Overhaul
+- **Daily Check-in** — merged creatine, vitamins, weigh-in, water into one compact button/modal
+- **Water tracking** in ounces with +/- buttons and quick-add (+16oz, +24oz, +32oz), goal: 100oz
+- **Individual supplement toggles** — Vitamin D, Zinc, Magnesium, Fish Oil, Allergy Pill, Zyrtec
+- **Adjustable daily goals** — water, creatine dose, supplement list editable from check-in
+- **Cardio** moved to split carousel alongside Push/Pull/Legs
+- **Quick Start button** on home screen — jump into workout without picking a split
+- **Removed clutter** — weekly report moved to Me tab, fun stat removed, supplements+cardio merged
+- **Calendar button** more visible with 📅 emoji and "TAP FOR CALENDAR" hint
+
+### Calendar Upgrades
+- **Tappable days** — tap any day to see workouts, bodyweight, creatine, cardio
+- **Green dots** for creatine days, gold dots for workouts, weight numbers on each day
+- **Retroactive creatine logging** — toggle creatine on/off for past days
+- **Edit past workouts** from calendar with save/discard confirmation
+- **Cardio shows in calendar** day view
+
+### Workout Features
+- **Drop sets** — mark any set as a drop set, add multiple weight drops with reps
+- **Sauna tracking** — toggle on during workout, log minutes + temperature
+- **Editable workout duration** on summary screen
+- **Previous sets always visible** — last session's sets expanded by default
+- **Quick Start via LOG button** — starts workout with all exercises available, auto-categorizes split at finish
+
+### Post-Workout Experience
+- **3 Pillars tips** — nutrition, sleep, exercise tips rotate after each workout (28 total)
+- **12 myth-busters** with "MYTH BUSTED" badge — protein window, soreness, ice baths, muscle memory, etc.
+- **Post-workout signup nudge** — prompts unsigned users to create account after first workout to prevent data loss
+
+### Opening Experience
+- **Cinematic quotes show every open** — motivational stats, tap to skip after 0.5s
+- **Smoother fade** — 1.2s dissolve into home screen
+- **No more blink** — splash starts visible, covers app from first paint
+- **Particles start lower** — more dramatic rising effect
+
+### Fixes & Polish
+- **GAINZ centered in header**
+- **Safe-area padding** on header + recovery banner for iPhone PWA
+- **Recovery banner buttons tappable** — no longer hidden behind status bar
+- **Nav bar full-width** — no longer constrained to 430px
+- **App icon** — gold GAINZ text on black for home screen
+- **Cache-busting** — no-cache headers + version strings on CSS/JS
+- **Password reset** for Cloud Sync
+- **Save confirmation** on workout edits — save or discard changes
+- **Modal scroll** — modals capped at 85vh with overflow scroll
+
+---
+
+## March 16 (Session 7)
 
 ### Supplement Tracker (New Feature)
 - **Creatine toggle** on home screen — tap to check off daily, adjustable dose in 0.5g steps

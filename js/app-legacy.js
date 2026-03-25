@@ -1996,6 +1996,10 @@ function renderHome(){
           {key:'_cardio',label:'Cardio',icon:'🏃',color:'#26de81',action:'openCardioLog()'},
           {key:'HIIT',label:'HIIT',icon:'⚡',color:'#ff4757'},
           {key:'Yoga',label:'Yoga',icon:'🧘',color:'#7ecba1'},
+          {key:'Jiu Jitsu',label:'BJJ',icon:'🥋',color:'#5b8fff'},
+          {key:'Rock Climbing',label:'Climb',icon:'🧗',color:'#e8c050'},
+          {key:'Cycle Bar',label:'Cycle',icon:'🚴',color:'#ff6b35'},
+          {key:'Core Power',label:'Core Pwr',icon:'🔥',color:'#a78bfa'},
         ];
         const recIdx=splits.indexOf(rec);
         const programPills=splits.map((s,i)=>{
