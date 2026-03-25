@@ -766,7 +766,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   opacity:0 !important;
 }
 #cinematic-splash.cin-fade-out{
-  transition:opacity 0.5s ease;
+  transition:opacity 1.2s cubic-bezier(0.4,0,0.2,1);
   opacity:0;pointer-events:none;
 }
 

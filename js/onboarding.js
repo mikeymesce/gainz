@@ -114,9 +114,9 @@ export function dismissCinematic() {
   if (!el || el.style.display === 'none') return;
   cinCanDismiss = false; // prevent double-dismiss
 
-  // Fade out cinematic — go straight to app, skip onboarding
+  // Smooth fade out cinematic — go straight to app
   el.classList.add('cin-fade-out');
-  setTimeout(() => { el.style.display = 'none'; }, 500);
+  setTimeout(() => { el.style.display = 'none'; }, 1300);
 
   // Also hide onboarding if it was somehow showing
   const ob = document.getElementById('onboard-splash');
