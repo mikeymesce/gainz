@@ -392,16 +392,28 @@ function renderHome(){
     </div>
 
     ${(()=>{
-      const budget=1500;
-      const remaining=budget-day.caloriesIn+day.caloriesBurned;
-      const used=Math.min(100,Math.max(0,((day.caloriesIn-day.caloriesBurned)/budget)*100));
+      const budget=state.calBudget||1500;
+      const baseBurn=state.baseBurn||2000;
+      const totalBurn=baseBurn+day.caloriesBurned;
+      const remaining=budget-day.caloriesIn;
+      const deficit=totalBurn-day.caloriesIn;
+      const used=Math.min(100,Math.max(0,(day.caloriesIn/budget)*100));
       const overBudget=remaining<0;
       const barColor=overBudget?'var(--red)':remaining<300?'#e8c050':'var(--accent)';
       return `
     <div id="budget-card" class="card" style="text-align:center;">
-      <div id="budget-num" style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:${overBudget?'var(--red)':'var(--accent)'};line-height:1;">${remaining}</div>
-      <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;">${overBudget?'OVER BUDGET':'CALORIES LEFT TODAY'}</div>
-      <div style="margin:12px 0 10px;">
+      <div style="display:flex;justify-content:space-around;margin-bottom:10px;">
+        <div>
+          <div id="budget-num" style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:${overBudget?'var(--red)':'var(--accent)'};line-height:1;">${remaining}</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;">${overBudget?'OVER BUDGET':'LEFT TO EAT'}</div>
+        </div>
+        <div style="width:1px;background:var(--border);"></div>
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:${deficit>0?'var(--green)':'var(--red)'};line-height:1;">${deficit}</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-top:4px;">${deficit>0?'DEFICIT':'SURPLUS'}</div>
+        </div>
+      </div>
+      <div style="margin:8px 0 10px;">
         <div class="progress-track" style="height:8px;">
           <div style="height:100%;width:${used}%;background:${barColor};border-radius:3px;transition:width 0.5s ease;"></div>
         </div>
@@ -412,16 +424,16 @@ function renderHome(){
       </div>
       <div style="display:flex;justify-content:space-around;margin-bottom:${stats?'10':'0'}px;">
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);line-height:1;">${day.caloriesIn}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);line-height:1;">${day.caloriesIn}</div>
           <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">EATEN</div>
         </div>
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--green);line-height:1;">${day.caloriesBurned}</div>
-          <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">BURNED</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--green);line-height:1;">${totalBurn}</div>
+          <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">TOTAL BURN</div>
         </div>
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${net>0?'var(--text)':'var(--green)'};line-height:1;">${net}</div>
-          <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">NET</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--green);line-height:1;">${day.caloriesBurned}</div>
+          <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:2px;">ACTIVE</div>
         </div>
       </div>
       ${stats?`<div style="border-top:1px solid var(--border);padding-top:12px;">
@@ -683,11 +695,16 @@ function renderSettings(){
     <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;margin-bottom:16px;">Settings</div>
 
     <div class="card">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">Daily calorie budget</div>
+      <input id="set-budget" class="input" type="number" value="${state.calBudget||1500}" inputmode="numeric" style="text-align:center;font-size:18px;margin-bottom:12px;"/>
+      <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">Base daily burn (without exercise)</div>
+      <input id="set-burn" class="input" type="number" value="${state.baseBurn||2000}" inputmode="numeric" style="text-align:center;font-size:18px;margin-bottom:4px;"/>
+      <div style="font-size:8px;color:var(--dim);margin-bottom:12px;">Your body burns this just living + walking. Active calories from workouts get added on top.</div>
       <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">Starting weight</div>
       <input id="set-start" class="input" type="number" value="${state.goalStart}" inputmode="decimal" style="text-align:center;font-size:18px;margin-bottom:12px;"/>
       <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">Goal weight</div>
       <input id="set-goal" class="input" type="number" value="${state.goalTarget}" inputmode="decimal" style="text-align:center;font-size:18px;margin-bottom:14px;"/>
-      <button class="btn primary" style="width:100%;" onclick="state.goalStart=parseFloat(document.getElementById('set-start').value)||135;state.goalTarget=parseFloat(document.getElementById('set-goal').value)||115;save();showToast('Saved');render();">SAVE</button>
+      <button class="btn primary" style="width:100%;" onclick="state.calBudget=parseInt(document.getElementById('set-budget').value)||1500;state.baseBurn=parseInt(document.getElementById('set-burn').value)||2000;state.goalStart=parseFloat(document.getElementById('set-start').value)||135;state.goalTarget=parseFloat(document.getElementById('set-goal').value)||115;save();showToast('Saved');render();">SAVE</button>
     </div>
 
     <div class="card">
