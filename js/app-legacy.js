@@ -2279,7 +2279,7 @@ function openDailyCheckin(){
       <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
           <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
-          <div style="font-size:16px;font-weight:700;color:${waterOz>=100?'var(--green)':'var(--accent)'};">💧 ${waterOz}oz</div>
+          <div style="font-size:16px;font-weight:700;color:${waterOz>=(state.waterGoal||100)?'var(--green)':'var(--accent)'};">💧 ${waterOz}oz</div>
           <button onclick="addWater(8);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
         </div>
         <div style="font-size:7px;color:var(--dim);margin-top:4px;display:flex;justify-content:center;gap:4px;">
@@ -2287,7 +2287,7 @@ function openDailyCheckin(){
           <button onclick="addWater(24);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+24oz</button>
           <button onclick="addWater(32);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+32oz</button>
         </div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">${waterOz>=100?'✓ GOAL HIT':'GOAL: 100oz'}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">${waterOz>=(state.waterGoal||100)?'✓ GOAL HIT':'GOAL: '+(state.waterGoal||100)+'oz'}</div>
       </div>
     </div>
 
@@ -2315,9 +2315,58 @@ function openDailyCheckin(){
       </div>
     </div>
 
-    <button class="btn ghost" onclick="hideModal();render();" style="width:100%;">DONE</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn ghost" onclick="hideModal();render();" style="flex:1;">DONE</button>
+      <button class="btn ghost" onclick="openCheckinSettings();" style="flex-shrink:0;color:var(--dim);">⚙ GOALS</button>
+    </div>
   `);
   setTimeout(()=>{const i=document.getElementById('bw-inp');if(i&&!todayBW)i.focus();},100);
+}
+function openCheckinSettings(){
+  const waterGoal=state.waterGoal||100;
+  const creatineDose=(getTodaySupp()||{}).creatineDose||state._creatineDose||5;
+  const vitList=getVitaminList();
+
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY GOALS</div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">WATER GOAL (oz)</div>
+      <input id="goal-water" type="number" class="input" value="${waterGoal}" inputmode="numeric" style="text-align:center;font-size:18px;"/>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">CREATINE DOSE (g)</div>
+      <input id="goal-creatine" type="number" class="input" value="${creatineDose}" inputmode="decimal" step="0.5" style="text-align:center;font-size:18px;"/>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">MY SUPPLEMENTS</div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">Current: ${vitList.join(', ')}</div>
+      <input id="goal-vits" class="input" value="${vitList.join(', ')}" placeholder="Vitamin D, Zinc, Fish Oil..." style="font-size:12px;"/>
+      <div style="font-size:8px;color:var(--dim);margin-top:4px;">Separate with commas</div>
+    </div>
+
+    <button class="btn primary" onclick="saveCheckinSettings()" style="width:100%;">SAVE</button>
+    <button class="btn ghost" onclick="openDailyCheckin();" style="width:100%;margin-top:8px;">BACK</button>
+  `);
+}
+function saveCheckinSettings(){
+  const water=parseInt(document.getElementById('goal-water')?.value)||100;
+  const creatine=parseFloat(document.getElementById('goal-creatine')?.value)||5;
+  const vitsRaw=document.getElementById('goal-vits')?.value||'';
+  const vits=vitsRaw.split(',').map(v=>v.trim()).filter(v=>v.length>0);
+
+  state.waterGoal=water;
+  const entry=ensureTodaySupp();
+  entry.creatineDose=Math.max(0.5,Math.min(20,Math.round(creatine*2)/2));
+  if(entry.creatine>0) entry.creatine=entry.creatineDose;
+  if(vits.length) state.vitaminTypes=vits;
+
+  saveImmediate();
+  hideModal();
+  showToast('Goals saved');
+  render();
 }
 
 // ═══════════════════════════════════════════
