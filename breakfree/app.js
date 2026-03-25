@@ -716,14 +716,63 @@ function searchFood(query){
   return [...exact,...partial].slice(0,8);
 }
 
+function getRecentFoods(){
+  const allMeals=(state.days||[]).flatMap(d=>d.meals||[]);
+  const freq={};
+  allMeals.forEach(m=>{ freq[m.name]=(freq[m.name]||0)+1; });
+  return Object.entries(freq)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,6)
+    .map(([name,count])=>{
+      const db=FOOD_DB.find(f=>f.name===name);
+      return {name,calories:db?db.calories:allMeals.find(m=>m.name===name)?.calories||0,serving:db?db.serving:'',count};
+    });
+}
+
+function openServingPicker(name,baseCal,serving){
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">LOG FOOD</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text);margin-bottom:4px;">${name}</div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:14px;">${serving} · ${baseCal} cal per serving</div>
+
+    <div style="font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:1px;">HOW MUCH?</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+      <button onclick="confirmServing('${name.replace(/'/g,"\\'")}',${baseCal},0.5)" class="btn ghost small">½ serving<br><span style="color:var(--accent);">${Math.round(baseCal*0.5)}</span></button>
+      <button onclick="confirmServing('${name.replace(/'/g,"\\'")}',${baseCal},1)" class="btn ghost small" style="border-color:var(--accent);color:var(--accent);">1 serving<br><span style="color:var(--accent);">${baseCal}</span></button>
+      <button onclick="confirmServing('${name.replace(/'/g,"\\'")}',${baseCal},1.5)" class="btn ghost small">1.5x<br><span style="color:var(--accent);">${Math.round(baseCal*1.5)}</span></button>
+      <button onclick="confirmServing('${name.replace(/'/g,"\\'")}',${baseCal},2)" class="btn ghost small">2x<br><span style="color:var(--accent);">${Math.round(baseCal*2)}</span></button>
+    </div>
+
+    <div style="font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:1px;">OR ENTER EXACT CALORIES</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+      <input id="sp-cal" class="input" type="number" inputmode="numeric" value="${baseCal}" style="flex:1;text-align:center;font-size:18px;"/>
+      <span style="font-size:10px;color:var(--dim);">cal</span>
+      <button class="btn primary small" onclick="addMeal('${name.replace(/'/g,"\\'")}',document.getElementById('sp-cal').value);hideModal();">LOG</button>
+    </div>
+
+    <button class="btn ghost" style="width:100%;" onclick="openQuickAdd()">BACK</button>
+  `);
+}
+
 // ── Modals ──
 function openQuickAdd(){
+  const recent=getRecentFoods();
+  const recentHtml=recent.length?`
+    <div style="font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">YOUR FREQUENT FOODS</div>
+    ${recent.map(f=>`
+      <button onclick="openServingPicker('${f.name.replace(/'/g,"\\'")}',${f.calories},'${(f.serving||'1 serving').replace(/'/g,"\\'")}')"
+        style="width:100%;background:rgba(232,160,184,0.06);border:1px solid rgba(232,160,184,0.15);border-radius:10px;padding:8px 12px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-align:left;">
+        <div style="font-size:12px;color:var(--text);">${f.name}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);">${f.calories}</div>
+      </button>`).join('')}
+    <div style="border-top:1px solid var(--border);margin:8px 0;"></div>`:'';
+
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">WHAT DID YOU EAT?</div>
     <input id="qa-search" class="input" placeholder="Start typing... chicken, pizza, latte..."
       oninput="updateFoodSearch()" autocomplete="off"
       style="margin-bottom:8px;font-size:15px;"/>
-    <div id="food-results"></div>
+    <div id="food-results">${recentHtml}<div style="font-size:11px;color:var(--dim);padding:4px 0;">Or type to search 250+ foods...</div></div>
     <div id="qa-manual" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:10px;">
       <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">NOT FOUND? ENTER MANUALLY</div>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -752,7 +801,7 @@ function updateFoodSearch(){
 
   if(results.length){
     el.innerHTML=results.map(f=>`
-      <button onclick="addMeal('${f.name.replace(/'/g,"\\'")}',${f.calories});hideModal();"
+      <button onclick="openServingPicker('${f.name.replace(/'/g,"\\'")}',${f.calories},'${f.serving.replace(/'/g,"\\'")}')"
         style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-align:left;">
         <div>
           <div style="font-size:13px;color:var(--text);">${f.name}</div>
@@ -765,6 +814,11 @@ function updateFoodSearch(){
     el.innerHTML='<div style="font-size:11px;color:var(--dim);padding:8px 0;">No matches found</div>';
     if(manual){ manual.style.display='block'; document.getElementById('qa-name').value=q; }
   }
+}
+
+function confirmServing(name,baseCal,multiplier){
+  addMeal(name,Math.round(baseCal*multiplier));
+  hideModal();
 }
 
 function openWeighIn(){
