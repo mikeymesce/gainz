@@ -788,8 +788,55 @@ function nextExercise(name){
 function dismissSummary(){
   workoutSummary=null;
   const el=document.getElementById("wo-summary");
-  if(el){ el.style.animation="summaryOut 0.3s ease forwards"; setTimeout(()=>{ workoutSummary=null; render(); },280); }
-  else render();
+  if(el){ el.style.animation="summaryOut 0.3s ease forwards"; setTimeout(()=>{ workoutSummary=null; render(); maybeShowSignupNudge(); },280); }
+  else { render(); maybeShowSignupNudge(); }
+}
+async function maybeShowSignupNudge(){
+  // Only show if not signed in and haven't dismissed before
+  if(localStorage.getItem('gainz_signup_dismissed')) return;
+  try{
+    const user=await getUser();
+    if(user) return; // already signed in
+  }catch(e){ return; }
+  showModal(`
+    <div style="text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">🔒</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);letter-spacing:2px;margin-bottom:8px;">PROTECT YOUR DATA</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px;">
+        Your workout data only lives on this device right now. If you clear your browser or delete the app, <span style="color:var(--text);">it's gone forever.</span><br><br>
+        Create a free account to back it up.
+      </div>
+      <input id="nudge-email" class="input" type="email" placeholder="email" style="margin-bottom:8px;font-size:13px;"/>
+      <input id="nudge-pass" class="input" type="password" placeholder="password" style="margin-bottom:12px;font-size:13px;"/>
+      <button onclick="nudgeSignUp()" class="btn primary" style="width:100%;">CREATE ACCOUNT</button>
+      <button onclick="nudgeSignIn()" class="btn ghost" style="width:100%;margin-top:8px;">ALREADY HAVE ONE — SIGN IN</button>
+      <button onclick="localStorage.setItem('gainz_signup_dismissed','1');hideModal();" style="background:none;border:none;color:var(--dim);font-size:10px;margin-top:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Maybe later</button>
+    </div>
+  `);
+}
+async function nudgeSignUp(){
+  const email=document.getElementById('nudge-email')?.value?.trim();
+  const pass=document.getElementById('nudge-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  const {error}=await signUp(email,pass);
+  if(error){showToast('Error: '+error.message);return;}
+  hideModal();
+  showToast('Account created — check email to confirm, then sign in from Settings');
+  localStorage.setItem('gainz_signup_dismissed','1');
+}
+async function nudgeSignIn(){
+  const email=document.getElementById('nudge-email')?.value?.trim();
+  const pass=document.getElementById('nudge-pass')?.value;
+  if(!email||!pass){showToast('Enter email and password');return;}
+  const {data,error}=await signIn(email,pass);
+  if(error){showToast('Error: '+error.message);return;}
+  hideModal();
+  showToast('Signed in — your data is now backed up');
+  localStorage.setItem('gainz_signup_dismissed','1');
+  const cloud=await syncFromCloud();
+  if(cloud){ Object.assign(state,migrateState(cloud)); localStorage.setItem('gainz_v5',JSON.stringify(state)); }
+  await syncToCloud();
+  render();
 }
 function editWorkoutDuration(){
   if(!workoutSummary) return;
@@ -4038,7 +4085,7 @@ window.onerror=function(msg,src,line){logDebug(`❌ ${msg} (line ${line})`);};
       const recovered=JSON.parse(rec);
       const banner=document.createElement("div");
       banner.id="recovery-banner";
-      banner.style.cssText="position:fixed;top:0;left:0;right:0;background:#1e1815;border-bottom:1px solid var(--accent);padding:12px 16px;z-index:9998;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);";
+      banner.style.cssText="position:fixed;top:0;left:0;right:0;background:#1e1815;border-bottom:1px solid var(--accent);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;z-index:9998;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);";
       banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover last workout?</span><div style="display:flex;gap:8px;"><button onclick="(function(){activeWorkout=${JSON.stringify(recovered).replace(/"/g,'&quot;')};screen='log';document.getElementById('recovery-banner').remove();localStorage.removeItem('gainz_recovery');startWoTimer();render();})()" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="localStorage.removeItem('gainz_recovery');document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
       document.body.appendChild(banner);
       logDebug("⚠ Crash recovery available");
