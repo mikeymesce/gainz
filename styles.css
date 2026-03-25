@@ -402,7 +402,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 /* ── GENERAL MODAL ── */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
 #modal.open{display:flex;}
-#modal-inner{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:340px;}
+#modal-inner{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:340px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 
 /* ── DEBUG PANEL ── */
 #debug-panel{display:none;position:fixed;inset:0;background:#000000f0;z-index:999;flex-direction:column;font-family:'DM Sans',sans-serif;font-size:12px;color:#f0ece0;padding:20px;overflow-y:auto;gap:12px;}
