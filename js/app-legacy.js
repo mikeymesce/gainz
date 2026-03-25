@@ -2040,7 +2040,7 @@ function renameTemplate(id){
 // ═══════════════════════════════════════════
 // SUPPLEMENTS — Daily creatine & vitamin tracking
 // ═══════════════════════════════════════════
-const DEFAULT_VITAMINS=['Vitamin D','Fish Oil','Multivitamin','Allergy Pill'];
+const DEFAULT_VITAMINS=['Vitamin D','Zinc','Magnesium','Fish Oil','Multivitamin','Zyrtec'];
 
 function getVitaminList(){
   return state.vitaminTypes||DEFAULT_VITAMINS;
@@ -2087,17 +2087,17 @@ function toggleAllVitamins(){
   saveAndSync(); render();
   if(!allOn) haptic('light');
 }
-function addWater(){
+function addWater(oz){
   const entry=ensureTodaySupp();
-  if(!entry.water) entry.water=0;
-  entry.water++;
+  if(!entry.waterOz) entry.waterOz=0;
+  entry.waterOz+=(oz||8);
   saveAndSync(); render();
   haptic('light');
 }
 function removeWater(){
   const entry=ensureTodaySupp();
-  if(!entry.water||entry.water<=0) return;
-  entry.water--;
+  if(!entry.waterOz||entry.waterOz<=0) return;
+  entry.waterOz=Math.max(0,entry.waterOz-8);
   saveAndSync(); render();
 }
 function adjustCreatine(){
@@ -2235,14 +2235,14 @@ function renderDailyCheckin(){
   const allVitsOn=vitsTaken===vitList.length;
   const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
 
-  const waterCount=entry.water||0;
+  const waterOz=entry.waterOz||0;
 
   // Build status indicators
   const items=[];
   items.push(creatineOn?'✓ Creatine':'Creatine');
   items.push(allVitsOn?'✓ Vitamins':vitsTaken>0?vitsTaken+'/'+vitList.length+' Vitamins':'Vitamins');
   items.push(todayBW?'✓ '+todayBW.weight+'lb':'Weigh-in');
-  items.push(waterCount>0?'💧'+waterCount:'Water');
+  items.push(waterOz>0?'💧'+waterOz+'oz':'Water');
   const allDone=creatineOn&&allVitsOn&&todayBW;
   const subtitle=items.join(' · ');
 
@@ -2265,7 +2265,7 @@ function openDailyCheckin(){
   const todayBW=(state.bodyweight||[]).find(b=>b.date===today());
   const last=state.bodyweight&&state.bodyweight[0]?state.bodyweight[0].weight:'';
 
-  const waterCount=entry.water||0;
+  const waterOz=entry.waterOz||0;
   const allergyOn=typeof entry.vitamins==='object'&&entry.vitamins['Allergy Pill'];
 
   showModal(`
@@ -2276,24 +2276,31 @@ function openDailyCheckin(){
         <div style="font-size:16px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
         <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">CREATINE · ${crWeek}/7</div>
       </button>
-      <button onclick="toggleVitamin('Allergy Pill');openDailyCheckin();" style="flex:1;background:${allergyOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${allergyOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
-        <div style="font-size:16px;font-weight:700;color:${allergyOn?'var(--green)':'var(--dim)'};">${allergyOn?'✓':'—'}</div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">ALLERGY PILL</div>
-      </button>
+      <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
+          <div style="font-size:16px;font-weight:700;color:${waterOz>=64?'var(--green)':'var(--accent)'};">💧 ${waterOz}oz</div>
+          <button onclick="addWater(8);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
+        </div>
+        <div style="font-size:7px;color:var(--dim);margin-top:4px;display:flex;justify-content:center;gap:4px;">
+          <button onclick="addWater(16);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+16oz</button>
+          <button onclick="addWater(24);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+24oz</button>
+          <button onclick="addWater(32);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+32oz</button>
+        </div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">${waterOz>=64?'✓ GOAL HIT':'GOAL: 64oz'}</div>
+      </div>
     </div>
 
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <button onclick="toggleAllVitamins();openDailyCheckin();" style="flex:1;background:${allVitsOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${allVitsOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
-        <div style="font-size:16px;font-weight:700;color:${allVitsOn?'var(--green)':vitsTaken>0?'var(--accent)':'var(--dim)'};">${allVitsOn?'✓ All':vitsTaken>0?vitsTaken+'/'+vitList.length:'—'}</div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">VITAMINS</div>
-      </button>
-      <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
-        <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
-          <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
-          <div style="font-size:16px;font-weight:700;color:${waterCount>=8?'var(--green)':'var(--accent)'};">💧 ${waterCount}</div>
-          <button onclick="addWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
-        </div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">GLASSES · ${waterCount>=8?'✓ GOAL':'GOAL: 8'}</div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:1px;">SUPPLEMENTS · ${vitsTaken}/${vitList.length}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${vitList.map(v=>{
+          const on=typeof entry.vitamins==='object'&&entry.vitamins[v];
+          const safe=v.replace(/'/g,"\\'");
+          return `<button onclick="toggleVitamin('${safe}');openDailyCheckin();" style="background:${on?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${on?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:8px;padding:6px 10px;cursor:pointer;">
+            <span style="font-size:11px;color:${on?'var(--green)':'var(--dim)'};">${on?'✓ ':''}${v}</span>
+          </button>`;
+        }).join('')}
       </div>
     </div>
 
