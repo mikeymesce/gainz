@@ -2279,7 +2279,7 @@ function openDailyCheckin(){
       <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
           <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
-          <div style="font-size:16px;font-weight:700;color:${waterOz>=64?'var(--green)':'var(--accent)'};">💧 ${waterOz}oz</div>
+          <div style="font-size:16px;font-weight:700;color:${waterOz>=100?'var(--green)':'var(--accent)'};">💧 ${waterOz}oz</div>
           <button onclick="addWater(8);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
         </div>
         <div style="font-size:7px;color:var(--dim);margin-top:4px;display:flex;justify-content:center;gap:4px;">
@@ -2287,7 +2287,7 @@ function openDailyCheckin(){
           <button onclick="addWater(24);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+24oz</button>
           <button onclick="addWater(32);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+32oz</button>
         </div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">${waterOz>=64?'✓ GOAL HIT':'GOAL: 64oz'}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">${waterOz>=100?'✓ GOAL HIT':'GOAL: 100oz'}</div>
       </div>
     </div>
 
