@@ -42,6 +42,26 @@
 }
 
 /* ── THEMES ── */
+.theme-light{
+  --bg:#f5f3ef;--bg2:#eae7e2;--bg3:#ddd9d3;--bg4:#d0ccc5;
+  --cardBg:#eae7e2;--inputBg:#ddd9d3;
+  --border:#ccc8c0;--border2:#bbb7af;--borderCard:#ccc8c0;
+  --accent:#8a7340;--accent2:#6b5830;
+  --accentFaint:rgba(138,115,64,0.08);--accentGlow:rgba(138,115,64,0.15);
+  --text:#1a1815;--muted:#6a6560;--dim:#a09a90;--ghost:#d5d0c8;
+  --danger:#c0404a;--superset:#6b5cd0;--purple:#6b5cd0;--green:#2a9a50;--red:#c05050;
+  --gold:var(--accent);--dimmer:var(--dim);
+}
+.theme-pink{
+  --bg:#0c0a0e;--bg2:#13111a;--bg3:#1a1722;--bg4:#221f2a;
+  --cardBg:#13111a;--inputBg:#1a1722;
+  --border:#1e1a28;--border2:#2a2538;--borderCard:#1e1a28;
+  --accent:#e8a0b8;--accent2:#f0c0d4;
+  --accentFaint:rgba(232,160,184,0.06);--accentGlow:rgba(232,160,184,0.15);
+  --text:#f5eef8;--muted:#9e8aab;--dim:#5e5270;--ghost:#2a2538;
+  --danger:#c0404a;--superset:#a78bfa;--purple:#a78bfa;--green:#6ee7a0;--red:#e07070;
+  --gold:var(--accent);--dimmer:var(--dim);
+}
 
 /* ── RESET & BASE ── */
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;}

@@ -17,8 +17,14 @@ window.statsCache = statsCache;
 
 // ═══════════════════════════════════════════
 
-let activeTheme = localStorage.getItem("gainz_theme")||"gainz";
-function applyTheme(t){ /* single theme */ }
+let activeTheme = localStorage.getItem("gainz_theme")||"dark";
+function applyTheme(t){
+  document.documentElement.classList.remove('theme-light','theme-pink');
+  if(t==='light') document.documentElement.classList.add('theme-light');
+  else if(t==='pink') document.documentElement.classList.add('theme-pink');
+  activeTheme=t;
+  localStorage.setItem('gainz_theme',t);
+}
 
 // ── State load with validation + migration ──
 let _rawState = null;
@@ -2936,6 +2942,22 @@ function renderSettings(){
   return `
     <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:2px;">More</div>
     <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:4px;text-transform:uppercase;">Settings & Preferences</div>
+
+    ${sectionHead('Theme')}
+    <div style="display:flex;gap:8px;">
+      <button onclick="applyTheme('dark');render();" style="flex:1;background:${activeTheme==='dark'?'rgba(232,213,160,0.1)':'#0f0f12'};border:1px solid ${activeTheme==='dark'?'var(--accent)':'#1e1e24'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
+        <div style="font-size:18px;margin-bottom:4px;">🌙</div>
+        <div style="font-size:10px;color:${activeTheme==='dark'?'var(--accent)':'var(--muted)'};">Dark</div>
+      </button>
+      <button onclick="applyTheme('light');render();" style="flex:1;background:${activeTheme==='light'?'rgba(138,115,64,0.1)':'#0f0f12'};border:1px solid ${activeTheme==='light'?'var(--accent)':'#1e1e24'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
+        <div style="font-size:18px;margin-bottom:4px;">☀️</div>
+        <div style="font-size:10px;color:${activeTheme==='light'?'var(--accent)':'var(--muted)'};">Light</div>
+      </button>
+      <button onclick="applyTheme('pink');render();" style="flex:1;background:${activeTheme==='pink'?'rgba(232,160,184,0.1)':'#0f0f12'};border:1px solid ${activeTheme==='pink'?'#e8a0b8':'#1e1e24'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
+        <div style="font-size:18px;margin-bottom:4px;">🌸</div>
+        <div style="font-size:10px;color:${activeTheme==='pink'?'#e8a0b8':'var(--muted)'};">Pink</div>
+      </button>
+    </div>
 
     ${sectionHead('Program')}
     ${programCards}
