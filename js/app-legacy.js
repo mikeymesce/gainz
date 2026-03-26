@@ -2166,6 +2166,13 @@ function toggleAllVitamins(){
   saveAndSync(); render();
   if(!allOn) haptic('light');
 }
+function adjustCreatineDose(delta){
+  const entry=ensureTodaySupp();
+  const newDose=Math.max(0.5,Math.min(20,Math.round(((entry.creatineDose||5)+delta)*2)/2));
+  entry.creatineDose=newDose;
+  if(entry.creatine>0) entry.creatine=newDose;
+  saveAndSync();
+}
 function addWater(oz){
   const entry=ensureTodaySupp();
   if(!entry.waterOz) entry.waterOz=0;
@@ -2351,10 +2358,16 @@ function openDailyCheckin(){
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY CHECK-IN</div>
 
     <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <button onclick="toggleCreatine();openDailyCheckin();" style="flex:1;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;cursor:pointer;">
-        <div style="font-size:16px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
+      <div style="flex:1;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          <button onclick="adjustCreatineDose(-0.5);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
+          <button onclick="toggleCreatine();openDailyCheckin();" style="background:none;border:none;cursor:pointer;">
+            <div style="font-size:16px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
+          </button>
+          <button onclick="adjustCreatineDose(0.5);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
+        </div>
         <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">CREATINE · ${crWeek}/7</div>
-      </button>
+      </div>
       <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
           <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
