@@ -694,6 +694,16 @@ function renderSettings(){
   return `
     <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;margin-bottom:16px;">Settings</div>
 
+    <div class="card" style="padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:12px;color:var(--text);">Daily Reminders</div>
+          <div style="font-size:9px;color:var(--dim);margin-top:2px;">Weigh-in, meal logging reminders</div>
+        </div>
+        <button onclick="enableNotifications()" class="btn ghost small">ENABLE</button>
+      </div>
+    </div>
+
     <div class="card">
       <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">Daily calorie budget</div>
       <input id="set-budget" class="input" type="number" value="${state.calBudget||1500}" inputmode="numeric" style="text-align:center;font-size:18px;margin-bottom:12px;"/>
@@ -1261,6 +1271,20 @@ function removeTour(){
   document.querySelectorAll('[style]').forEach(el=>{
     if(el._tour){el.style.zIndex='';el._tour=false;}
   });
+}
+
+// ── Notifications ──
+function enableNotifications(){
+  try{
+    if(window.OneSignalDeferred){
+      OneSignalDeferred.push(async function(OneSignal){
+        await OneSignal.Slidedown.promptPush();
+      });
+      showToast('Notifications enabled');
+    } else {
+      showToast('Notifications not available');
+    }
+  }catch(e){ showToast('Could not enable notifications'); }
 }
 
 // ── Init ──

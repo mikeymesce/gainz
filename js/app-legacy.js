@@ -820,6 +820,18 @@ async function maybeShowSignupNudge(){
     </div>
   `);
 }
+async function enableNotifications(){
+  try{
+    if(window.OneSignalDeferred){
+      OneSignalDeferred.push(async function(OneSignal){
+        await OneSignal.Slidedown.promptPush();
+      });
+      showToast('Notifications enabled — you\'ll get daily reminders');
+    } else {
+      showToast('Notifications not available');
+    }
+  }catch(e){ showToast('Could not enable notifications'); }
+}
 async function nudgeSignUp(){
   const email=document.getElementById('nudge-email')?.value?.trim();
   const pass=document.getElementById('nudge-pass')?.value;
@@ -2942,6 +2954,17 @@ function renderSettings(){
   return `
     <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:2px;">More</div>
     <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:4px;text-transform:uppercase;">Settings & Preferences</div>
+
+    ${sectionHead('Notifications')}
+    <div class="card" style="padding:14px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:13px;color:var(--text);">Daily Reminders</div>
+          <div style="font-size:10px;color:var(--dim);margin-top:2px;">Workout, creatine, weigh-in reminders</div>
+        </div>
+        <button onclick="enableNotifications()" class="btn ghost small" id="notif-btn">ENABLE</button>
+      </div>
+    </div>
 
     ${sectionHead('Theme')}
     <div style="display:flex;gap:8px;">
