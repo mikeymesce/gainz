@@ -18,23 +18,49 @@ const CIN_STATS = [
     ],
     kicker: ''
   },
-{
-    lines: ['Regular exercise makes your cells', 'up to 9 years younger.'],
-    size: 36,
-    cite: 'Tucker, Preventive Medicine, 2017',
-    kicker: 'You are literally turning back time.'
-  },
   {
     lines: ['Six months of lifting reversed', 'age-related muscle decline.'],
     size: 36,
     cite: 'Melov et al., PLoS ONE, 2007',
     kicker: 'Your muscles remember how to be young.'
   },
+  // #1 replacements — Alzheimer's/brain
   {
-    lines: ['Exercise is the single best defense', 'against Alzheimer\'s.'],
+    lines: ['People who exercise regularly are', '45% less likely to develop dementia.'],
     size: 34,
-    cite: 'Ahlskog et al., Mayo Clinic Proceedings, 2011',
-    kicker: 'Your brain needs your body.'
+    cite: 'Lancet Standing Commission on Dementia, 2024',
+    kicker: 'Move your body. Protect your mind.'
+  },
+  {
+    lines: ['Exercise builds new neural pathways.', 'Your brain gets stronger every time you train.'],
+    size: 34,
+    cite: 'Cotman & Berchtold, Trends in Neurosciences, 2002',
+    kicker: ''
+  },
+  {
+    lines: ['30 minutes of exercise changes', 'your brain chemistry for 24 hours.'],
+    size: 36,
+    cite: 'Basso & Suzuki, Brain Plasticity, 2017',
+    kicker: 'One session. A full day of benefits.'
+  },
+  // #3 replacements — cells/biology
+  {
+    lines: ['Your body rebuilds 330 billion cells', 'every day. Exercise makes the new ones stronger.'],
+    size: 32,
+    cite: 'Sender et al., Cell, 2016',
+    kicker: 'You are literally rebuilding yourself.'
+  },
+  {
+    lines: ['After one workout, your blood carries', 'anti-inflammatory molecules for 48 hours.'],
+    size: 34,
+    cite: 'Hojman et al., J Physiology, 2019',
+    kicker: 'Every rep is medicine.'
+  },
+  {
+    lines: ['Exercise rewires your DNA expression.', 'You are programming your genes right now.'],
+    size: 34,
+    cite: 'Lindholm et al., Epigenetics, 2014',
+    kicker: ''
   },
 ];
 
