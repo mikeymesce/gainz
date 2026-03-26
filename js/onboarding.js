@@ -19,19 +19,19 @@ const CIN_STATS = [
     kicker: ''
   },
 {
-    lines: ['Your cells are 9 years younger', 'when you exercise.'],
+    lines: ['Regular exercise makes your cells', 'up to 9 years younger.'],
     size: 36,
     cite: 'Tucker, Preventive Medicine, 2017',
     kicker: 'You are literally turning back time.'
   },
   {
-    lines: ['One year of lifting reverses', '20 years of muscle loss.'],
+    lines: ['Six months of lifting reversed', 'age-related muscle decline.'],
     size: 36,
     cite: 'Melov et al., PLoS ONE, 2007',
-    kicker: 'It is never too late.'
+    kicker: 'Your muscles remember how to be young.'
   },
   {
-    lines: ['Exercise is the only proven way', 'to prevent Alzheimer\'s.'],
+    lines: ['Exercise is the single best defense', 'against Alzheimer\'s.'],
     size: 34,
     cite: 'Ahlskog et al., Mayo Clinic Proceedings, 2011',
     kicker: 'Your brain needs your body.'

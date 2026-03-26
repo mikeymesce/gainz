@@ -930,7 +930,7 @@ function renderWorkoutSummary(){
       { myth: true, tip: '"High protein damages your kidneys." No evidence of this in healthy adults — even at extreme intakes. This myth comes from guidelines for people who already have kidney disease.', src: 'Antonio et al., J Int Soc Sports Nutr, 2024' },
       { myth: true, tip: '"You have to eat perfectly clean to get results." Flexible dieting (80/20) produces the same body composition results as strict dieting — with better long-term adherence.', src: 'Conlin et al., J Int Soc Sports Nutr, 2021' },
       { tip: 'Carbs after training refill glycogen stores faster. Pair them with protein for best recovery.', src: 'Kerksick et al., J Int Soc Sports Nutr, 2017' },
-      { tip: 'Dehydration of just 2% bodyweight impairs strength performance. Drink water throughout the day, not just at the gym.', src: 'Judelson et al., Sports Med, 2007' },
+      { tip: 'Dehydration impairs performance — don\'t wait until you\'re thirsty. Stay hydrated throughout the day, not just at the gym.', src: 'Judelson et al., Sports Med, 2007' },
       { tip: 'Caffeine 30–60 min before lifting improves strength and endurance by 3–7%. But skip it within 8 hours of bedtime.', src: 'Grgic et al., Br J Sports Med, 2020' },
     ]},
     { pillar: 'SLEEP', icon: '😴', tips: [
@@ -960,8 +960,8 @@ function renderWorkoutSummary(){
   // Workout-specific tips based on what you just did
   const SPLIT_TIPS={
     Push:[{tip:'Your chest, shoulders, and triceps need 48-72 hours to fully recover. Hit Pull or Legs tomorrow.',src:'Schoenfeld et al., Sports Med, 2016'},{tip:'Overhead pressing builds shoulders AND improves bench press. Don\'t skip it.',src:'Kompf & Arandjelovic, J Strength Cond Res, 2017'}],
-    Pull:[{tip:'Your back can handle more volume than you think — 15-20 sets per week is the sweet spot.',src:'Wernbom et al., Sports Med, 2007'},{tip:'Grip strength limits your pulls. Try straps on heavy sets so your back gives out before your hands.',src:'Practical strength training application'}],
-    Legs:[{tip:'Leg day boosts testosterone and growth hormone more than any other session. You just triggered a full-body growth response.',src:'Kraemer & Ratamess, Sports Med, 2005'},{tip:'Stretch your quads and hip flexors tonight. Leg day tightness is real and affects your next session.',src:'Behm & Chaouachi, Eur J Appl Physiol, 2011'}],
+    Pull:[{tip:'Your back can handle more volume than most muscle groups — 12-20 sets per week depending on your training level.',src:'Wernbom et al., Sports Med, 2007'},{tip:'Grip strength limits your pulls. Try straps on heavy sets so your back gives out before your hands.',src:'Practical strength training application'}],
+    Legs:[{tip:'Leg day builds the largest muscles in your body. Consistent lower-body training is one of the best investments in long-term strength and metabolic health.',src:'Kraemer & Ratamess, Sports Med, 2005'},{tip:'Stretch your quads and hip flexors tonight. Leg day tightness is real and affects your next session.',src:'Behm & Chaouachi, Eur J Appl Physiol, 2011'}],
     Core:[{tip:'Your core just got stronger. That transfers directly to bigger squats, deadlifts, and overhead presses.',src:'Kibler et al., Sports Med, 2006'}],
     Quick:[{tip:'Quick sessions still count. Consistency beats intensity every time.',src:'Androulakis-Korakakis et al., Sports Med, 2020'}],
   };
