@@ -957,11 +957,23 @@ function renderWorkoutSummary(){
       { tip: 'Deload every 4–6 weeks. Cutting volume in half for a week lets your body supercompensate and come back stronger.', src: 'Pritchard et al., J Strength Cond Res, 2015' },
     ]},
   ];
+  // Workout-specific tips based on what you just did
+  const SPLIT_TIPS={
+    Push:[{tip:'Your chest, shoulders, and triceps need 48-72 hours to fully recover. Hit Pull or Legs tomorrow.',src:'Schoenfeld et al., Sports Med, 2016'},{tip:'Overhead pressing builds shoulders AND improves bench press. Don\'t skip it.',src:'Kompf & Arandjelovic, J Strength Cond Res, 2017'}],
+    Pull:[{tip:'Your back can handle more volume than you think — 15-20 sets per week is the sweet spot.',src:'Wernbom et al., Sports Med, 2007'},{tip:'Grip strength limits your pulls. Try straps on heavy sets so your back gives out before your hands.',src:'Practical strength training application'}],
+    Legs:[{tip:'Leg day boosts testosterone and growth hormone more than any other session. You just triggered a full-body growth response.',src:'Kraemer & Ratamess, Sports Med, 2005'},{tip:'Stretch your quads and hip flexors tonight. Leg day tightness is real and affects your next session.',src:'Behm & Chaouachi, Eur J Appl Physiol, 2011'}],
+    Core:[{tip:'Your core just got stronger. That transfers directly to bigger squats, deadlifts, and overhead presses.',src:'Kibler et al., Sports Med, 2006'}],
+    Quick:[{tip:'Quick sessions still count. Consistency beats intensity every time.',src:'Androulakis-Korakakis et al., Sports Med, 2020'}],
+  };
+  const splitTips=SPLIT_TIPS[w.split]||[];
+  const hasSplitTip=splitTips.length>0&&Math.random()<0.4; // 40% chance to show split-specific tip
+  const splitTip=splitTips[state.workouts.length%splitTips.length];
+
   // Rotate pillars: use workout count to cycle nutrition → sleep → exercise
   const pillarIdx = (state.workouts.length - 1) % PILLAR_TIPS.length;
-  const pillar = PILLAR_TIPS[pillarIdx];
-  const tipIdx = Math.floor((state.workouts.length - 1) / PILLAR_TIPS.length) % pillar.tips.length;
-  const pillarTip = pillar.tips[tipIdx];
+  const pillar = hasSplitTip?{pillar:w.split.toUpperCase()+' DAY',icon:'🎯'}:PILLAR_TIPS[pillarIdx];
+  const tipIdx = Math.floor((state.workouts.length - 1) / PILLAR_TIPS.length) % (hasSplitTip?1:pillar.tips.length);
+  const pillarTip = hasSplitTip?splitTip:PILLAR_TIPS[pillarIdx].tips[tipIdx];
 
   // Workout count milestone
   const woCount=state.workouts.length;
@@ -3336,7 +3348,7 @@ function renderLog(){
         <div class="col"><span class="label">REPS</span><input class="input" type="number" id="r-${id}" value="${prefillR}" placeholder="10" inputmode="numeric"/></div>
       </div>
       <button class="btn ghost" onclick="logSet(${esc(e.name)})" style="${isSSPrompt?'border-color:var(--superset)44;color:var(--superset);':''}">+ LOG SET${ssOn&&ssPairName?' ⚡':ssOn?' (no rest)':''}</button>
-      ${e.sets.length>0?(()=>{
+      ${(()=>{
         const isLast=activeWorkout.exercises.findIndex(e2=>e2.name===e.name)===activeWorkout.exercises.length-1;
         const nextEx=!isLast?activeWorkout.exercises[activeWorkout.exercises.findIndex(e2=>e2.name===e.name)+1]:null;
         const nextRest=nextEx?(state.exerciseRests[nextEx.name]??GLOBAL_DEFAULT)+30:0;
@@ -3356,7 +3368,7 @@ function renderLog(){
               NEXT: ${nextEx.name.toUpperCase()}
               <span style="font-size:10px;color:var(--dim);font-family:'DM Sans',sans-serif;letter-spacing:0;margin-left:4px;">+${fmt(nextRest)}</span>
             </button>`;
-      })():''}
+      })()}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           ${activeWorkout.exercises.length>1?`<button class="pill${ssOn?" ss-on":""}" onclick="openPairModal(${esc(e.name)})"><span class="pill-dot"></span>${ssPairName?"⚡ "+ssPairName:"⚡ SUPERSET"}</button>`:""}

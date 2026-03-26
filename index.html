@@ -54,7 +54,7 @@
     </div>
   </div>
   <div class="content" id="content"></div>
-  <div id="sticky-finish" style="display:none;position:absolute;bottom:60px;left:0;right:0;max-width:430px;margin:0 auto;padding:0 18px 8px;pointer-events:none;z-index:90;">
+  <div id="sticky-finish" style="display:none;position:fixed;bottom:calc(60px + env(safe-area-inset-bottom));left:0;right:0;padding:0 18px 8px;pointer-events:none;z-index:99;">
     <div style="pointer-events:all;display:flex;gap:8px;">
       <button onclick="undoLastSet()" id="sticky-undo" style="background:#111215;border:1px solid #1e1e24;border-radius:12px;padding:13px 16px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:1.5px;cursor:pointer;flex-shrink:0;">↩ UNDO</button>
       <button onclick="confirmFinish()" style="flex:1;background:var(--accent);color:#080808;border:none;border-radius:12px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;cursor:pointer;box-shadow:0 0 20px rgba(232,213,160,0.2);">FINISH ✓</button>
