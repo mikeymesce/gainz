@@ -4,12 +4,21 @@
 // for the legacy script (onclick handlers need globals)
 // ═══════════════════════════════════════════
 
-// Clean up broken service worker from earlier builds
+// Register service worker for auto-updates + offline support
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(r => r.unregister());
-  });
-  caches.delete('gainz-v1');
+  navigator.serviceWorker.register('/gainz/sw.js').then(reg => {
+    // Check for updates every time the app loads
+    reg.update();
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          // New version available — reload to get it
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(err => console.warn('[SW] Registration failed:', err));
 }
 import { FEATURES, SCHEMA_VERSION, VERSION, GLOBAL_DEFAULT, SPLIT_COLORS, TAG_COLORS } from './config.js';
 import {

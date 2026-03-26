@@ -1287,6 +1287,19 @@ function enableNotifications(){
   }catch(e){ showToast('Could not enable notifications'); }
 }
 
+// ── Service Worker for auto-updates ──
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/gainz/breakfree/sw.js').then(reg=>{
+    reg.update();
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='activated') window.location.reload();
+      });
+    });
+  }).catch(e=>console.warn('[SW]',e));
+}
+
 // ── Init ──
 render();
 setTimeout(()=>{

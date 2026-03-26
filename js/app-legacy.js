@@ -1177,17 +1177,15 @@ function renderNav(){
   const nav=document.getElementById("nav");
   const tabs=[
     ["start","▲","START"],
-    ["log","●","LOG"],
     ["me","◎","ME"],
     ["settings","⚙","MORE"]
   ];
+  if(activeWorkout) tabs.splice(1,0,["log","●","LOG"]);
   nav.innerHTML=tabs.map(([s,ic,lb])=>{
     const isActive=screen===s||(s==="settings"&&screen==="prHistory");
     const isLog=s==="log";
     const glowing=activeWorkout&&isLog;
-    const logDisabled=false;
-    const logAction=isLog&&!activeWorkout?'quickStart()':'screen=\''+s+'\';historyDetail=null;progressEx=null;render()';
-    return `<button class="nav-btn ${isActive?"active":""}" onclick="${logAction}" style="">
+    return `<button class="nav-btn ${isActive?"active":""}" onclick="screen='${s}';historyDetail=null;progressEx=null;render()" style="">
       <span class="icon" style="${glowing?"color:var(--accent);":""}">${glowing?"●":ic}</span>
       <span style="${glowing?"color:var(--accent);":""}">${lb}</span>
     </button>`;
