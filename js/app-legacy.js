@@ -2709,8 +2709,9 @@ function logChallengeDay(){
         </div>
         ${pushSetRows}
         <div style="display:flex;gap:4px;margin-top:4px;">
-          <input id="ch-push-reps" type="number" class="input" inputmode="numeric" placeholder="reps" style="flex:1;text-align:center;font-size:14px;padding:6px;"/>
-          <button onclick="addChallengeSet('push')" class="btn primary small" style="padding:6px 10px;">+</button>
+          <button onclick="addChallengeQuick('push',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+5</button>
+          <button onclick="addChallengeQuick('push',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
+          <button onclick="addChallengeQuick('push',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
         </div>
       </div>
       <div style="flex:1;">
@@ -2720,14 +2721,32 @@ function logChallengeDay(){
         </div>
         ${sitSetRows}
         <div style="display:flex;gap:4px;margin-top:4px;">
-          <input id="ch-sit-reps" type="number" class="input" inputmode="numeric" placeholder="reps" style="flex:1;text-align:center;font-size:14px;padding:6px;"/>
-          <button onclick="addChallengeSet('sit')" class="btn primary small" style="padding:6px 10px;">+</button>
+          <button onclick="addChallengeQuick('sit',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+5</button>
+          <button onclick="addChallengeQuick('sit',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
+          <button onclick="addChallengeQuick('sit',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
         </div>
       </div>
     </div>
 
     <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">DONE</button>
   `);
+}
+function addChallengeQuick(type,reps){
+  const ch=getChallengeState();
+  const d=todayStr();
+  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
+  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
+  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
+  if(type==='push'){
+    ch.days[d].pushSets.push(reps);
+    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
+  } else {
+    ch.days[d].sitSets.push(reps);
+    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
+  }
+  save();
+  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete for today! 🔥');
+  logChallengeDay();
 }
 function addChallengeSet(type){
   const ch=getChallengeState();
