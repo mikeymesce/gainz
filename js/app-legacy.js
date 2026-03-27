@@ -2286,6 +2286,21 @@ function renderHome(){
           <div style="display:flex;gap:3px;margin-top:8px;justify-content:flex-end;">${streakDots}</div>
         </div>
       </div>
+      ${(()=>{
+        const entry=ensureTodaySupp();
+        const wOz=entry.waterOz||0;
+        const wGoal=state.waterGoal||100;
+        const wPct=Math.min(100,Math.round((wOz/wGoal)*100));
+        const goalHit=wOz>=wGoal;
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;" onclick="event.stopPropagation();">
+          <div class="water-bar${goalHit?' goal-hit':''}" onclick="addWater(8);render();" style="flex:1;" title="${wOz}/${wGoal}oz">
+            <div class="water-fill" style="width:${wPct}%;">
+              <div class="water-wave"></div>
+            </div>
+          </div>
+          <button onclick="event.stopPropagation();addWater(16);render();" style="background:none;border:1px solid rgba(232,213,160,0.2);border-radius:8px;padding:4px 6px;cursor:pointer;font-size:12px;flex-shrink:0;" title="+16oz bottle">🫗</button>
+        </div>`;
+      })()}
       <div style="font-size:11px;color:var(--dim);margin-bottom:14px;">${lastLine}</div>
       ${(()=>{const est=estimateDuration(rec);return est?`<div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;">⏱ ~${est} min avg</div>`:''})()}
       <div style="display:flex;gap:8px;">
