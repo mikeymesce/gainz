@@ -3757,6 +3757,78 @@ function histAddSet(wIdx, exName){
   ex.sets.push(last?{...last,pr:false,warmup:false}:{weight:'135',reps:'10',bw:false,pr:false,time:Date.now()});
   _histRecalc(wIdx);
 }
+// ── Weekly Volume Wave Chart ──
+function renderVolumeWave(){
+  if(!state.workouts||!state.workouts.length) return '';
+  const now=new Date();
+  const weeks=12;
+  const weekBuckets=[];
+  const todayDay=now.getDay();
+  const mondayOffset=todayDay===0?6:todayDay-1;
+  const currentMonday=new Date(now);
+  currentMonday.setDate(currentMonday.getDate()-mondayOffset);
+  currentMonday.setHours(0,0,0,0);
+  for(let i=weeks-1;i>=0;i--){
+    const start=new Date(currentMonday);
+    start.setDate(start.getDate()-i*7);
+    const end=new Date(start);
+    end.setDate(end.getDate()+7);
+    const label=`${start.getMonth()+1}/${start.getDate()}`;
+    const vol=state.workouts
+      .filter(w=>{const t=new Date(w.timestamp);return t>=start&&t<end;})
+      .reduce((sum,w)=>sum+(w.totalVolume||0),0);
+    weekBuckets.push({label,vol,start,end});
+  }
+  if(weekBuckets.every(b=>b.vol===0)) return '';
+  const currentWeekVol=weekBuckets[weekBuckets.length-1].vol;
+  const lastWeekVol=weekBuckets[weekBuckets.length-2].vol;
+  const trend=currentWeekVol>lastWeekVol?'up':currentWeekVol<lastWeekVol?'down':'flat';
+  const trendIcon=trend==='up'?'\u2191':trend==='down'?'\u2193':'\u2192';
+  const trendColor=trend==='up'?'#52c87a':trend==='down'?'#e85454':'var(--muted)';
+  const W=320,H=120,padT=10,padB=24;
+  const chartW=W;
+  const chartH=H-padT-padB;
+  const maxVol=Math.max(...weekBuckets.map(b=>b.vol),1);
+  const points=weekBuckets.map((b,i)=>{
+    const x=(i/(weeks-1))*chartW;
+    const y=padT+chartH-(b.vol/maxVol)*chartH;
+    return {x,y};
+  });
+  const linePoints=points.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaPoints=linePoints+` ${points[points.length-1].x.toFixed(1)},${(padT+chartH).toFixed(1)} ${points[0].x.toFixed(1)},${(padT+chartH).toFixed(1)}`;
+  const xLabels=weekBuckets.map((b,i)=>{
+    if(i%2!==0&&i!==weeks-1) return '';
+    const x=(i/(weeks-1))*chartW;
+    return `<text x="${x.toFixed(1)}" y="${H-2}" fill="var(--dim)" font-size="8" text-anchor="middle" font-family="DM Sans,sans-serif">${b.label}</text>`;
+  }).join('');
+  const dots=points.map((p,i)=>{
+    if(weekBuckets[i].vol===0) return '';
+    const isCurrent=i===weeks-1;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isCurrent?4:2.5}" fill="${isCurrent?'var(--accent)':'rgba(232,213,160,0.6)'}" stroke="${isCurrent?'var(--accent)':'none'}" stroke-width="1"/>`;
+  }).join('');
+  return `<div class="card" style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;">Weekly Volume</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);line-height:1;">${currentWeekVol>0?currentWeekVol.toLocaleString():'0'}<span style="font-size:11px;color:var(--dim);margin-left:2px;">lb</span></span>
+        <span style="font-size:14px;color:${trendColor};line-height:1;">${trendIcon}</span>
+      </div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block;">
+      <defs>
+        <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${areaPoints}" fill="url(#volGrad)"/>
+      <polyline points="${linePoints}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+      ${xLabels}
+    </svg>
+  </div>`;
+}
+
 // ── Top Exercises with Sparklines ──
 function renderTopExercises(){
   if(!state.workouts||!state.workouts.length) return '';
@@ -4130,6 +4202,7 @@ function renderMe(){
   ${yearGrid}
   ${fatigue}
   ${renderTopExercises()}
+  ${renderVolumeWave()}
   <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;margin-top:${fatigue?"16px":"0"};">${tabBtns}</div>
   ${tabContent}
   ${templatesSection}`;
