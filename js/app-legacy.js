@@ -1639,13 +1639,35 @@ function openCalDay(day){
     content+=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Scale: <span style="color:var(--text);font-weight:600;">${bwAvg} lb</span></div>`;
   }
 
-  // Creatine toggle
+  // Supplements for this day
   if(!isFuture){
-    content+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #1e1e24;margin-top:6px;">
-      <span style="font-size:12px;color:var(--muted);">Creatine${hadCreatine?' ('+supp.creatine+'g)':''}</span>
-      <button onclick="toggleCalCreatine(${homeCalYear},${homeCalMonth},${day})" style="background:${hadCreatine?'var(--accent)':'#1e1e24'};border:none;border-radius:12px;width:40px;height:22px;position:relative;cursor:pointer;transition:background 0.2s;">
-        <span style="position:absolute;top:2px;${hadCreatine?'right:2px':'left:2px'};width:18px;height:18px;background:${hadCreatine?'#080808':'#666'};border-radius:50%;transition:all 0.2s;"></span>
-      </button>
+    const waterOz=supp&&supp.waterOz?supp.waterOz:0;
+    const vitList=getVitaminList();
+    const vitsTaken=supp&&typeof supp.vitamins==='object'?vitList.filter(v=>supp.vitamins[v]).length:0;
+
+    content+=`<div style="border-top:1px solid #1e1e24;margin-top:6px;padding-top:10px;">
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;">DAILY TRACKING</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="toggleCalCreatine(${homeCalYear},${homeCalMonth},${day})" style="flex:1;background:${hadCreatine?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${hadCreatine?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:8px;padding:8px;text-align:center;cursor:pointer;">
+          <div style="font-size:13px;font-weight:700;color:${hadCreatine?'var(--green)':'var(--dim)'};">${hadCreatine?'✓':''} Creatine</div>
+        </button>
+        <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:8px;padding:8px;text-align:center;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+            <button onclick="adjustCalWater(${homeCalYear},${homeCalMonth},${day},-8)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
+            <span style="font-size:13px;font-weight:700;color:${waterOz>=(state.waterGoal||100)?'var(--green)':'var(--accent)'};">💧${waterOz}oz</span>
+            <button onclick="adjustCalWater(${homeCalYear},${homeCalMonth},${day},8)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${vitList.map(v=>{
+          const on=supp&&typeof supp.vitamins==='object'&&supp.vitamins[v];
+          const safe=v.replace(/'/g,"\\'");
+          return `<button onclick="toggleCalVitamin(${homeCalYear},${homeCalMonth},${day},'${safe}')" style="background:${on?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${on?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:6px;padding:4px 8px;cursor:pointer;">
+            <span style="font-size:10px;color:${on?'var(--green)':'var(--dim)'};">${on?'✓ ':''}${v}</span>
+          </button>`;
+        }).join('')}
+      </div>
     </div>`;
   }
 
@@ -1660,6 +1682,35 @@ function openCalWorkout(wIdx){
   histEditMode=false;
   screen='me';
   render();
+}
+function _ensureCalSupp(year,month,day){
+  const dateStr=_calDateStr(year,month,day);
+  if(!state.supplements) state.supplements=[];
+  let entry=state.supplements.find(s=>s.date===dateStr);
+  if(!entry){
+    const dose=(state.supplements.find(s=>s.creatineDose)||{}).creatineDose||5;
+    entry={date:dateStr,timestamp:new Date(year,month,day).getTime(),creatine:0,creatineDose:dose,vitamins:{},waterOz:0};
+    state.supplements.unshift(entry);
+  }
+  if(!entry.vitamins||typeof entry.vitamins!=='object') entry.vitamins={};
+  if(!entry.waterOz) entry.waterOz=0;
+  return entry;
+}
+function toggleCalVitamin(year,month,day,vitName){
+  const entry=_ensureCalSupp(year,month,day);
+  entry.vitamins[vitName]=!entry.vitamins[vitName];
+  saveAndSync();
+  openCalDay(day);
+  const el=document.getElementById('home-cal');
+  if(el) el.innerHTML=buildHomeCalInner();
+}
+function adjustCalWater(year,month,day,delta){
+  const entry=_ensureCalSupp(year,month,day);
+  entry.waterOz=Math.max(0,entry.waterOz+delta);
+  saveAndSync();
+  openCalDay(day);
+  const el=document.getElementById('home-cal');
+  if(el) el.innerHTML=buildHomeCalInner();
 }
 function toggleCalCreatine(year,month,day){
   const dateStr=_calDateStr(year,month,day);
