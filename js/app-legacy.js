@@ -1244,44 +1244,87 @@ function renderBodyHeatmap(){
     }
   }
 
-  function block(muscle,width){
+  function fill(muscle){
     const g=glowStyle(muscle);
     const s=sets[muscle]||0;
+    if(s===0) return 'rgba(255,255,255,0.05)';
     const info=MRV[muscle];
-    const setLabel=info?`${s}/${info.mrv}`:'';
-    return `<div style="width:${width};background:${g.bg};border:1px solid ${s>0?'rgba(232,213,160,0.2)':'#1e1e24'};border-radius:8px;padding:6px 2px;text-align:center;box-shadow:${g.shadow};transition:all 0.3s ease;">
-      <div style="font-size:9px;color:${g.color};letter-spacing:0.5px;font-weight:600;">${g.label}</div>
-      ${setLabel?`<div style="font-size:7px;color:${s>0?'rgba(232,213,160,0.6)':'var(--dim)'};margin-top:2px;">${setLabel}</div>`:''}
-    </div>`;
+    const pct=info?s/info.mrv:0;
+    if(pct>=0.7) return 'rgba(232,213,160,0.7)';
+    if(s>=info.mev) return 'rgba(232,213,160,0.4)';
+    return 'rgba(232,213,160,0.15)';
+  }
+  function glow(muscle){
+    const s=sets[muscle]||0;
+    const info=MRV[muscle];
+    if(!info||s===0) return '';
+    const pct=s/info.mrv;
+    const r=pct>=0.7?12:pct>=info.mev/info.mrv?6:0;
+    return r?`filter="url(#muscleGlow${r})"`:''
+  }
+  function label(muscle,x,y){
+    const s=sets[muscle]||0;
+    const info=MRV[muscle];
+    if(!info) return '';
+    return `<text x="${x}" y="${y}" text-anchor="middle" style="font-size:7px;fill:${s>0?'rgba(232,213,160,0.8)':'rgba(255,255,255,0.2)'};font-family:DM Sans,sans-serif;">${info.label} ${s}/${info.mrv}</text>`;
   }
 
   return `<div style="margin-bottom:16px;">
     <div style="font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid #1e1e24;padding-bottom:8px;">This Week · Body Map</div>
-    <div class="card" style="padding:16px 12px;">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-        <div style="display:flex;gap:4px;justify-content:center;">
-          ${block('shoulders','120px')}
-        </div>
-        <div style="display:flex;gap:4px;justify-content:center;align-items:stretch;">
-          ${block('biceps','60px')}
-          ${block('chest','80px')}
-          ${block('triceps','60px')}
-        </div>
-        <div style="display:flex;gap:4px;justify-content:center;">
-          ${block('back','100px')}
-        </div>
-        <div style="display:flex;gap:4px;justify-content:center;">
-          ${block('glutes','90px')}
-        </div>
-        <div style="display:flex;gap:4px;justify-content:center;">
-          ${block('quads','80px')}
-          ${block('hamstrings','80px')}
-        </div>
-      </div>
-      <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;">
-        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,0.04);border:1px solid #1e1e24;"></div><span style="font-size:8px;color:var(--dim);">Untrained</span></div>
-        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(232,213,160,0.15);border:1px solid rgba(232,213,160,0.2);"></div><span style="font-size:8px;color:var(--dim);">Active</span></div>
-        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(232,213,160,0.25);box-shadow:0 0 6px rgba(232,213,160,0.3);border:1px solid rgba(232,213,160,0.3);"></div><span style="font-size:8px;color:var(--dim);">Near MRV</span></div>
+    <div class="card" style="padding:16px 12px;text-align:center;">
+      <svg viewBox="0 0 200 340" style="max-width:220px;margin:0 auto;">
+        <defs>
+          <filter id="muscleGlow6"><feGaussianBlur stdDeviation="3" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="muscleGlow12"><feGaussianBlur stdDeviation="6" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <!-- Body outline -->
+        <ellipse cx="100" cy="28" rx="18" ry="22" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+        <!-- Neck -->
+        <rect x="93" y="48" width="14" height="12" rx="4" fill="rgba(255,255,255,0.04)"/>
+        <!-- Shoulders -->
+        <ellipse cx="62" cy="72" rx="22" ry="10" fill="${fill('shoulders')}" ${glow('shoulders')}/>
+        <ellipse cx="138" cy="72" rx="22" ry="10" fill="${fill('shoulders')}" ${glow('shoulders')}/>
+        ${label('shoulders',100,68)}
+        <!-- Chest -->
+        <rect x="72" y="65" width="56" height="35" rx="8" fill="${fill('chest')}" ${glow('chest')}/>
+        ${label('chest',100,88)}
+        <!-- Biceps -->
+        <ellipse cx="46" cy="110" rx="10" ry="22" fill="${fill('biceps')}" ${glow('biceps')}/>
+        ${label('biceps',30,112)}
+        <!-- Triceps -->
+        <ellipse cx="154" cy="110" rx="10" ry="22" fill="${fill('triceps')}" ${glow('triceps')}/>
+        ${label('triceps',170,112)}
+        <!-- Back (behind chest, shown as side strips) -->
+        <rect x="68" y="100" width="64" height="40" rx="6" fill="${fill('back')}" ${glow('back')}/>
+        ${label('back',100,124)}
+        <!-- Forearms -->
+        <ellipse cx="40" cy="148" rx="7" ry="18" fill="rgba(255,255,255,0.04)"/>
+        <ellipse cx="160" cy="148" rx="7" ry="18" fill="rgba(255,255,255,0.04)"/>
+        <!-- Core/waist -->
+        <rect x="76" y="140" width="48" height="30" rx="6" fill="rgba(255,255,255,0.04)"/>
+        <!-- Glutes -->
+        <ellipse cx="88" cy="182" rx="18" ry="14" fill="${fill('glutes')}" ${glow('glutes')}/>
+        <ellipse cx="112" cy="182" rx="18" ry="14" fill="${fill('glutes')}" ${glow('glutes')}/>
+        ${label('glutes',100,186)}
+        <!-- Quads -->
+        <ellipse cx="85" cy="230" rx="16" ry="35" fill="${fill('quads')}" ${glow('quads')}/>
+        <ellipse cx="115" cy="230" rx="16" ry="35" fill="${fill('quads')}" ${glow('quads')}/>
+        ${label('quads',100,225)}
+        <!-- Hamstrings (behind quads, shown offset) -->
+        <ellipse cx="85" cy="240" rx="12" ry="28" fill="${fill('hamstrings')}" opacity="0.6" ${glow('hamstrings')}/>
+        <ellipse cx="115" cy="240" rx="12" ry="28" fill="${fill('hamstrings')}" opacity="0.6" ${glow('hamstrings')}/>
+        ${label('hamstrings',100,255)}
+        <!-- Calves -->
+        <ellipse cx="85" cy="295" rx="10" ry="22" fill="rgba(255,255,255,0.04)"/>
+        <ellipse cx="115" cy="295" rx="10" ry="22" fill="rgba(255,255,255,0.04)"/>
+        <!-- Feet -->
+        <ellipse cx="85" cy="325" rx="10" ry="6" fill="rgba(255,255,255,0.04)"/>
+        <ellipse cx="115" cy="325" rx="10" ry="6" fill="rgba(255,255,255,0.04)"/>
+      </svg>
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,0.05);border:1px solid #1e1e24;"></div><span style="font-size:8px;color:var(--dim);">Rest</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(232,213,160,0.4);"></div><span style="font-size:8px;color:var(--dim);">Active</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(232,213,160,0.7);box-shadow:0 0 6px rgba(232,213,160,0.4);"></div><span style="font-size:8px;color:var(--dim);">Near MRV</span></div>
       </div>
     </div>
   </div>`;
