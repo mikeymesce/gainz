@@ -2329,7 +2329,7 @@ function renameTemplate(id){
 // ═══════════════════════════════════════════
 // SUPPLEMENTS — Daily creatine & vitamin tracking
 // ═══════════════════════════════════════════
-const DEFAULT_VITAMINS=['Vitamin D','Zinc','Magnesium','Fish Oil','Allergy Pill'];
+const DEFAULT_VITAMINS=['Vitamin D','Magnesium','Fish Oil','Allergy Pill'];
 
 function getVitaminList(){
   return state.vitaminTypes||DEFAULT_VITAMINS;
