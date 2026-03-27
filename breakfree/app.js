@@ -489,6 +489,8 @@ function renderHome(){
     <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;margin-top:4px;">Today's meals</div>
     ${mealRows||'<div style="font-size:12px;color:var(--dim);margin-bottom:6px;">No meals logged yet</div>'}
 
+    ${renderHealthCard()}
+
     <button id="weighin-btn" onclick="openWeighIn()" style="width:100%;background:${todayW?'rgba(110,231,160,0.06)':'var(--bg3)'};border:1px solid ${todayW?'rgba(110,231,160,0.2)':'var(--border2)'};border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
       <div>
         <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Daily Weigh-In</div>
@@ -1287,6 +1289,47 @@ function enableNotifications(){
   }catch(e){ showToast('Could not enable notifications'); }
 }
 
+// ── Apple Health Data (via Shortcut → Supabase) ──
+let healthData=null;
+async function fetchHealthData(){
+  try{
+    const email=state._healthEmail||'morgan';
+    const todayDate=new Date().toISOString().split('T')[0];
+    const resp=await fetch(`https://bvnkzimwskuruhdmzpbt.supabase.co/rest/v1/health_data?user_email=eq.${encodeURIComponent(email)}&date=eq.${todayDate}&select=*`,{
+      headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bmt6aW13c2t1cnVoZG16cGJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MTc3NzgsImV4cCI6MjA4OTE5Mzc3OH0.6layiAl75f5YeAQRzU55j41JBAS9_e1QL0tpq-l3DpE'}
+    });
+    const data=await resp.json();
+    if(data&&data.length){
+      healthData=data[0];
+      // Auto-fill burned calories from health data if not manually set
+      const day=getToday();
+      if(!day._manualBurn&&healthData.active_calories>0){
+        day.caloriesBurned=healthData.active_calories;
+        save();
+      }
+      render();
+    }
+  }catch(e){console.warn('[Health]',e);}
+}
+
+function renderHealthCard(){
+  if(!healthData) return '';
+  return `<div style="display:flex;gap:8px;margin-bottom:10px;">
+    ${healthData.steps?`<div style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px;text-align:center;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);">${healthData.steps.toLocaleString()}</div>
+      <div style="font-size:7px;color:var(--dim);letter-spacing:1px;">STEPS</div>
+    </div>`:''}
+    ${healthData.active_calories?`<div style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px;text-align:center;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--green);">${healthData.active_calories}</div>
+      <div style="font-size:7px;color:var(--dim);letter-spacing:1px;">ACTIVE CAL</div>
+    </div>`:''}
+    ${healthData.distance_miles?`<div style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px;text-align:center;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);">${healthData.distance_miles.toFixed(1)}</div>
+      <div style="font-size:7px;color:var(--dim);letter-spacing:1px;">MILES</div>
+    </div>`:''}
+  </div>`;
+}
+
 // ── Service Worker for auto-updates ──
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('/gainz/breakfree/sw.js').then(reg=>{
@@ -1302,8 +1345,8 @@ if('serviceWorker' in navigator){
 
 // ── Init ──
 render();
+fetchHealthData(); // pull Apple Health data from Supabase
 setTimeout(()=>{
   checkSignInPopup();
-  // Show tour after sign-in popup is handled
   setTimeout(maybeShowTour,1500);
 },800);
