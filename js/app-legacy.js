@@ -3696,6 +3696,74 @@ function histAddSet(wIdx, exName){
   ex.sets.push(last?{...last,pr:false,warmup:false}:{weight:'135',reps:'10',bw:false,pr:false,time:Date.now()});
   _histRecalc(wIdx);
 }
+// ── Top Exercises with Sparklines ──
+function renderTopExercises(){
+  if(!state.workouts||!state.workouts.length) return '';
+
+  // Build frequency map and weight history per exercise
+  const exData={};
+  state.workouts.forEach(w=>{
+    (w.exercises||[]).forEach(e=>{
+      if(!exData[e.name]) exData[e.name]={count:0,sessions:[]};
+      exData[e.name].count++;
+      // Best weight in this session (non-bodyweight sets only)
+      const weights=(e.sets||[]).filter(s=>!s.bw).map(s=>parseFloat(s.weight)||0);
+      const bestW=weights.length?Math.max(...weights):0;
+      if(bestW>0) exData[e.name].sessions.push(bestW);
+    });
+  });
+
+  // Sort by frequency, take top 5
+  const sorted=Object.entries(exData).sort((a,b)=>b[1].count-a[1].count);
+  const top5=sorted.slice(0,5);
+  if(!top5.length) return '';
+
+  // Build sparkline SVG for an array of values
+  function sparkSVG(vals){
+    const recent=vals.slice(-8);
+    if(recent.length<2) return '<svg width="80" height="24"></svg>';
+    const min=Math.min(...recent), max=Math.max(...recent);
+    const range=max-min||1;
+    const w=80, h=24, padY=3;
+    const points=recent.map((v,i)=>{
+      const x=Math.round((i/(recent.length-1))*w);
+      const y=Math.round(padY+(1-(v-min)/range)*(h-padY*2));
+      return x+','+y;
+    });
+    // Determine trend color: green if last > first, dim if flat/down
+    const trendUp=recent[recent.length-1]>recent[0];
+    const lineColor=trendUp?'#52c87a':'var(--muted)';
+    const dotColor=trendUp?'#52c87a':'var(--accent)';
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="overflow:visible;">
+      <polyline points="${points.join(' ')}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${points[points.length-1].split(',')[0]}" cy="${points[points.length-1].split(',')[1]}" r="2.5" fill="${dotColor}"/>
+    </svg>`;
+  }
+
+  const cards=top5.map(([name,data],idx)=>{
+    const bestWeight=data.sessions.length?Math.max(...data.sessions):0;
+    const spark=sparkSVG(data.sessions);
+    const rank=idx+1;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;margin-bottom:8px;box-shadow:0 0 15px rgba(232,213,160,0.1);cursor:pointer;" onclick="progressEx=${esc(name)};render()">
+      <div style="width:22px;height:22px;border-radius:50%;background:rgba(232,213,160,0.12);border:1px solid rgba(232,213,160,0.25);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--accent);flex-shrink:0;">${rank}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:0.5px;">${data.count} session${data.count!==1?'s':''}</div>
+      </div>
+      <div style="flex-shrink:0;">${spark}</div>
+      <div style="text-align:right;flex-shrink:0;min-width:50px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);line-height:1;">${bestWeight>0?bestWeight:'BW'}</div>
+        <div style="font-size:8px;color:var(--dim);letter-spacing:0.5px;margin-top:1px;">${bestWeight>0?'lb best':'only'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div style="margin-bottom:16px;">
+    <div style="font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid #1e1e24;padding-bottom:8px;">Top Lifts</div>
+    ${cards}
+  </div>`;
+}
+
 function renderMe(){
   // Sub-screens within Me
   if(historyDetail) return renderHistDetail();
@@ -3745,6 +3813,9 @@ function renderMe(){
       ${best1RM?`<div style="font-size:8px;color:var(--dim);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${best1RM.ex}</div>`:""}
     </div>
   </div>`;
+
+  // ── Year activity grid ──
+  const yearGrid=renderYearGrid();
 
   // ── Fatigue card (always visible at top) ──
   const fatigue=renderMuscleFatigue();
@@ -3914,7 +3985,9 @@ function renderMe(){
 
   return `<div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:2px;">Me</div><div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:16px;text-transform:uppercase;">Progress & History</div>
   ${statsStrip}
+  ${yearGrid}
   ${fatigue}
+  ${renderTopExercises()}
   <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;margin-top:${fatigue?"16px":"0"};">${tabBtns}</div>
   ${tabContent}
   ${templatesSection}`;
