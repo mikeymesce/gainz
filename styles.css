@@ -86,9 +86,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   background:linear-gradient(180deg,#5ac8e0,#38a0c8);
 }
 .water-wave{
-  position:absolute;top:-4px;left:0;width:200%;height:12px;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8'%3E%3Cpath d='M0 4 Q15 0 30 4 T60 4 T90 4 T120 4 V8 H0Z' fill='rgba(255,255,255,0.12)'/%3E%3C/svg%3E") repeat-x;
-  animation:waterWave 3s linear infinite;
+  position:absolute;top:-6px;left:0;width:200%;height:16px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 12'%3E%3Cpath d='M0 6 Q10 2 20 6 T40 6 T60 6 T80 6 T100 6 T120 6 V12 H0Z' fill='rgba(255,255,255,0.15)'/%3E%3C/svg%3E") repeat-x;
+  animation:waterWave 2s linear infinite;
+}
+.water-wave2{
+  position:absolute;top:-3px;left:-30px;width:200%;height:14px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10'%3E%3Cpath d='M0 5 Q15 1 30 5 T60 5 T90 5 T120 5 V10 H0Z' fill='rgba(255,255,255,0.08)'/%3E%3C/svg%3E") repeat-x;
+  animation:waterWave 3.5s linear infinite reverse;
 }
 @keyframes waterWave{from{transform:translateX(0);}to{transform:translateX(-50%);}}
 
