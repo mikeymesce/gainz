@@ -61,14 +61,14 @@ export const THEMES = { gainz: { label:'GAINZ', bg:'#0a0a0a', accent:'#e8d5a0' }
 
 // ── MUSCLE GROUP MRV ──
 export const MRV = {
-  chest:    { label:"Chest",     mrv:20, mev:10, icon:"🫁" },
+  chest:    { label:"Chest",     mrv:22, mev:10, icon:"🫁" },
   back:     { label:"Back",      mrv:25, mev:10, icon:"🔙" },
-  shoulders:{ label:"Shoulders", mrv:20, mev:16, icon:"💪" },
-  biceps:   { label:"Biceps",    mrv:20, mev:14, icon:"💪" },
-  triceps:  { label:"Triceps",   mrv:20, mev:10, icon:"💪" },
+  shoulders:{ label:"Shoulders", mrv:26, mev:8,  icon:"💪" },
+  biceps:   { label:"Biceps",    mrv:26, mev:8,  icon:"💪" },
+  triceps:  { label:"Triceps",   mrv:18, mev:6,  icon:"💪" },
   quads:    { label:"Quads",     mrv:20, mev:8,  icon:"🦵" },
-  hamstrings:{ label:"Hamstrings",mrv:20, mev:10, icon:"🦵" },
-  glutes:   { label:"Glutes",    mrv:16, mev:8,  icon:"🍑" },
+  hamstrings:{ label:"Hamstrings",mrv:20, mev:6,  icon:"🦵" },
+  glutes:   { label:"Glutes",    mrv:16, mev:4,  icon:"🍑" },
 };
 
 export const EX_MUSCLES = {
