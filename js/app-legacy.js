@@ -612,6 +612,20 @@ function logSet(n){
     startTimer(n);
   }
   logDebug("✅ Set logged: " + n + " " + (bw?"BW":w) + "x" + r);
+  // Auto-credit reps to 30-day challenge if active
+  if(state.challenge && state.challenge.active){
+    const nameLower=n.toLowerCase();
+    const repsNum=parseInt(r)||0;
+    if(repsNum>0){
+      if(/push[\s-]?up/.test(nameLower)){
+        addChallengeQuickSilent('push', repsNum);
+        logDebug("🎯 Challenge: +" + repsNum + " push-ups from workout");
+      } else if(/sit[\s-]?up|crunch|ab\s?wheel/.test(nameLower)){
+        addChallengeQuickSilent('sit', repsNum);
+        logDebug("🎯 Challenge: +" + repsNum + " sit-ups from workout");
+      }
+    }
+  }
   render();
   if(wasPR){
     haptic("pr");
@@ -2713,6 +2727,7 @@ function logChallengeDay(){
           <button onclick="addChallengeQuick('push',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
           <button onclick="addChallengeQuick('push',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
         </div>
+        ${day.pushSets.length?`<button onclick="addChallengeQuick('push',${day.pushSets[day.pushSets.length-1]})" style="width:100%;margin-top:4px;background:var(--accent);border:none;border-radius:6px;padding:6px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.pushSets[day.pushSets.length-1]}</button>`:''}
       </div>
       <div style="flex:1;">
         <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">SIT-UPS · ${day.situps}/100</div>
@@ -2725,6 +2740,7 @@ function logChallengeDay(){
           <button onclick="addChallengeQuick('sit',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
           <button onclick="addChallengeQuick('sit',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
         </div>
+        ${day.sitSets.length?`<button onclick="addChallengeQuick('sit',${day.sitSets[day.sitSets.length-1]})" style="width:100%;margin-top:4px;background:var(--accent);border:none;border-radius:6px;padding:6px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.sitSets[day.sitSets.length-1]}</button>`:''}
       </div>
     </div>
 
@@ -2747,6 +2763,22 @@ function addChallengeQuick(type,reps){
   save();
   if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete for today! 🔥');
   logChallengeDay();
+}
+function addChallengeQuickSilent(type,reps){
+  const ch=getChallengeState();
+  const d=todayStr();
+  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
+  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
+  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
+  if(type==='push'){
+    ch.days[d].pushSets.push(reps);
+    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
+  } else {
+    ch.days[d].sitSets.push(reps);
+    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
+  }
+  save();
+  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete for today! 🔥');
 }
 function addChallengeSet(type){
   const ch=getChallengeState();
