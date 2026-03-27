@@ -133,6 +133,21 @@ function showCinematic() {
   }, t);
 }
 
+export function skipCinematic() {
+  // Instant skip — fast fade, no waiting
+  if (cinTimer) { clearTimeout(cinTimer); cinTimer = null; }
+  const el = document.getElementById('cinematic-splash');
+  if (!el || el.style.display === 'none') return;
+  el.style.transition = 'opacity 0.3s ease';
+  el.style.opacity = '0';
+  el.style.pointerEvents = 'none';
+  setTimeout(() => { el.style.display = 'none'; }, 300);
+  const ob = document.getElementById('onboard-splash');
+  if (ob) { ob.style.display = 'none'; }
+  const views = parseInt(localStorage.getItem('gainz_onboard_views') || '0') + 1;
+  localStorage.setItem('gainz_onboard_views', String(views));
+}
+
 export function dismissCinematic() {
   if (!cinCanDismiss) return; // ignore early taps
   if (cinTimer) { clearTimeout(cinTimer); cinTimer = null; }

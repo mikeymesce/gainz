@@ -35,7 +35,7 @@ import { playBeep } from './audio.js';
 import {
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
-  maybeShowCinematic, dismissCinematic
+  maybeShowCinematic, dismissCinematic, skipCinematic
 } from './onboarding.js';
 import {
   openImportModal, closeImportModal, renderImportStep,
@@ -87,7 +87,7 @@ Object.assign(window, {
   // Onboarding
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
-  maybeShowCinematic, dismissCinematic,
+  maybeShowCinematic, dismissCinematic, skipCinematic,
   // Import
   openImportModal, closeImportModal, renderImportStep,
   importStartParse, importToggle, importCommit,

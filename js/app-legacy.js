@@ -2474,29 +2474,18 @@ function openDailyCheckin(){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY CHECK-IN</div>
 
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <div style="flex:1;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px;text-align:center;">
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-          <button onclick="adjustCreatineDose(-0.5);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
-          <button onclick="toggleCreatine();openDailyCheckin();" style="background:none;border:none;cursor:pointer;">
-            <div style="font-size:16px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
-          </button>
-          <button onclick="adjustCreatineDose(0.5);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
+    <div style="display:flex;gap:8px;margin-bottom:10px;overflow:hidden;">
+      <button onclick="toggleCreatine();openDailyCheckin();" style="flex:1;min-width:0;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:15px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
+        <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;">CREATINE</div>
+      </button>
+      <div style="flex:1;min-width:0;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px 6px;text-align:center;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+          <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
+          <div style="font-size:14px;font-weight:700;color:${waterOz>=(state.waterGoal||100)?'var(--green)':'var(--accent)'};">💧${waterOz}</div>
+          <button onclick="addWater(8);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
         </div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">CREATINE · ${crWeek}/7</div>
-      </div>
-      <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-          <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">−</button>
-          <div style="font-size:16px;font-weight:700;color:${waterOz>=(state.waterGoal||100)?'var(--green)':'var(--accent)'};">💧 ${waterOz}oz</div>
-          <button onclick="addWater(8);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:8px;width:28px;height:28px;color:var(--muted);font-size:16px;cursor:pointer;">+</button>
-        </div>
-        <div style="font-size:7px;color:var(--dim);margin-top:4px;display:flex;justify-content:center;gap:4px;">
-          <button onclick="addWater(16);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+16oz</button>
-          <button onclick="addWater(24);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+24oz</button>
-          <button onclick="addWater(32);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;padding:2px 6px;color:var(--muted);font-size:8px;cursor:pointer;">+32oz</button>
-        </div>
-        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;">${waterOz>=(state.waterGoal||100)?'✓ GOAL HIT':'GOAL: '+(state.waterGoal||100)+'oz'}</div>
+        <div style="font-size:7px;color:var(--muted);margin-top:3px;">${waterOz>=(state.waterGoal||100)?'✓ GOAL':'/'+(state.waterGoal||100)+'oz'}</div>
       </div>
     </div>
 
@@ -2524,9 +2513,9 @@ function openDailyCheckin(){
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;">
-      <button class="btn ghost" onclick="hideModal();render();" style="flex:1;">DONE</button>
-      <button class="btn ghost" onclick="openCheckinSettings();" style="flex-shrink:0;color:var(--dim);">⚙ GOALS</button>
+    <div style="display:flex;gap:8px;overflow:hidden;">
+      <button class="btn ghost" onclick="hideModal();render();" style="flex:1;min-width:0;">DONE</button>
+      <button class="btn ghost" onclick="openCheckinSettings();" style="flex:1;min-width:0;color:var(--dim);">⚙ GOALS</button>
     </div>
   `);
   setTimeout(()=>{const i=document.getElementById('bw-inp');if(i&&!todayBW)i.focus();},100);
