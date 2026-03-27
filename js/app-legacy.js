@@ -2016,6 +2016,8 @@ function renderHome(){
 
     ${renderDailyCheckin()}
 
+    ${renderChallenge()}
+
     <div id="split-carousel" style="overflow:hidden;padding:4px 0 8px;margin-bottom:8px;">
       <div id="split-carousel-track" style="display:flex;gap:10px;width:max-content;">
       ${(()=>{
@@ -2459,6 +2461,102 @@ function saveCheckinSettings(){
   hideModal();
   showToast('Goals saved');
   render();
+}
+
+// ═══════════════════════════════════════════
+// 30-DAY CHALLENGE — Push-ups & Sit-ups
+// ═══════════════════════════════════════════
+function getChallengeState(){
+  if(!state.challenge) state.challenge={startDate:null,days:{},active:false};
+  return state.challenge;
+}
+function startChallenge(){
+  state.challenge={startDate:todayStr(),days:{},active:true};
+  save(); render();
+  showToast('30-day challenge started! 💪');
+}
+function logChallengeDay(){
+  const ch=getChallengeState();
+  if(!ch.active) return;
+  const d=todayStr();
+  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0};
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">TODAY'S CHALLENGE</div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:12px;">100 push-ups · 100 sit-ups</div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;">
+      <div style="flex:1;">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">PUSH-UPS</div>
+        <input id="ch-push" type="number" class="input" inputmode="numeric" value="${ch.days[d].pushups||''}" placeholder="100" style="text-align:center;font-size:20px;"/>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">SIT-UPS</div>
+        <input id="ch-sit" type="number" class="input" inputmode="numeric" value="${ch.days[d].situps||''}" placeholder="100" style="text-align:center;font-size:20px;"/>
+      </div>
+    </div>
+    <button class="btn primary" style="width:100%;" onclick="saveChallengeDay()">LOG IT</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CANCEL</button>
+  `);
+}
+function saveChallengeDay(){
+  const ch=getChallengeState();
+  const d=todayStr();
+  const p=parseInt(document.getElementById('ch-push')?.value)||0;
+  const s=parseInt(document.getElementById('ch-sit')?.value)||0;
+  ch.days[d]={pushups:p,situps:s};
+  save(); hideModal(); render();
+  if(p>=100&&s>=100) showToast('Challenge complete for today! 🔥');
+  else showToast('Logged — keep going!');
+}
+function resetChallenge(){
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">RESET CHALLENGE?</div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:20px;">This will clear all progress.</div>
+    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);width:100%;" onclick="state.challenge={startDate:null,days:{},active:false};save();hideModal();render();">RESET</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CANCEL</button>
+  `);
+}
+function renderChallenge(){
+  const ch=getChallengeState();
+  if(!ch.active){
+    return `<button onclick="startChallenge()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;text-align:center;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:4px;">30-DAY CHALLENGE</div>
+      <div style="font-size:12px;color:var(--muted);">100 push-ups + 100 sit-ups daily</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:4px;">Tap to start</div>
+    </button>`;
+  }
+  const start=new Date(ch.startDate);
+  const dayNum=Math.floor((new Date()-start)/86400000)+1;
+  const daysCompleted=Object.values(ch.days).filter(d=>d.pushups>=100&&d.situps>=100).length;
+  const todayDone=ch.days[todayStr()];
+  const todayComplete=todayDone&&todayDone.pushups>=100&&todayDone.situps>=100;
+  const pct=Math.round((daysCompleted/30)*100);
+
+  // Build 30-day grid
+  const dots=[...Array(30)].map((_,i)=>{
+    const dotDate=new Date(start); dotDate.setDate(dotDate.getDate()+i);
+    const ds=dotDate.toDateString();
+    const data=ch.days[ds];
+    const done=data&&data.pushups>=100&&data.situps>=100;
+    const partial=data&&(data.pushups>0||data.situps>0)&&!done;
+    const isToday=ds===todayStr();
+    const isPast=dotDate<new Date()&&!isToday;
+    const bg=done?'var(--green)':partial?'var(--accent)':isToday?'var(--accent)':'var(--bg3)';
+    const opacity=done?'1':partial?'0.5':isToday?'0.3':isPast?'0.15':'0.1';
+    return `<div style="width:14px;height:14px;border-radius:3px;background:${bg};opacity:${opacity};"></div>`;
+  }).join('');
+
+  return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">30-DAY CHALLENGE · DAY ${Math.min(dayNum,30)}</div>
+      <button onclick="resetChallenge()" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--muted);">${daysCompleted}/30 days · ${pct}%</div>
+      <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' sit':'Not yet today'}</div>
+    </div>
+    <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG TODAY\'S CHALLENGE'}</button>
+  </div>`;
 }
 
 // ═══════════════════════════════════════════
