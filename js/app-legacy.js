@@ -2297,6 +2297,7 @@ function renderHome(){
             <div class="water-fill" style="width:${wPct}%;">
               <div class="water-wave"></div>
               <div class="water-wave2"></div>
+              <div class="water-wave3"></div>
             </div>
           </div>
           <button onclick="event.stopPropagation();addWater(16);render();" style="background:none;border:1px solid rgba(232,213,160,0.2);border-radius:8px;padding:4px 6px;cursor:pointer;font-size:12px;flex-shrink:0;" title="+16oz bottle">🫗</button>
