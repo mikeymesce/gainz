@@ -2030,6 +2030,7 @@ function renderHome(){
           {key:'Rock Climbing',label:'Climb',icon:'🧗',color:'#e8c050'},
           {key:'Cycle Bar',label:'Cycle',icon:'🚴',color:'#ff6b35'},
           {key:'Core Power',label:'Core Pwr',icon:'🔥',color:'#a78bfa'},
+          {key:'Kettlebell',label:'Kettlebell',icon:'🏋️',color:'#e8c050'},
         ];
         const recIdx=splits.indexOf(rec);
         const programPills=splits.map((s,i)=>{
