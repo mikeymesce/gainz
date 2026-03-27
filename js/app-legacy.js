@@ -1743,11 +1743,11 @@ function openCalDay(day){
       <div style="display:flex;gap:8px;margin-bottom:8px;">
         <div style="flex:1;min-width:0;background:${hadCreatine?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${hadCreatine?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:8px;padding:8px;text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
-            <button onclick="adjustCalCreatine(${homeCalYear},${homeCalMonth},${day},-0.5)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
+            <button onclick="adjustCalCreatine(${homeCalYear},${homeCalMonth},${day},-2.5)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
             <button onclick="toggleCalCreatine(${homeCalYear},${homeCalMonth},${day})" style="background:none;border:none;cursor:pointer;">
               <span style="font-size:13px;font-weight:700;color:${hadCreatine?'var(--green)':'var(--dim)'};">${hadCreatine?'✓ '+(supp.creatine)+'g':'0g'}</span>
             </button>
-            <button onclick="adjustCalCreatine(${homeCalYear},${homeCalMonth},${day},0.5)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
+            <button onclick="adjustCalCreatine(${homeCalYear},${homeCalMonth},${day},2.5)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
           </div>
           <div style="font-size:7px;color:var(--muted);margin-top:2px;">CREATINE</div>
         </div>
@@ -2245,7 +2245,7 @@ function renameTemplate(id){
 // ═══════════════════════════════════════════
 // SUPPLEMENTS — Daily creatine & vitamin tracking
 // ═══════════════════════════════════════════
-const DEFAULT_VITAMINS=['Vitamin D','Zinc','Magnesium','Fish Oil','Allergy Pill','Zyrtec'];
+const DEFAULT_VITAMINS=['Vitamin D','Zinc','Magnesium','Fish Oil','Allergy Pill'];
 
 function getVitaminList(){
   return state.vitaminTypes||DEFAULT_VITAMINS;
@@ -2294,7 +2294,7 @@ function toggleAllVitamins(){
 }
 function adjustCreatineDose(delta){
   const entry=ensureTodaySupp();
-  const newDose=Math.max(0.5,Math.min(20,Math.round(((entry.creatineDose||5)+delta)*2)/2));
+  const newDose=Math.max(2.5,Math.min(20,Math.round(((entry.creatineDose||5)+delta)*10)/10));
   entry.creatineDose=newDose;
   if(entry.creatine>0) entry.creatine=newDose;
   saveAndSync();
@@ -2318,10 +2318,10 @@ function adjustCreatine(){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">CREATINE DOSE</div>
     <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px;">
-      <button class="btn ghost small" onclick="const i=document.getElementById('creatine-dose-inp');i.value=(Math.max(0.5,parseFloat(i.value)-0.5)).toFixed(1)" style="font-size:18px;padding:8px 14px;">−</button>
-      <input id="creatine-dose-inp" type="number" class="input" value="${currentDose}" min="0.5" max="20" step="0.5"
+      <button class="btn ghost small" onclick="const i=document.getElementById('creatine-dose-inp');i.value=(Math.max(2.5,parseFloat(i.value)-2.5)).toFixed(1)" style="font-size:18px;padding:8px 14px;">−</button>
+      <input id="creatine-dose-inp" type="number" class="input" value="${currentDose}" min="2.5" max="20" step="2.5"
         style="width:80px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:32px;"/>
-      <button class="btn ghost small" onclick="const i=document.getElementById('creatine-dose-inp');i.value=(Math.min(20,parseFloat(i.value)+0.5)).toFixed(1)" style="font-size:18px;padding:8px 14px;">+</button>
+      <button class="btn ghost small" onclick="const i=document.getElementById('creatine-dose-inp');i.value=(Math.min(20,parseFloat(i.value)+2.5)).toFixed(1)" style="font-size:18px;padding:8px 14px;">+</button>
     </div>
     <div style="font-size:10px;color:var(--dim);text-align:center;margin-bottom:16px;">grams per day</div>
     <button class="btn primary" onclick="saveCreatineDose()">SAVE</button>
@@ -2484,10 +2484,16 @@ function openDailyCheckin(){
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY CHECK-IN</div>
 
     <div style="display:flex;gap:8px;margin-bottom:10px;overflow:hidden;">
-      <button onclick="toggleCreatine();openDailyCheckin();" style="flex:1;min-width:0;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;">
-        <div style="font-size:15px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
-        <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;">CREATINE</div>
-      </button>
+      <div style="flex:1;min-width:0;background:${creatineOn?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${creatineOn?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:10px;padding:10px 6px;text-align:center;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+          <button onclick="adjustCreatineDose(-2.5);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
+          <button onclick="toggleCreatine();openDailyCheckin();" style="background:none;border:none;cursor:pointer;">
+            <div style="font-size:14px;font-weight:700;color:${creatineOn?'var(--green)':'var(--dim)'};">${creatineOn?'✓':''} ${dose}g</div>
+          </button>
+          <button onclick="adjustCreatineDose(2.5);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
+        </div>
+        <div style="font-size:7px;color:var(--muted);margin-top:3px;">CREATINE</div>
+      </div>
       <div style="flex:1;min-width:0;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px 6px;text-align:center;">
         <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
           <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
@@ -2522,8 +2528,10 @@ function openDailyCheckin(){
       </div>
     </div>
 
-    <button class="btn ghost" onclick="hideModal();render();" style="width:100%;">DONE</button>
-    <button class="btn ghost" onclick="openCheckinSettings();" style="width:100%;margin-top:8px;color:var(--dim);">⚙ GOALS</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn ghost" onclick="hideModal();render();" style="flex:3;">DONE</button>
+      <button class="btn ghost" onclick="openCheckinSettings();" style="flex:1;color:var(--dim);">⚙</button>
+    </div>
   `);
   setTimeout(()=>{const i=document.getElementById('bw-inp');if(i&&!todayBW)i.focus();},100);
 }
@@ -2542,7 +2550,7 @@ function openCheckinSettings(){
 
     <div style="margin-bottom:14px;">
       <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">CREATINE DOSE (g)</div>
-      <input id="goal-creatine" type="number" class="input" value="${creatineDose}" inputmode="decimal" step="0.5" style="text-align:center;font-size:18px;"/>
+      <input id="goal-creatine" type="number" class="input" value="${creatineDose}" inputmode="decimal" step="2.5" style="text-align:center;font-size:18px;"/>
     </div>
 
     <div style="margin-bottom:14px;">
@@ -2564,7 +2572,7 @@ function saveCheckinSettings(){
 
   state.waterGoal=water;
   const entry=ensureTodaySupp();
-  entry.creatineDose=Math.max(0.5,Math.min(20,Math.round(creatine*2)/2));
+  entry.creatineDose=Math.max(2.5,Math.min(20,Math.round(creatine/2.5)*2.5));
   if(entry.creatine>0) entry.creatine=entry.creatineDose;
   if(vits.length) state.vitaminTypes=vits;
 
