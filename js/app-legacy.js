@@ -996,7 +996,23 @@ function renderWorkoutSummary(){
     Push:[{tip:'Your chest, shoulders, and triceps need 48-72 hours to fully recover. Hit Pull or Legs tomorrow.',src:'Schoenfeld et al., Sports Med, 2016'},{tip:'Overhead pressing builds shoulders AND improves bench press. Don\'t skip it.',src:'Kompf & Arandjelovic, J Strength Cond Res, 2017'}],
     Pull:[{tip:'Training a muscle twice per week builds more than once — even with the same total sets. Hit back again in a few days.',src:'Schoenfeld et al., Sports Med, 2016'},{tip:'Grip strength limits your pulls. Try straps on heavy sets so your back gives out before your hands.',src:'Practical strength training application'},{tip:'Your lats are the widest muscle in your body. Most people undertrain them.',src:'Wernbom et al., Sports Med, 2007'},{tip:'Rows build posture. Posture builds presence. Keep pulling.',src:'Howe et al., Musculoskeletal Science and Practice, 2022'}],
     Legs:[{tip:'Leg day builds the largest muscles in your body. Consistent lower-body training is one of the best investments in long-term strength and metabolic health.',src:'Kraemer & Ratamess, Sports Med, 2005'},{tip:'Stretch your quads and hip flexors tonight. Leg day tightness is real and affects your next session.',src:'Behm & Chaouachi, Eur J Appl Physiol, 2011'}],
-    Core:[{tip:'Your core just got stronger. That transfers directly to bigger squats, deadlifts, and overhead presses.',src:'Kibler et al., Sports Med, 2006'},{tip:'A strong core prevents lower back injuries more than any other muscle group. You\'re investing in longevity.',src:'Hibbs et al., Sports Med, 2008'},{tip:'Core training isn\'t just abs — it\'s obliques, lower back, hip flexors, and pelvic floor. You just trained your foundation.',src:'Akuthota & Nadler, Arch Phys Med Rehab, 2004'},{tip:'Direct core work 2-3x per week is enough. Your core already gets hit during every compound lift.',src:'Martuscello et al., J Strength Cond Res, 2013'}],
+    Core:[
+      {tip:'Your core just got stronger. That transfers directly to bigger squats, deadlifts, and overhead presses.',src:'Kibler et al., Sports Med, 2006'},
+      {tip:'Core stability training reduces lower back injury risk. Multiple meta-analyses confirm it\'s more effective than general exercise for preventing back pain.',src:'Steffens et al., JAMA Internal Med, 2016'},
+      {tip:'Core endurance matters more than core strength for preventing low back pain. Train for time under tension, not max load.',src:'McGill, Low Back Disorders, 2016'},
+      {tip:'Anti-extension exercises (planks, ab wheel, dead bugs) activate the core with significantly less spinal compression than crunches and sit-ups.',src:'Escamilla et al., Physical Therapy, 2010'},
+      {tip:'Holding a plank beyond 60 seconds has minimal additional benefit. Short holds (10-30 sec) with harder progressions are more effective.',src:'McGill, Low Back Disorders, 2016'},
+      {tip:'Squats and deadlifts train your core as a stabilizer, but not through full range of motion. They\'re not a complete substitute for direct core work.',src:'Martuscello et al., J Strength Cond Res, 2013'},
+      {tip:'Ab visibility is determined by body fat percentage, not core training volume. For most men: 10-14%. For most women: 16-20%.',src:'Jackson & Pollock, Br J Nutrition, 1978'},
+      {tip:'You cannot spot-reduce belly fat by doing ab exercises. This has been tested and disproven multiple times.',src:'Vispute et al., J Strength Cond Res, 2011'},
+      {tip:'Core training 2-4x per week is sufficient. Daily core work is unnecessary and may impair recovery.',src:'Schoenfeld et al., Sports Med, 2016'},
+      {tip:'The transverse abdominis acts like a natural weight belt, stabilizing your spine. Train it by bracing — not sucking in.',src:'Hodges & Richardson, Experimental Brain Research, 1997'},
+      {tip:'Sit-ups are a poor core exercise. They recruit hip flexors too much, compress the spine, and isolate abs less than alternatives.',src:'McGill, J Electromyography Kinesiology, 2003'},
+      {tip:'The bird dog, side plank, and curl-up (McGill\'s Big Three) are the safest and most effective core exercises for spinal health.',src:'McGill, Low Back Disorders, 2016'},
+      {tip:'Unstable surfaces (Bosu balls) increase core activation slightly but reduce force production so much that they\'re worse for building core strength.',src:'Behm et al., J Strength Cond Res, 2010'},
+      {tip:'Core training improves balance and athletic performance across all age groups. Multiple meta-analyses confirm this.',src:'Granacher et al., Sports Med, 2013'},
+      {tip:'The core is roughly 35 muscles — not just your six-pack. It includes obliques, erector spinae, multifidus, diaphragm, and pelvic floor.',src:'Kibler et al., Sports Med, 2006'},
+    ],
     Quick:[{tip:'Quick sessions still count. Consistency beats intensity every time.',src:'Androulakis-Korakakis et al., Sports Med, 2020'}],
   };
   const splitTips=SPLIT_TIPS[w.split]||[];
@@ -1770,8 +1786,16 @@ function openCalDay(day){
     </div>`).join('');
   }
 
-  // Bodyweight
-  if(bwAvg){
+  // Bodyweight — editable
+  if(!isFuture){
+    content+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span style="font-size:12px;color:var(--muted);">⚖️</span>
+      <input id="cal-bw-edit" type="number" class="input" inputmode="decimal" step="0.1"
+        value="${bwAvg||''}" placeholder="Weight (lb)"
+        style="flex:1;font-size:14px;text-align:center;padding:6px;"/>
+      <button onclick="saveCalBW(${homeCalYear},${homeCalMonth},${day})" class="btn primary small" style="padding:6px 10px;">${bwAvg?'UPDATE':'LOG'}</button>
+    </div>`;
+  } else if(bwAvg){
     content+=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Scale: <span style="color:var(--text);font-weight:600;">${bwAvg} lb</span></div>`;
   }
 
@@ -1852,6 +1876,23 @@ function adjustCalWater(year,month,day,delta){
   const entry=_ensureCalSupp(year,month,day);
   entry.waterOz=Math.max(0,entry.waterOz+delta);
   saveAndSync();
+  openCalDay(day);
+  const el=document.getElementById('home-cal');
+  if(el) el.innerHTML=buildHomeCalInner();
+}
+function saveCalBW(year,month,day){
+  const val=parseFloat(document.getElementById('cal-bw-edit')?.value);
+  if(!val||val<50||val>500){showToast('Enter a valid weight');return;}
+  const dateStr=_calDateStr(year,month,day);
+  if(!state.bodyweight) state.bodyweight=[];
+  const existing=state.bodyweight.find(b=>b.date===dateStr);
+  if(existing){ existing.weight=val; existing.timestamp=Date.now(); }
+  else{
+    state.bodyweight.push({date:dateStr,timestamp:new Date(year,month,day).getTime(),weight:val,timeOfDay:'edited'});
+    state.bodyweight.sort((a,b)=>b.timestamp-a.timestamp);
+  }
+  saveAndSync();
+  showToast(val+' lb logged');
   openCalDay(day);
   const el=document.getElementById('home-cal');
   if(el) el.innerHTML=buildHomeCalInner();
@@ -2769,7 +2810,7 @@ function renderChallenge(){
       <div style="font-size:11px;color:var(--muted);">${daysCompleted}/30 days · ${pct}%</div>
       <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' sit':'Not yet today'}</div>
     </div>
-    <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG TODAY\'S CHALLENGE'}</button>
+    <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG SOME WORK'}</button>
   </div>`;
 }
 
