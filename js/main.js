@@ -54,7 +54,7 @@ import {
 } from './workout-logic.js';
 import {
   startTimer, startTimerRaw, refreshTimerNum, adjTimer,
-  skipTimer, startWoTimer, stopWoTimer
+  skipTimer, startWoTimer, stopWoTimer, getTimerExercise
 } from './timers.js';
 import {
   getTips, hasTipShown, openTip, dismissTip, setTipCat, cycleTipCat,
@@ -102,7 +102,7 @@ Object.assign(window, {
   setProgram,
   // Timers
   startTimer, startTimerRaw, refreshTimerNum, adjTimer,
-  skipTimer, startWoTimer, stopWoTimer,
+  skipTimer, startWoTimer, stopWoTimer, getTimerExercise,
   // Research tips
   getTips, hasTipShown, openTip, dismissTip, setTipCat, cycleTipCat,
   buildTipPanel, openLibrary, closeLibrary, libToggle, libSetCat,

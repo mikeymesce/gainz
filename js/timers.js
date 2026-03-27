@@ -7,8 +7,10 @@ let timerInterval = null;
 let timerLeft = 0;
 let woTimerInterval = null;
 let woStartTime = null;
+let currentTimerExercise = null;
 
 export function startTimer(exercise){
+  currentTimerExercise = exercise;
   const rest = window.state.exerciseRests[exercise] ?? GLOBAL_DEFAULT;
   startTimerRaw(rest, exercise.toUpperCase());
 }
@@ -57,6 +59,8 @@ export function skipTimer(){
   const d = document.getElementById("timer-display");
   if(d) d.innerHTML = `<div class="timer-num" id="timer-num">0:00</div>`;
 }
+
+export function getTimerExercise(){ return currentTimerExercise; }
 
 export function startWoTimer(){
   woStartTime = Date.now();

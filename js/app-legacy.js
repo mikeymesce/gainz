@@ -50,6 +50,17 @@ applyTheme(activeTheme);
 // Navigation helper for modules that can't access `screen` (let, not on window)
 function navigateTo(s, tab) { screen = s; if(tab !== undefined) meTab = tab; render(); }
 
+// ── Timer Bar Tap → Scroll to Exercise ──
+function scrollToTimerEx(){
+  const name = getTimerExercise();
+  if(!name) return;
+  if(screen !== "log"){ screen = "log"; render(); }
+  setTimeout(()=>{
+    const el = document.getElementById("ex-" + sid(name));
+    if(el) el.scrollIntoView({behavior:"smooth", block:"center"});
+  }, 80);
+}
+
 // ── Cloud Sync UI Handlers ──
 async function cloudSignIn(){
   const email=document.getElementById('sync-email')?.value?.trim();
