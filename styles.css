@@ -65,7 +65,8 @@
 
 /* ── RESET & BASE ── */
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;}
-#app{max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;}
+#app{max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;opacity:0;animation:appFadeIn 1.5s ease 0.3s forwards;}
+@keyframes appFadeIn{from{opacity:0;}to{opacity:1;}}
 *{box-sizing:border-box;}
 
 /* ── HEADER — minimal, not competing ── */

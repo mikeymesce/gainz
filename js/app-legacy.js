@@ -2590,33 +2590,85 @@ function logChallengeDay(){
   const ch=getChallengeState();
   if(!ch.active) return;
   const d=todayStr();
-  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0};
+  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
+  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
+  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
+  const day=ch.days[d];
+
+  const pushSetRows=day.pushSets.map((s,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--muted);">
+      <span>Set ${i+1}: ${s} reps</span>
+      <button onclick="deleteChallengeSet('push',${i})" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
+    </div>`).join('');
+  const sitSetRows=day.sitSets.map((s,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--muted);">
+      <span>Set ${i+1}: ${s} reps</span>
+      <button onclick="deleteChallengeSet('sit',${i})" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
+    </div>`).join('');
+
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">TODAY'S CHALLENGE</div>
-    <div style="font-size:10px;color:var(--dim);margin-bottom:12px;">100 push-ups · 100 sit-ups</div>
-    <div style="display:flex;gap:10px;margin-bottom:14px;">
+
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
       <div style="flex:1;">
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">PUSH-UPS</div>
-        <input id="ch-push" type="number" class="input" inputmode="numeric" value="${ch.days[d].pushups||''}" placeholder="100" style="text-align:center;font-size:20px;"/>
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">PUSH-UPS · ${day.pushups}/100</div>
+        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:6px;">
+          <div style="height:100%;width:${Math.min(100,day.pushups)}%;background:${day.pushups>=100?'var(--green)':'var(--accent)'};border-radius:3px;transition:width 0.3s;"></div>
+        </div>
+        ${pushSetRows}
+        <div style="display:flex;gap:4px;margin-top:4px;">
+          <input id="ch-push-reps" type="number" class="input" inputmode="numeric" placeholder="reps" style="flex:1;text-align:center;font-size:14px;padding:6px;"/>
+          <button onclick="addChallengeSet('push')" class="btn primary small" style="padding:6px 10px;">+</button>
+        </div>
       </div>
       <div style="flex:1;">
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">SIT-UPS</div>
-        <input id="ch-sit" type="number" class="input" inputmode="numeric" value="${ch.days[d].situps||''}" placeholder="100" style="text-align:center;font-size:20px;"/>
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">SIT-UPS · ${day.situps}/100</div>
+        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:6px;">
+          <div style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:3px;transition:width 0.3s;"></div>
+        </div>
+        ${sitSetRows}
+        <div style="display:flex;gap:4px;margin-top:4px;">
+          <input id="ch-sit-reps" type="number" class="input" inputmode="numeric" placeholder="reps" style="flex:1;text-align:center;font-size:14px;padding:6px;"/>
+          <button onclick="addChallengeSet('sit')" class="btn primary small" style="padding:6px 10px;">+</button>
+        </div>
       </div>
     </div>
-    <button class="btn primary" style="width:100%;" onclick="saveChallengeDay()">LOG IT</button>
-    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CANCEL</button>
+
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">DONE</button>
   `);
 }
-function saveChallengeDay(){
+function addChallengeSet(type){
   const ch=getChallengeState();
   const d=todayStr();
-  const p=parseInt(document.getElementById('ch-push')?.value)||0;
-  const s=parseInt(document.getElementById('ch-sit')?.value)||0;
-  ch.days[d]={pushups:p,situps:s};
-  save(); hideModal(); render();
-  if(p>=100&&s>=100) showToast('Challenge complete for today! 🔥');
-  else showToast('Logged — keep going!');
+  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
+  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
+  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
+  const inputId=type==='push'?'ch-push-reps':'ch-sit-reps';
+  const reps=parseInt(document.getElementById(inputId)?.value)||0;
+  if(!reps){showToast('Enter reps');return;}
+  if(type==='push'){
+    ch.days[d].pushSets.push(reps);
+    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
+  } else {
+    ch.days[d].sitSets.push(reps);
+    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
+  }
+  save();
+  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete for today! 🔥');
+  logChallengeDay(); // refresh modal
+}
+function deleteChallengeSet(type,idx){
+  const ch=getChallengeState();
+  const d=todayStr();
+  if(!ch.days[d]) return;
+  if(type==='push'){
+    ch.days[d].pushSets.splice(idx,1);
+    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
+  } else {
+    ch.days[d].sitSets.splice(idx,1);
+    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
+  }
+  save(); logChallengeDay();
 }
 function resetChallenge(){
   showModal(`
