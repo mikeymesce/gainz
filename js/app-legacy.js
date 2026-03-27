@@ -445,7 +445,39 @@ let histEditSnapshot=null; // snapshot before editing
 let meTab="history";
 let progressSearch="";
 function quickStart(){
-  startWorkout("Quick");
+  const splits=getActiveSplits();
+  const EXTRAS=[
+    {key:'_cardio',label:'Cardio',icon:'🏃',color:'#26de81',action:'openCardioLog()'},
+    {key:'HIIT',label:'HIIT',icon:'⚡',color:'#ff4757'},
+    {key:'Yoga',label:'Yoga',icon:'🧘',color:'#7ecba1'},
+    {key:'Jiu Jitsu',label:'BJJ',icon:'🥋',color:'#5b8fff'},
+    {key:'Rock Climbing',label:'Climb',icon:'🧗',color:'#e8c050'},
+    {key:'Cycle Bar',label:'Cycle',icon:'🚴',color:'#ff6b35'},
+    {key:'Core Power',label:'Core Pwr',icon:'🔥',color:'#a78bfa'},
+    {key:'Kettlebell',label:'Kettlebell',icon:'🏋️',color:'#e8c050'},
+  ];
+  const rec=getRec();
+  const splitBtns=splits.map(s=>{
+    const isRec=s===rec;
+    return `<button onclick="hideModal();startWorkout('${s}')" style="flex:1;min-width:70px;background:${isRec?'rgba(232,213,160,0.1)':'var(--bg3)'};border:1px solid ${isRec?'var(--accent)':'var(--border2)'};border-radius:12px;padding:12px 8px;cursor:pointer;text-align:center;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:${isRec?'var(--accent)':'var(--muted)'};">${splitName(s)}</div>
+      ${isRec?'<div style="font-size:7px;color:var(--accent);margin-top:2px;">SUGGESTED</div>':''}
+    </button>`;
+  }).join('');
+  const extraBtns=EXTRAS.map(e=>`
+    <button onclick="hideModal();${e.action||"startWorkout('"+e.key+"')"}" style="background:${e.color}11;border:1px solid ${e.color}33;border-radius:10px;padding:8px 12px;cursor:pointer;text-align:center;">
+      <span style="font-size:14px;">${e.icon}</span>
+      <span style="font-size:11px;color:${e.color};margin-left:4px;">${e.label}</span>
+    </button>`).join('');
+
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">START WORKOUT</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">${splitBtns}</div>
+    <div style="font-size:8px;letter-spacing:2px;color:var(--dim);margin-bottom:8px;">ACTIVITIES</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${extraBtns}</div>
+    <button onclick="hideModal();startWorkout('Quick')" class="btn ghost" style="width:100%;">QUICK START — ALL EXERCISES</button>
+    <button class="btn ghost" onclick="hideModal()" style="width:100%;margin-top:8px;color:var(--dim);">CANCEL</button>
+  `);
 }
 function startWorkout(split){
   activeWorkout={split,exercises:[],startTime:Date.now(),notes:""};
@@ -2149,51 +2181,6 @@ function renderHome(){
     ${renderDailyCheckin()}
 
     ${renderChallenge()}
-
-    <div id="split-carousel" style="overflow:hidden;padding:4px 0 8px;margin-bottom:8px;">
-      <div id="split-carousel-track" style="display:flex;gap:10px;width:max-content;">
-      ${(()=>{
-        const splits=getActiveSplits();
-        const EXTRAS=[
-          {key:'_cardio',label:'Cardio',icon:'🏃',color:'#26de81',action:'openCardioLog()'},
-          {key:'HIIT',label:'HIIT',icon:'⚡',color:'#ff4757'},
-          {key:'Yoga',label:'Yoga',icon:'🧘',color:'#7ecba1'},
-          {key:'Jiu Jitsu',label:'BJJ',icon:'🥋',color:'#5b8fff'},
-          {key:'Rock Climbing',label:'Climb',icon:'🧗',color:'#e8c050'},
-          {key:'Cycle Bar',label:'Cycle',icon:'🚴',color:'#ff6b35'},
-          {key:'Core Power',label:'Core Pwr',icon:'🔥',color:'#a78bfa'},
-          {key:'Kettlebell',label:'Kettlebell',icon:'🏋️',color:'#e8c050'},
-        ];
-        const recIdx=splits.indexOf(rec);
-        const programPills=splits.map((s,i)=>{
-          const isToday=s===rec;
-          return `<div class="split-pill" data-key="${s}" data-label="${splitName(s)}" onclick="startWorkout('${s}')" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
-            <div class="split-pill-inner" style="font-family:'Bebas Neue',sans-serif;font-size:15px;
-              color:var(--muted);
-              background:var(--bg2);
-              border:1px solid var(--border2);
-              border-radius:12px;padding:14px 10px;line-height:1.2;">
-              ${splitName(s)}
-            </div>
-            <div class="split-pill-tag" style="font-size:7px;letter-spacing:1px;margin-top:5px;color:var(--dim);"
-            >${isToday?'TODAY':''}</div>
-          </div>`;
-        });
-        const divider=`<div style="width:1px;flex-shrink:0;background:var(--border2);margin:8px 2px;border-radius:1px;"></div>`;
-        const extraPills=EXTRAS.map(e=>
-          `<div class="split-pill" data-key="${e.key}" data-label="${e.label}" onclick="${e.action||"startWorkout('"+e.key+"')"}" style="flex-shrink:0;min-width:74px;text-align:center;cursor:pointer;">
-            <div class="split-pill-inner" style="font-size:18px;background:${e.color}11;border:1px solid ${e.color}33;border-radius:12px;padding:10px 10px 6px;line-height:1;">
-              ${e.icon}
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:12px;color:${e.color};margin-top:4px;letter-spacing:1px;">${e.label}</div>
-            </div>
-            <div class="split-pill-tag" style="font-size:7px;margin-top:5px;">&nbsp;</div>
-          </div>`
-        );
-        return programPills.join('')+divider+extraPills.join('');
-      })()}
-      </div>
-    </div>
-    <div id="carousel-label" style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:3px;color:var(--muted);margin-bottom:12px;transition:opacity 0.2s;"></div>
 `;
 }
 
