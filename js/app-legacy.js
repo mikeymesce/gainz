@@ -3825,6 +3825,83 @@ function renderTopExercises(){
   </div>`;
 }
 
+function renderYearGrid(){
+  if(!state.workouts||!state.workouts.length) return '';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const displayStart=new Date(today); displayStart.setDate(displayStart.getDate()-364);
+  displayStart.setDate(displayStart.getDate()-displayStart.getDay());
+  const volMap={};
+  let workoutCount=0;
+  state.workouts.forEach(w=>{
+    const d=new Date(w.timestamp); d.setHours(0,0,0,0);
+    const key=d.toDateString();
+    volMap[key]=(volMap[key]||0)+(w.totalVolume||0);
+    if(d>=displayStart&&d<=today) workoutCount++;
+  });
+  const volumes=Object.values(volMap).filter(v=>v>0).sort((a,b)=>a-b);
+  const p33=volumes.length?volumes[Math.floor(volumes.length*0.33)]:0;
+  const p66=volumes.length?volumes[Math.floor(volumes.length*0.66)]:0;
+  function cellColor(vol){
+    if(!vol||vol===0) return '#1a1a1a';
+    if(vol<=p33) return 'rgba(232,213,160,0.2)';
+    if(vol<=p66) return 'rgba(232,213,160,0.5)';
+    return 'rgba(232,213,160,0.9)';
+  }
+  const totalDays=Math.floor((today-displayStart)/(1000*60*60*24))+1;
+  const totalWeeks=Math.ceil(totalDays/7);
+  const cells=[];
+  for(let w=0;w<totalWeeks;w++){
+    cells[w]=[];
+    for(let d=0;d<7;d++){
+      const date=new Date(displayStart);
+      date.setDate(date.getDate()+w*7+d);
+      if(date>today){ cells[w][d]={empty:true}; }
+      else { const key=date.toDateString(); const vol=volMap[key]||0; cells[w][d]={date,vol,color:cellColor(vol)}; }
+    }
+  }
+  const mnths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let monthLabels='';
+  let lastMonth=-1;
+  for(let w=0;w<totalWeeks;w++){
+    const date=new Date(displayStart); date.setDate(date.getDate()+w*7);
+    const m=date.getMonth();
+    if(m!==lastMonth){ monthLabels+=`<div style="position:absolute;left:${w*14}px;top:0;font-size:8px;color:var(--dim);letter-spacing:0.5px;white-space:nowrap;">${mnths[m]}</div>`; lastMonth=m; }
+  }
+  const dayLabels=['','M','','W','','F',''];
+  const dayLabelHtml=dayLabels.map(l=>`<div style="height:12px;font-size:8px;color:var(--dim);display:flex;align-items:center;justify-content:flex-end;padding-right:4px;box-sizing:border-box;">${l}</div>`).join('');
+  let gridHtml='';
+  for(let d=0;d<7;d++){
+    let rowHtml='';
+    for(let w=0;w<totalWeeks;w++){
+      const cell=cells[w][d];
+      if(cell.empty){ rowHtml+=`<div style="width:12px;height:12px;"></div>`; }
+      else { const isToday=cell.date.toDateString()===today.toDateString(); rowHtml+=`<div style="width:12px;height:12px;border-radius:2px;background:${cell.color};${isToday?'outline:1px solid var(--accent);outline-offset:-1px;':''}"></div>`; }
+    }
+    gridHtml+=`<div style="display:flex;gap:2px;">${rowHtml}</div>`;
+  }
+  return `<div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:16px;margin-bottom:16px;overflow-x:auto;">
+    <div style="font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;">Activity</div>
+    <div style="display:flex;gap:0;">
+      <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;width:18px;margin-top:16px;">${dayLabelHtml}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="position:relative;height:14px;margin-bottom:4px;">${monthLabels}</div>
+        <div style="display:flex;flex-direction:column;gap:2px;">${gridHtml}</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+      <div style="font-size:10px;color:var(--dim);">${workoutCount} workout${workoutCount!==1?'s':''} in the last year</div>
+      <div style="display:flex;align-items:center;gap:3px;">
+        <span style="font-size:8px;color:var(--dim);">Less</span>
+        <div style="width:10px;height:10px;border-radius:2px;background:#1a1a1a;"></div>
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(232,213,160,0.2);"></div>
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(232,213,160,0.5);"></div>
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(232,213,160,0.9);"></div>
+        <span style="font-size:8px;color:var(--dim);">More</span>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderMe(){
   // Sub-screens within Me
   if(historyDetail) return renderHistDetail();
