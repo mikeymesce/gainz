@@ -1194,6 +1194,67 @@ function renderNav(){
   }).join("");
 }
 
+function renderBodyHeatmap(){
+  const sets=getWeeklyMuscleSets();
+
+  function glowStyle(muscle){
+    const s=sets[muscle]||0;
+    const info=MRV[muscle];
+    if(!info) return {bg:'rgba(255,255,255,0.04)',color:'var(--dim)',shadow:'none',label:muscle};
+    if(s===0) return {bg:'rgba(255,255,255,0.04)',color:'var(--dim)',shadow:'none',label:info.label};
+    const pct=s/info.mrv;
+    if(s<info.mev){
+      return {bg:'rgba(232,213,160,0.08)',color:'rgba(232,213,160,0.5)',shadow:'0 0 6px rgba(232,213,160,0.15)',label:info.label};
+    } else if(pct<=0.7){
+      return {bg:'rgba(232,213,160,0.15)',color:'var(--accent)',shadow:'0 0 10px rgba(232,213,160,0.25)',label:info.label};
+    } else {
+      return {bg:'rgba(232,213,160,0.25)',color:'var(--accent)',shadow:'0 0 16px rgba(232,213,160,0.4)',label:info.label};
+    }
+  }
+
+  function block(muscle,width){
+    const g=glowStyle(muscle);
+    const s=sets[muscle]||0;
+    const info=MRV[muscle];
+    const setLabel=info?`${s}/${info.mrv}`:'';
+    return `<div style="width:${width};background:${g.bg};border:1px solid ${s>0?'rgba(232,213,160,0.2)':'#1e1e24'};border-radius:8px;padding:6px 2px;text-align:center;box-shadow:${g.shadow};transition:all 0.3s ease;">
+      <div style="font-size:9px;color:${g.color};letter-spacing:0.5px;font-weight:600;">${g.label}</div>
+      ${setLabel?`<div style="font-size:7px;color:${s>0?'rgba(232,213,160,0.6)':'var(--dim)'};margin-top:2px;">${setLabel}</div>`:''}
+    </div>`;
+  }
+
+  return `<div style="margin-bottom:16px;">
+    <div style="font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid #1e1e24;padding-bottom:8px;">This Week · Body Map</div>
+    <div class="card" style="padding:16px 12px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <div style="display:flex;gap:4px;justify-content:center;">
+          ${block('shoulders','120px')}
+        </div>
+        <div style="display:flex;gap:4px;justify-content:center;align-items:stretch;">
+          ${block('biceps','60px')}
+          ${block('chest','80px')}
+          ${block('triceps','60px')}
+        </div>
+        <div style="display:flex;gap:4px;justify-content:center;">
+          ${block('back','100px')}
+        </div>
+        <div style="display:flex;gap:4px;justify-content:center;">
+          ${block('glutes','90px')}
+        </div>
+        <div style="display:flex;gap:4px;justify-content:center;">
+          ${block('quads','80px')}
+          ${block('hamstrings','80px')}
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,0.04);border:1px solid #1e1e24;"></div><span style="font-size:8px;color:var(--dim);">Untrained</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(232,213,160,0.15);border:1px solid rgba(232,213,160,0.2);"></div><span style="font-size:8px;color:var(--dim);">Active</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:2px;background:rgba(232,213,160,0.25);box-shadow:0 0 6px rgba(232,213,160,0.3);border:1px solid rgba(232,213,160,0.3);"></div><span style="font-size:8px;color:var(--dim);">Near MRV</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderMuscleFatigue(){
   const sets=getWeeklyMuscleSets();
   // Only show muscles that have ANY sets this week OR are relevant to this week's splits
@@ -3817,6 +3878,9 @@ function renderMe(){
   // ── Year activity grid ──
   const yearGrid=renderYearGrid();
 
+  // ── Body heatmap ──
+  const bodyHeatmap=renderBodyHeatmap();
+
   // ── Fatigue card (always visible at top) ──
   const fatigue=renderMuscleFatigue();
 
@@ -3985,6 +4049,7 @@ function renderMe(){
 
   return `<div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:2px;">Me</div><div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:16px;text-transform:uppercase;">Progress & History</div>
   ${statsStrip}
+  ${bodyHeatmap}
   ${yearGrid}
   ${fatigue}
   ${renderTopExercises()}
