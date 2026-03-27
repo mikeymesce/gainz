@@ -2513,10 +2513,8 @@ function openDailyCheckin(){
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;overflow:hidden;">
-      <button class="btn ghost" onclick="hideModal();render();" style="flex:1;min-width:0;">DONE</button>
-      <button class="btn ghost" onclick="openCheckinSettings();" style="flex:1;min-width:0;color:var(--dim);">⚙ GOALS</button>
-    </div>
+    <button class="btn ghost" onclick="hideModal();render();" style="width:100%;">DONE</button>
+    <button class="btn ghost" onclick="openCheckinSettings();" style="width:100%;margin-top:8px;color:var(--dim);">⚙ GOALS</button>
   `);
   setTimeout(()=>{const i=document.getElementById('bw-inp');if(i&&!todayBW)i.focus();},100);
 }
