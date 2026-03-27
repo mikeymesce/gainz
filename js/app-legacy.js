@@ -2108,9 +2108,12 @@ function renderHome(){
     ?`${lastThisSplit.date}  ·  ${lastThisSplit.exercises.length} exercises  ·  ${lastThisSplit.totalVolume>0?lastThisSplit.totalVolume.toLocaleString()+' lb':'BW'}`
     :`First time — let's go`;
 
-  // Greeting
+  // Greeting + motivational phrase
   const hr=new Date().getHours();
   const greetWord=hr<12?'Morning':hr<17?'Afternoon':'Evening';
+  const PHRASES=['Earn it.','No shortcuts.','One more rep.','Stay hungry.','Build something.','Be relentless.','Outwork yesterday.','Trust the grind.','Show up daily.','Prove them wrong.','Own the day.','Keep stacking.','Never settle.','Discipline wins.','Stay locked in.','Get after it.','Rise and grind.','No excuses.','Push harder.','Be uncommon.','Stay the course.','Grind now. Shine later.','Make it count.','Respect the process.','Keep going.','Almost there.','You chose this.','Embrace the suck.','Built different.','Level up.','Day by day.','Stronger today.','Iron sharpens iron.','Find the edge.','Make it burn.','Heavy metal therapy.','Control the weight.','Mind over matter.','Break through.','Leave it all.','Zero regrets.','Hard work pays.','Sweat equity.','Raise the bar.','Never enough.','Beast mode.','Go deeper.','More in the tank.','Pain is temporary.','Gains are forever.','Earn your shower.','The bar won\'t lift itself.','Results require reps.','Consistency is king.','Your future self thanks you.','No days off.','Train insane.','Be the hardest worker.','Obsessed or average.','Winners train.','Fall in love with the process.','Attack the day.','Relentless pursuit.','Be dangerous.','Make them notice.','Silence the doubt.','Prove it daily.','Comfort is the enemy.','Hard choices. Easy life.','Stay savage.','Unbreakable.','Forge ahead.','Lead by example.','Commit fully.','Finish strong.','Set the standard.','No looking back.','Hungry and humble.','Dominate.','Create your legacy.','Maximum effort.','Chase greatness.','Become the weapon.','Every rep matters.','Progress not perfection.','Stay in the fight.','Build your empire.','The grind is the gift.','Suffer now. Win later.','Wake up dangerous.','You vs you.','Never retreat.','Always forward.','Stand on business.','Lock in.','Execute.','Ship it.','Do the work.','Get uncomfortable.','Become undeniable.'];
+  const phraseIdx=Math.floor(Date.now()/3600000)%PHRASES.length;
+  const phrase=PHRASES[phraseIdx];
 
   // Active workout banner
   const banner=activeWorkout?`
@@ -2144,6 +2147,7 @@ function renderHome(){
     <div class="sb-header">
       <div>
         <div class="sb-header-time">${greetWord}.</div>
+        <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-top:2px;">${phrase}</div>
       </div>
       <div style="text-align:right;">
         <button class="sb-header-date" onclick="toggleHomeCal()" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px 12px;font-family:'DM Sans',sans-serif;">
