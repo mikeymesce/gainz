@@ -1709,15 +1709,23 @@ function openCalDay(day){
     content+=`<div style="border-top:1px solid #1e1e24;margin-top:6px;padding-top:10px;">
       <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;">DAILY TRACKING</div>
       <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <button onclick="toggleCalCreatine(${homeCalYear},${homeCalMonth},${day})" style="flex:1;background:${hadCreatine?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${hadCreatine?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:8px;padding:8px;text-align:center;cursor:pointer;">
-          <div style="font-size:13px;font-weight:700;color:${hadCreatine?'var(--green)':'var(--dim)'};">${hadCreatine?'✓':''} Creatine</div>
-        </button>
-        <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:8px;padding:8px;text-align:center;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+        <div style="flex:1;min-width:0;background:${hadCreatine?'rgba(82,200,122,0.12)':'#0f0f12'};border:1px solid ${hadCreatine?'rgba(82,200,122,0.3)':'#1e1e24'};border-radius:8px;padding:8px;text-align:center;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+            <button onclick="adjustCalCreatine(${homeCalYear},${homeCalMonth},${day},-0.5)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
+            <button onclick="toggleCalCreatine(${homeCalYear},${homeCalMonth},${day})" style="background:none;border:none;cursor:pointer;">
+              <span style="font-size:13px;font-weight:700;color:${hadCreatine?'var(--green)':'var(--dim)'};">${hadCreatine?'✓ '+(supp.creatine)+'g':'0g'}</span>
+            </button>
+            <button onclick="adjustCalCreatine(${homeCalYear},${homeCalMonth},${day},0.5)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
+          </div>
+          <div style="font-size:7px;color:var(--muted);margin-top:2px;">CREATINE</div>
+        </div>
+        <div style="flex:1;min-width:0;background:#0f0f12;border:1px solid #1e1e24;border-radius:8px;padding:8px;text-align:center;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
             <button onclick="adjustCalWater(${homeCalYear},${homeCalMonth},${day},-8)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
             <span style="font-size:13px;font-weight:700;color:${waterOz>=(state.waterGoal||100)?'var(--green)':'var(--accent)'};">💧${waterOz}oz</span>
             <button onclick="adjustCalWater(${homeCalYear},${homeCalMonth},${day},8)" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
           </div>
+          <div style="font-size:7px;color:var(--muted);margin-top:2px;">WATER</div>
         </div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;">
@@ -1768,6 +1776,16 @@ function toggleCalVitamin(year,month,day,vitName){
 function adjustCalWater(year,month,day,delta){
   const entry=_ensureCalSupp(year,month,day);
   entry.waterOz=Math.max(0,entry.waterOz+delta);
+  saveAndSync();
+  openCalDay(day);
+  const el=document.getElementById('home-cal');
+  if(el) el.innerHTML=buildHomeCalInner();
+}
+function adjustCalCreatine(year,month,day,delta){
+  const entry=_ensureCalSupp(year,month,day);
+  const newDose=Math.max(0,Math.round(((entry.creatine||0)+delta)*2)/2);
+  entry.creatine=newDose;
+  if(newDose>0) entry.creatineDose=newDose;
   saveAndSync();
   openCalDay(day);
   const el=document.getElementById('home-cal');
