@@ -3409,16 +3409,22 @@ function renderLog(){
       </div>`:""}
     `:"";
 
-    // Pre-fill: last set this session → overload suggestion → last session → sensible default
+    // Pre-fill: match set-for-set from last session
+    // If logging set 3, prefill from last session's set 3 (not just the last set)
     const lastSetThisSession = e.sets.length>0 ? e.sets[e.sets.length-1] : null;
-    const prefillR = (lastSetThisSession || lastSess?.sets?.slice(-1)[0])?.reps || "10";
+    const nextSetIdx = e.sets.length; // the set about to be logged
+    const lastSessMatchingSet = lastSess?.sets?.[nextSetIdx]; // same set # from last time
+    const lastSessFallback = lastSess?.sets?.slice(-1)[0]; // fallback to last set if fewer sets last time
+
+    const prefillR = (lastSetThisSession || lastSessMatchingSet || lastSessFallback)?.reps || "10";
 
     // Progressive overload suggestion — only shown before first set of session
     const suggestion = !lastSetThisSession ? getSuggestedWeight(e.name) : null;
     const prefillW = lastSetThisSession && !lastSetThisSession.bw
       ? lastSetThisSession.weight
       : suggestion ? String(suggestion.weight)
-      : (lastSess?.sets?.slice(-1)[0]?.bw ? "" : lastSess?.sets?.slice(-1)[0]?.weight || "135");
+      : lastSessMatchingSet && !lastSessMatchingSet.bw ? lastSessMatchingSet.weight
+      : (lastSessFallback?.bw ? "" : lastSessFallback?.weight || "135");
 
     const overloadBadge = !bwOn && !lastSetThisSession && suggestion ? (
       suggestion.same
