@@ -2439,8 +2439,8 @@ function openCheckinSettings(){
 
     <div style="margin-bottom:14px;">
       <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;">MY SUPPLEMENTS</div>
-      <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">Current: ${vitList.join(', ')}</div>
-      <input id="goal-vits" class="input" value="${vitList.join(', ')}" placeholder="Vitamin D, Zinc, Fish Oil..." style="font-size:12px;"/>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;">Current: ${vitList.join(', ')}</div>
+      <input id="goal-vits" class="input" value="${vitList.join(', ')}" placeholder="Vitamin D, Zinc, Fish Oil..." style="font-size:12px;width:100%;box-sizing:border-box;"/>
       <div style="font-size:8px;color:var(--dim);margin-top:4px;">Separate with commas</div>
     </div>
 
