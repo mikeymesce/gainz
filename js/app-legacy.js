@@ -853,8 +853,8 @@ function nextExercise(name){
 function dismissSummary(){
   workoutSummary=null;
   const el=document.getElementById("wo-summary");
-  if(el){ el.style.animation="summaryOut 0.3s ease forwards"; setTimeout(()=>{ workoutSummary=null; render(); maybeShowSignupNudge(); },280); }
-  else { render(); maybeShowSignupNudge(); }
+  if(el){ el.style.animation="summaryOut 0.3s ease forwards"; setTimeout(()=>{ workoutSummary=null; render(); try{ maybeShowSignupNudge(); }catch(e){ console.error('[GAINZ] signup nudge error:',e); } },280); }
+  else { render(); try{ maybeShowSignupNudge(); }catch(e){ console.error('[GAINZ] signup nudge error:',e); } }
 }
 async function maybeShowSignupNudge(){
   // Only show if not signed in and haven't dismissed before
@@ -954,17 +954,19 @@ function saveDurationEdit(){
 function renderWorkoutSummary(){
   const w=workoutSummary;
   if(!w) return "";
-  const prCount=w.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.pr).length,0);
-  const setCount=w.exercises.reduce((a,e)=>a+e.sets.length,0);
-  const durMins=Math.round(w.duration/60000);
+  if(!w.exercises||!Array.isArray(w.exercises)){ console.error('[GAINZ] workoutSummary has no exercises'); return ""; }
+  try{
+  const prCount=w.exercises.reduce((a,e)=>a+(e.sets?e.sets.filter(s=>s.pr).length:0),0);
+  const setCount=w.exercises.reduce((a,e)=>a+(e.sets?e.sets.length:0),0);
+  const durMins=Math.round((w.duration||0)/60000);
   const durStr=durMins>=60?Math.floor(durMins/60)+"h "+( durMins%60)+"m":durMins+"min";
   // Compare to last same-split workout (second in history since this one was just pushed)
-  const prev=state.workouts.slice(1).find(x=>x.split===w.split);
-  const volDiff=prev?w.totalVolume-prev.totalVolume:null;
+  const prev=w.split?state.workouts.slice(1).find(x=>x.split===w.split):null;
+  const volDiff=prev?(w.totalVolume||0)-(prev.totalVolume||0):null;
   const volDiffEl=volDiff!==null?`<span style="font-size:12px;font-weight:600;color:${volDiff>0?'var(--green)':volDiff<0?'var(--red)':'var(--muted)'}">${volDiff>0?'+':''}${volDiff.toLocaleString()}lb vs last ${splitName(w.split)}</span>`:'';
   const prLine=prCount>0?`<div style="font-size:13px;color:var(--accent);margin-top:8px;font-weight:600;">🏆 ${prCount} new PR${prCount>1?'s':''} today</div>`:'';
   // Heaviest lift this session
-  const allSetsFlat=w.exercises.flatMap(e=>e.sets.filter(s=>!s.bw&&!s.warmup).map(s=>({name:e.name,weight:parseFloat(s.weight),reps:parseInt(s.reps)})));
+  const allSetsFlat=w.exercises.flatMap(e=>(e.sets||[]).filter(s=>!s.bw&&!s.warmup).map(s=>({name:e.name,weight:parseFloat(s.weight)||0,reps:parseInt(s.reps)||0})));
   const heaviest=allSetsFlat.length?allSetsFlat.reduce((a,b)=>a.weight>b.weight?a:b):null;
 
   // Tonnage fun comparison
@@ -1042,13 +1044,15 @@ function renderWorkoutSummary(){
   };
   const splitTips=SPLIT_TIPS[w.split]||[];
   const hasSplitTip=splitTips.length>0&&Math.random()<0.4; // 40% chance to show split-specific tip
-  const splitTip=splitTips[state.workouts.length%splitTips.length];
+  const splitTip=splitTips.length>0?splitTips[state.workouts.length%splitTips.length]:null;
 
   // Rotate pillars: use workout count to cycle nutrition → sleep → exercise
-  const pillarIdx = (state.workouts.length - 1) % PILLAR_TIPS.length;
-  const pillar = hasSplitTip?{pillar:w.split.toUpperCase()+' DAY',icon:'🎯'}:PILLAR_TIPS[pillarIdx];
-  const tipIdx = Math.floor((state.workouts.length - 1) / PILLAR_TIPS.length) % (hasSplitTip?1:pillar.tips.length);
-  const pillarTip = hasSplitTip?splitTip:PILLAR_TIPS[pillarIdx].tips[tipIdx];
+  const woCount2=Math.max(1,state.workouts.length); // guard against 0
+  const pillarIdx = (woCount2 - 1) % PILLAR_TIPS.length;
+  const pillarObj = PILLAR_TIPS[pillarIdx];
+  const pillar = (hasSplitTip&&w.split)?{pillar:w.split.toUpperCase()+' DAY',icon:'🎯'}:pillarObj;
+  const tipIdx = pillarObj&&pillarObj.tips?Math.floor((woCount2 - 1) / PILLAR_TIPS.length) % pillarObj.tips.length:0;
+  const pillarTip = (hasSplitTip&&splitTip)?splitTip:(pillarObj&&pillarObj.tips&&pillarObj.tips[tipIdx])?pillarObj.tips[tipIdx]:{tip:'Keep showing up. Consistency beats everything.',src:'',myth:false};
 
   // Workout count milestone
   const woCount=state.workouts.length;
@@ -1108,6 +1112,7 @@ function renderWorkoutSummary(){
       <button class="btn primary" onclick="dismissSummary()" style="width:100%;margin-top:12px;font-size:13px;">DONE ✓</button>
     </div>
   </div>`;
+  }catch(sumErr){ console.error('[GAINZ] renderWorkoutSummary error:',sumErr); workoutSummary=null; return ""; }
 }
 function detectSplit(exercises){
   const exNames=exercises.map(e=>e.name);
@@ -1242,7 +1247,7 @@ function render(){
   // Inject summary overlay if active
   if(workoutSummary&&screen==="start"){
     const existing=document.getElementById("wo-summary");
-    if(!existing){ const el=document.createElement("div"); el.innerHTML=renderWorkoutSummary(); document.body.appendChild(el.firstChild); }
+    if(!existing){ try{ const el=document.createElement("div"); el.innerHTML=renderWorkoutSummary(); if(el.firstChild) document.body.appendChild(el.firstChild); }catch(sumErr){ console.error('[GAINZ] renderWorkoutSummary error:',sumErr); workoutSummary=null; } }
   }
   if(screen==="start"){ setTimeout(initCarouselFade,0); setTimeout(maybeShowHomeTour,300); }
   if(FEATURES.devMode){const t=performance.now()-renderStart;if(t>16)console.warn(`[GAINZ] render() took ${t.toFixed(1)}ms`);}
