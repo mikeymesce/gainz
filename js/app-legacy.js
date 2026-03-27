@@ -4298,11 +4298,11 @@ function renderMe(){
   return `<div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:2px;">Me</div><div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:16px;text-transform:uppercase;">Progress & History</div>
   ${statsStrip}
   ${bodyHeatmap}
-  ${yearGrid}
   ${fatigue}
-  ${renderTopExercises()}
   ${renderVolumeWave()}
-  <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;margin-top:${fatigue?"16px":"0"};">${tabBtns}</div>
+  ${renderTopExercises()}
+  ${yearGrid}
+  <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;margin-top:16px;">${tabBtns}</div>
   ${tabContent}
   ${templatesSection}`;
 }
