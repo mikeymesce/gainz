@@ -4603,6 +4603,159 @@ test("funStats rotates by day of year",()=>{
   assertEqual(pool[dayOfYear%pool.length],"a");
 });
 
+// ── Challenge Tests ──
+test("getChallengeState() initializes defaults",()=>{
+  const s=state.challenge;
+  state.challenge=undefined;
+  const ch=getChallengeState();
+  assert(ch.active===false);
+  assert(ch.secondEx==='situps');
+  assert(ch.days!==undefined);
+  state.challenge=s;
+});
+
+test("getChallengeState() preserves existing state",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:'Mon Mar 30 2026',days:{'Mon Mar 30 2026':{pushups:50,situps:30,pushSets:[25,25],sitSets:[15,15]}},active:true,secondEx:'squats'};
+  const ch=getChallengeState();
+  assertEqual(ch.active,true);
+  assertEqual(ch.secondEx,'squats');
+  assertEqual(ch.days['Mon Mar 30 2026'].pushups,50);
+  state.challenge=s;
+});
+
+test("toggleChallengeEx() switches situps to squats",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:todayStr(),days:{},active:true,secondEx:'situps'};
+  // toggleChallengeEx calls logChallengeDay which calls showModal — we need to stub it
+  const origModal=window.showModal;
+  window.showModal=function(){};
+  toggleChallengeEx();
+  assertEqual(state.challenge.secondEx,'squats');
+  toggleChallengeEx();
+  assertEqual(state.challenge.secondEx,'situps');
+  window.showModal=origModal;
+  state.challenge=s;
+});
+
+test("addChallengeQuickSilent() adds push reps",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:todayStr(),days:{},active:true,secondEx:'situps'};
+  addChallengeQuickSilent('push',20);
+  const day=state.challenge.days[todayStr()];
+  assertEqual(day.pushups,20);
+  assertEqual(day.pushSets.length,1);
+  assertEqual(day.pushSets[0],20);
+  addChallengeQuickSilent('push',10);
+  assertEqual(day.pushups,30);
+  assertEqual(day.pushSets.length,2);
+  state.challenge=s;
+});
+
+test("addChallengeQuickSilent() adds sit reps",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:todayStr(),days:{},active:true,secondEx:'situps'};
+  addChallengeQuickSilent('sit',25);
+  const day=state.challenge.days[todayStr()];
+  assertEqual(day.situps,25);
+  assertEqual(day.sitSets.length,1);
+  state.challenge=s;
+});
+
+test("deleteChallengeSet() removes correct set",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:todayStr(),days:{},active:true,secondEx:'situps'};
+  addChallengeQuickSilent('push',10);
+  addChallengeQuickSilent('push',20);
+  addChallengeQuickSilent('push',15);
+  // Stub showModal since deleteChallengeSet calls logChallengeDay
+  const origModal=window.showModal;
+  window.showModal=function(){};
+  deleteChallengeSet('push',1); // remove the 20
+  const day=state.challenge.days[todayStr()];
+  assertEqual(day.pushSets.length,2);
+  assertEqual(day.pushSets[0],10);
+  assertEqual(day.pushSets[1],15);
+  assertEqual(day.pushups,25);
+  window.showModal=origModal;
+  state.challenge=s;
+});
+
+test("renderChallenge() returns start button when inactive",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:null,days:{},active:false};
+  const html=renderChallenge();
+  assert(html.includes('startChallenge'),'should have start button');
+  assert(html.includes('30-DAY CHALLENGE'),'should have title');
+  state.challenge=s;
+});
+
+test("renderChallenge() shows progress when active",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:todayStr(),days:{},active:true,secondEx:'situps'};
+  const html=renderChallenge();
+  assert(html.includes('DAY 1'),'should show day number');
+  assert(html.includes('0/30 days'),'should show completion');
+  assert(html.includes('LOG SOME WORK'),'should have log button');
+  state.challenge=s;
+});
+
+test("renderChallenge() shows streak when 2+ days",()=>{
+  const s=state.challenge;
+  const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
+  const twoDaysAgo=new Date(); twoDaysAgo.setDate(twoDaysAgo.getDate()-2);
+  state.challenge={startDate:twoDaysAgo.toDateString(),days:{},active:true,secondEx:'situps'};
+  state.challenge.days[twoDaysAgo.toDateString()]={pushups:100,situps:100,pushSets:[100],sitSets:[100]};
+  state.challenge.days[yesterday.toDateString()]={pushups:100,situps:100,pushSets:[100],sitSets:[100]};
+  const html=renderChallenge();
+  assert(html.includes('2 day streak'),'should show 2 day streak');
+  state.challenge=s;
+});
+
+test("renderChallenge() no streak for 1 day",()=>{
+  const s=state.challenge;
+  const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
+  state.challenge={startDate:yesterday.toDateString(),days:{},active:true,secondEx:'situps'};
+  state.challenge.days[yesterday.toDateString()]={pushups:100,situps:100,pushSets:[100],sitSets:[100]};
+  const html=renderChallenge();
+  assert(!html.includes('day streak'),'should not show streak for 1 day');
+  state.challenge=s;
+});
+
+test("renderInlineChallenge() empty when no challenge",()=>{
+  const s=state.challenge;
+  state.challenge=undefined;
+  assertEqual(renderInlineChallenge(),'');
+  state.challenge=s;
+});
+
+test("renderInlineChallenge() empty when inactive",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:null,days:{},active:false};
+  assertEqual(renderInlineChallenge(),'');
+  state.challenge=s;
+});
+
+test("renderInlineChallenge() shows tracker when active",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:todayStr(),days:{},active:true,secondEx:'squats'};
+  const html=renderInlineChallenge();
+  assert(html.includes('inline-challenge'),'should have container');
+  assert(html.includes('SQUATS'),'should show squats label');
+  assert(html.includes('PUSH-UPS'),'should show push-ups label');
+  state.challenge=s;
+});
+
+test("challenge secondEx data stored under situps key",()=>{
+  const s=state.challenge;
+  state.challenge={startDate:todayStr(),days:{},active:true,secondEx:'squats'};
+  addChallengeQuickSilent('sit',30); // 'sit' type = second exercise, stored as situps
+  const day=state.challenge.days[todayStr()];
+  assertEqual(day.situps,30,'squats reps stored under situps key');
+  assertEqual(day.sitSets[0],30);
+  state.challenge=s;
+});
+
 
 function runTests(){
   TEST_RESULTS.passed=0;TEST_RESULTS.failed=0;TEST_RESULTS.results=[];
