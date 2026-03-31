@@ -63,7 +63,8 @@ export function skipTimer(){
 export function getTimerExercise(){ return currentTimerExercise; }
 
 export function startWoTimer(){
-  woStartTime = Date.now();
+  // Use activeWorkout.startTime if available so timer survives app backgrounding
+  woStartTime = (window.activeWorkout && window.activeWorkout.startTime) || Date.now();
   clearInterval(woTimerInterval);
   const el = document.getElementById("wo-timer");
   el.style.display = "block";

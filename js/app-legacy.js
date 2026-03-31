@@ -1184,6 +1184,39 @@ function finishWorkout(){
   workoutSummary=finishedW; screen="start"; render();
 }
 
+function editWorkoutTime(){
+  if(!activeWorkout) return;
+  const elapsed=Date.now()-activeWorkout.startTime;
+  const mins=Math.round(elapsed/60000);
+  const hrs=Math.floor(mins/60);
+  const m=mins%60;
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">ADJUST WORKOUT TIME</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;">Current: ${hrs>0?hrs+'h ':''}${m}m</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <div style="flex:1;">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">HOURS</div>
+        <input id="edit-wo-hrs" type="number" class="input" inputmode="numeric" value="${hrs}" min="0" style="text-align:center;font-size:20px;"/>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">MINUTES</div>
+        <input id="edit-wo-min" type="number" class="input" inputmode="numeric" value="${m}" min="0" max="59" style="text-align:center;font-size:20px;"/>
+      </div>
+    </div>
+    <button class="btn primary" style="width:100%;" onclick="applyWorkoutTime()">SET TIME</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CANCEL</button>
+  `);
+}
+function applyWorkoutTime(){
+  const h=parseInt(document.getElementById('edit-wo-hrs')?.value)||0;
+  const m=parseInt(document.getElementById('edit-wo-min')?.value)||0;
+  const newElapsed=(h*60+m)*60000;
+  activeWorkout.startTime=Date.now()-newElapsed;
+  try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){}
+  startWoTimer();
+  hideModal();
+  showToast('Workout time updated');
+}
 function abandonWorkout(){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">LEAVE WORKOUT?</div>
@@ -2905,6 +2938,17 @@ function renderChallenge(){
   const todayDone=ch.days[todayStr()];
   const todayComplete=todayDone&&todayDone.pushups>=100&&todayDone.situps>=100;
   const pct=Math.round((daysCompleted/30)*100);
+  // Calculate challenge streak (consecutive days completed ending today or yesterday)
+  let challengeStreak=0;
+  const checkDate=new Date();
+  // If today isn't done yet, start checking from yesterday
+  if(!todayComplete) checkDate.setDate(checkDate.getDate()-1);
+  for(let i=0;i<30;i++){
+    const ds=checkDate.toDateString();
+    const dd=ch.days[ds];
+    if(dd&&dd.pushups>=100&&dd.situps>=100){ challengeStreak++; checkDate.setDate(checkDate.getDate()-1); }
+    else break;
+  }
 
   // Build 30-day grid
   const dots=[...Array(30)].map((_,i)=>{
@@ -2927,7 +2971,7 @@ function renderChallenge(){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <div style="font-size:11px;color:var(--muted);">${daysCompleted}/30 days · ${pct}%</div>
+      <div style="font-size:11px;color:var(--muted);">${daysCompleted}/30 days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
       <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' '+(ch.secondEx==='squats'?'squat':'sit'):'Not yet today'}</div>
     </div>
     <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG SOME WORK'}</button>
@@ -3669,6 +3713,29 @@ function renderPRHistory(){
   `;
 }
 
+function inlineChallengeAdd(type,reps){
+  addChallengeQuickSilent(type,reps);
+  const el=document.getElementById('inline-challenge');
+  if(el){
+    const ch=getChallengeState();
+    const d=todayStr();
+    const day=ch.days[d]||{pushups:0,situps:0};
+    const pLabel=document.getElementById('ic-push-label');
+    const pBar=document.getElementById('ic-push-bar');
+    const sLabel=document.getElementById('ic-sit-label');
+    const sBar=document.getElementById('ic-sit-bar');
+    if(pLabel) pLabel.textContent='PUSH-UPS '+day.pushups+'/100';
+    if(pBar) pBar.style.width=Math.min(100,day.pushups)+'%';
+    if(pBar) pBar.style.background=day.pushups>=100?'var(--green)':'var(--accent)';
+    if(sLabel) sLabel.textContent=(ch.secondEx==='squats'?'SQUATS':'SIT-UPS')+' '+day.situps+'/100';
+    if(sBar) sBar.style.width=Math.min(100,day.situps)+'%';
+    if(sBar) sBar.style.background=day.situps>=100?'var(--green)':'var(--accent)';
+    const done=day.pushups>=100&&day.situps>=100;
+    const badge=document.getElementById('ic-done');
+    if(badge) badge.style.display=done?'inline':'none';
+    if(done) el.style.borderColor='rgba(82,200,122,0.3)';
+  }
+}
 function renderInlineChallenge(){
   if(!state.challenge||!state.challenge.active) return '';
   const ch=getChallengeState();
@@ -3677,34 +3744,34 @@ function renderInlineChallenge(){
   const day=ch.days[d];
   const exLabel=ch.secondEx==='squats'?'SQUATS':'SIT-UPS';
   const done=day.pushups>=100&&day.situps>=100;
-  return `<div style="margin-top:12px;background:var(--bg2);border:1px solid ${done?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:12px;padding:10px 12px;">
+  return `<div id="inline-challenge" style="margin-bottom:12px;background:var(--bg2);border:1px solid ${done?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:12px;padding:10px 12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:8px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">DAILY CHALLENGE</div>
-      ${done?'<span style="font-size:9px;color:var(--green);">✓ DONE</span>':''}
+      <span id="ic-done" style="font-size:9px;color:var(--green);display:${done?'inline':'none'};">✓ DONE</span>
     </div>
     <div style="display:flex;gap:8px;">
       <div style="flex:1;">
-        <div style="font-size:8px;color:var(--dim);margin-bottom:3px;">PUSH-UPS ${day.pushups}/100</div>
+        <div id="ic-push-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">PUSH-UPS ${day.pushups}/100</div>
         <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:4px;">
-          <div style="height:100%;width:${Math.min(100,day.pushups)}%;background:${day.pushups>=100?'var(--green)':'var(--accent)'};border-radius:2px;"></div>
+          <div id="ic-push-bar" style="height:100%;width:${Math.min(100,day.pushups)}%;background:${day.pushups>=100?'var(--green)':'var(--accent)'};border-radius:2px;transition:width 0.2s;"></div>
         </div>
         <div style="display:flex;gap:3px;">
-          <button onclick="addChallengeQuickSilent('push',5);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
-          <button onclick="addChallengeQuickSilent('push',10);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
-          <button onclick="addChallengeQuickSilent('push',20);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
-          <button onclick="addChallengeQuickSilent('push',25);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
+          <button onclick="inlineChallengeAdd('push',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
+          <button onclick="inlineChallengeAdd('push',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
+          <button onclick="inlineChallengeAdd('push',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
+          <button onclick="inlineChallengeAdd('push',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
         </div>
       </div>
       <div style="flex:1;">
-        <div style="font-size:8px;color:var(--dim);margin-bottom:3px;">${exLabel} ${day.situps}/100</div>
+        <div id="ic-sit-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">${exLabel} ${day.situps}/100</div>
         <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:4px;">
-          <div style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:2px;"></div>
+          <div id="ic-sit-bar" style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:2px;transition:width 0.2s;"></div>
         </div>
         <div style="display:flex;gap:3px;">
-          <button onclick="addChallengeQuickSilent('sit',5);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
-          <button onclick="addChallengeQuickSilent('sit',10);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
-          <button onclick="addChallengeQuickSilent('sit',20);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
-          <button onclick="addChallengeQuickSilent('sit',25);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
+          <button onclick="inlineChallengeAdd('sit',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
+          <button onclick="inlineChallengeAdd('sit',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
+          <button onclick="inlineChallengeAdd('sit',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
+          <button onclick="inlineChallengeAdd('sit',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
         </div>
       </div>
     </div>
@@ -3928,6 +3995,7 @@ function renderLog(){
         <button class="btn primary small" id="finish-btn-anchor" onclick="confirmFinish()">FINISH ✓</button>
       </div>
     </div>
+    ${renderInlineChallenge()}
     ${logHeader}
     ${cards.length?cards:`<div style="padding:40px 0;text-align:center;">
       <div style="font-size:32px;margin-bottom:12px;">💪</div>
@@ -3941,7 +4009,6 @@ function renderLog(){
         </div>
       </div>`:""}
     </div>`}
-    ${renderInlineChallenge()}
     <button class="btn ${activeWorkout.exercises.length?"ghost":"primary"}" onclick="openPicker()" style="margin-top:4px;">+ ADD EXERCISE</button>
     ${activeWorkout.exercises.length>0?`
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid #1e1e24;">
@@ -4898,17 +4965,44 @@ window.onerror=function(msg,src,line){logDebug(`❌ ${msg} (line ${line})`);};
 // ═══════════════════════════════════════════
 
 // ── Crash Recovery Check ──
+function recoverWorkout(recovered){
+  // Find the last set timestamp to cap idle time
+  let lastSetTime=recovered.startTime;
+  for(const ex of (recovered.exercises||[])){
+    for(const s of (ex.sets||[])){
+      if(s.time&&s.time>lastSetTime) lastSetTime=s.time;
+    }
+  }
+  const idleMs=Date.now()-lastSetTime;
+  const MAX_IDLE=15*60*1000; // 15 minutes — anything beyond this is "app was closed"
+  if(idleMs>MAX_IDLE){
+    // Shift startTime forward so elapsed time = (lastSetTime - original startTime) + 15min buffer
+    const activeTime=lastSetTime-recovered.startTime+MAX_IDLE;
+    recovered.startTime=Date.now()-activeTime;
+  }
+  activeWorkout=recovered;
+  screen='log';
+  document.getElementById('recovery-banner').remove();
+  localStorage.removeItem('gainz_recovery');
+  startWoTimer();
+  render();
+}
 (function checkCrashRecovery(){
   try{
     const rec=localStorage.getItem("gainz_recovery");
     if(rec&&!activeWorkout){
       const recovered=JSON.parse(rec);
+      // Store for recoverWorkout to use
+      window._pendingRecovery=recovered;
+      const lastSetTime=recovered.exercises?.reduce((t,ex)=>Math.max(t,...(ex.sets||[]).map(s=>s.time||0)),recovered.startTime)||recovered.startTime;
+      const idleMin=Math.round((Date.now()-lastSetTime)/60000);
+      const idleLabel=idleMin>60?Math.round(idleMin/60)+'h ago':idleMin+'m ago';
       const banner=document.createElement("div");
       banner.id="recovery-banner";
       banner.style.cssText="position:fixed;top:0;left:0;right:0;background:#1e1815;border-bottom:1px solid var(--accent);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;z-index:9998;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);";
-      banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover last workout?</span><div style="display:flex;gap:8px;"><button onclick="(function(){activeWorkout=${JSON.stringify(recovered).replace(/"/g,'&quot;')};screen='log';document.getElementById('recovery-banner').remove();localStorage.removeItem('gainz_recovery');startWoTimer();render();})()" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="localStorage.removeItem('gainz_recovery');document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
+      banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover workout? <span style="color:var(--dim);font-size:10px;">(last set ${idleLabel})</span></span><div style="display:flex;gap:8px;"><button onclick="recoverWorkout(window._pendingRecovery)" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="localStorage.removeItem('gainz_recovery');document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
       document.body.appendChild(banner);
-      logDebug("⚠ Crash recovery available");
+      logDebug("⚠ Crash recovery available (last set "+idleLabel+")");
     }
   }catch(e){}
 })();
