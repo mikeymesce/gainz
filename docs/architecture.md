@@ -38,8 +38,9 @@ Browser loads index.html
 
 | Module | Lines | Responsibility | Exports |
 |---|---|---|---|
-| `main.js` | 118 | Entry point — imports modules, exposes to window, loads legacy, SW cleanup, ambient particles | — |
-| `app-legacy.js` | 3,119 | Render pipeline, workout actions, picker, stacks, tests, debug | globals |
+| `main.js` | 125 | Entry point — imports modules, exposes to window, loads legacy, SW cleanup, ambient particles | — |
+| `app-legacy.js` | ~2,900 | Render pipeline, workout actions, picker, stacks, tests, debug | globals |
+| `challenge.js` | ~260 | 30-day push-up/sit-up challenge — state, logging, rendering | `getChallengeState`, `startChallenge`, `renderChallenge`, `renderInlineChallenge`, etc. |
 | `config.js` | 29 | Feature flags, version, constants | `FEATURES`, `VERSION`, `SCHEMA_VERSION`, etc. |
 | `data.js` | 349 | Exercise DB, programs, splits, research tips, MRV | `ALL_SPLITS`, `PROGRAMS`, `RESEARCH_TIPS`, etc. |
 | `state.js` | 23 | Schema migration logic | `migrateState` |
@@ -129,7 +130,7 @@ The `render()` function in `app-legacy.js` switches on `screen` and sets `#conte
 
 ## What's Left in app-legacy.js
 
-The remaining ~3,100 lines contain:
+The remaining ~2,900 lines contain:
 
 1. **Render pipeline** — `render()` + all screen-specific render functions. Heavy inline HTML.
 2. **Workout actions** — add/delete/reorder exercises and sets, warmup toggle, notes.
@@ -143,4 +144,4 @@ Extracting these further requires decoupling the shared mutable state, which is 
 
 ---
 
-*Last updated: March 15, 2026*
+*Last updated: March 30, 2026*

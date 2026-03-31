@@ -64,6 +64,12 @@ import {
   buildProgChart, setProgChartMode
 } from './progress-chart.js';
 import {
+  getChallengeState, startChallenge, toggleChallengeEx, challengeNavDay,
+  logChallengeDay, addChallengeQuick, addChallengeQuickSilent, addChallengeSet,
+  deleteChallengeSet, resetChallenge, renderChallenge, renderInlineChallenge,
+  inlineChallengeAdd
+} from './challenge.js';
+import {
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud,
   renderCloudSyncCard, renderSyncUI
@@ -108,6 +114,11 @@ Object.assign(window, {
   buildTipPanel, openLibrary, closeLibrary, libToggle, libSetCat,
   // Progress chart
   buildProgChart, setProgChartMode,
+  // Challenge
+  getChallengeState, startChallenge, toggleChallengeEx, challengeNavDay,
+  logChallengeDay, addChallengeQuick, addChallengeQuickSilent, addChallengeSet,
+  deleteChallengeSet, resetChallenge, renderChallenge, renderInlineChallenge,
+  inlineChallengeAdd,
   // Cloud sync
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud,
