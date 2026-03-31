@@ -631,7 +631,7 @@ function logSet(n){
       if(/push[\s-]?up/.test(nameLower)){
         addChallengeQuickSilent('push', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " push-ups from workout");
-      } else if(state.challenge.secondEx==='squats' && /squat/.test(nameLower) && bw){
+      } else if(state.challenge.secondEx==='squats' && /squat/.test(nameLower)){
         addChallengeQuickSilent('sit', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " squats from workout");
       } else if(state.challenge.secondEx!=='squats' && /sit[\s-]?up|crunch|ab\s?wheel/.test(nameLower)){
@@ -3669,6 +3669,47 @@ function renderPRHistory(){
   `;
 }
 
+function renderInlineChallenge(){
+  if(!state.challenge||!state.challenge.active) return '';
+  const ch=getChallengeState();
+  const d=todayStr();
+  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
+  const day=ch.days[d];
+  const exLabel=ch.secondEx==='squats'?'SQUATS':'SIT-UPS';
+  const done=day.pushups>=100&&day.situps>=100;
+  return `<div style="margin-top:12px;background:var(--bg2);border:1px solid ${done?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:12px;padding:10px 12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:8px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">DAILY CHALLENGE</div>
+      ${done?'<span style="font-size:9px;color:var(--green);">✓ DONE</span>':''}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div style="flex:1;">
+        <div style="font-size:8px;color:var(--dim);margin-bottom:3px;">PUSH-UPS ${day.pushups}/100</div>
+        <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:4px;">
+          <div style="height:100%;width:${Math.min(100,day.pushups)}%;background:${day.pushups>=100?'var(--green)':'var(--accent)'};border-radius:2px;"></div>
+        </div>
+        <div style="display:flex;gap:3px;">
+          <button onclick="addChallengeQuickSilent('push',5);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
+          <button onclick="addChallengeQuickSilent('push',10);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
+          <button onclick="addChallengeQuickSilent('push',20);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
+          <button onclick="addChallengeQuickSilent('push',25);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
+        </div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:8px;color:var(--dim);margin-bottom:3px;">${exLabel} ${day.situps}/100</div>
+        <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:4px;">
+          <div style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:2px;"></div>
+        </div>
+        <div style="display:flex;gap:3px;">
+          <button onclick="addChallengeQuickSilent('sit',5);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
+          <button onclick="addChallengeQuickSilent('sit',10);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
+          <button onclick="addChallengeQuickSilent('sit',20);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
+          <button onclick="addChallengeQuickSilent('sit',25);render();" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
 function renderLog(){
   if(!activeWorkout) return "";
   const totalV=activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0);
@@ -3900,6 +3941,7 @@ function renderLog(){
         </div>
       </div>`:""}
     </div>`}
+    ${renderInlineChallenge()}
     <button class="btn ${activeWorkout.exercises.length?"ghost":"primary"}" onclick="openPicker()" style="margin-top:4px;">+ ADD EXERCISE</button>
     ${activeWorkout.exercises.length>0?`
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid #1e1e24;">
