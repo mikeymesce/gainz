@@ -631,7 +631,7 @@ function logSet(n){
       if(/push[\s-]?up/.test(nameLower)){
         addChallengeQuickSilent('push', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " push-ups from workout");
-      } else if(state.challenge.secondEx==='squats' && /squat/.test(nameLower) && !/rack/.test(nameLower)){
+      } else if(state.challenge.secondEx==='squats' && /squat/.test(nameLower) && bw){
         addChallengeQuickSilent('sit', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " squats from workout");
       } else if(state.challenge.secondEx!=='squats' && /sit[\s-]?up|crunch|ab\s?wheel/.test(nameLower)){
@@ -2729,15 +2729,27 @@ function startChallenge(){
   save(); render();
   showToast('30-day challenge started! 💪');
 }
+let challengeLogDate=null;
 function toggleChallengeEx(){
   const ch=getChallengeState();
   ch.secondEx=ch.secondEx==='situps'?'squats':'situps';
   save(); logChallengeDay();
 }
+function challengeNavDay(offset){
+  const ch=getChallengeState();
+  const start=new Date(ch.startDate);
+  const cur=challengeLogDate?new Date(challengeLogDate):new Date();
+  cur.setDate(cur.getDate()+offset);
+  if(cur>new Date()) return;
+  if(cur<start) return;
+  challengeLogDate=cur.toDateString();
+  logChallengeDay();
+}
 function logChallengeDay(){
   const ch=getChallengeState();
   if(!ch.active) return;
-  const d=todayStr();
+  const d=challengeLogDate||todayStr();
+  const isToday=d===todayStr();
   if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
   if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
   if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
@@ -2745,6 +2757,9 @@ function logChallengeDay(){
   const exLabel=ch.secondEx==='squats'?'BW SQUATS':'SIT-UPS';
   const exLabelShort=ch.secondEx==='squats'?'squat':'sit';
   const otherLabel=ch.secondEx==='squats'?'Sit-ups':'BW Squats';
+  const dateObj=new Date(d);
+  const dateLabel=isToday?'TODAY':dateObj.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const canGoNext=new Date(d)<new Date(todayStr());
 
   const pushSetRows=day.pushSets.map((s,i)=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--muted);">
@@ -2758,7 +2773,11 @@ function logChallengeDay(){
     </div>`).join('');
 
   showModal(`
-    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">TODAY'S CHALLENGE</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <button onclick="challengeNavDay(-1)" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px;">‹</button>
+      <div style="font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">${dateLabel}</div>
+      <button onclick="challengeNavDay(1)" style="background:none;border:none;color:${canGoNext?'var(--accent)':'var(--bg3)'};font-size:16px;cursor:pointer;padding:4px 8px;"${canGoNext?'':'disabled'}>›</button>
+    </div>
 
     <div style="display:flex;gap:10px;margin-bottom:10px;">
       <div style="flex:1;">
@@ -2794,12 +2813,12 @@ function logChallengeDay(){
       </div>
     </div>
 
-    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">DONE</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="challengeLogDate=null;hideModal()">DONE</button>
   `);
 }
 function addChallengeQuick(type,reps){
   const ch=getChallengeState();
-  const d=todayStr();
+  const d=challengeLogDate||todayStr();
   if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
   if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
   if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
@@ -2811,7 +2830,7 @@ function addChallengeQuick(type,reps){
     ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
   }
   save();
-  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete for today! 🔥');
+  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete! 🔥');
   logChallengeDay();
 }
 function addChallengeQuickSilent(type,reps){
@@ -2832,7 +2851,7 @@ function addChallengeQuickSilent(type,reps){
 }
 function addChallengeSet(type){
   const ch=getChallengeState();
-  const d=todayStr();
+  const d=challengeLogDate||todayStr();
   if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
   if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
   if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
@@ -2847,12 +2866,12 @@ function addChallengeSet(type){
     ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
   }
   save();
-  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete for today! 🔥');
-  logChallengeDay(); // refresh modal
+  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete! 🔥');
+  logChallengeDay();
 }
 function deleteChallengeSet(type,idx){
   const ch=getChallengeState();
-  const d=todayStr();
+  const d=challengeLogDate||todayStr();
   if(!ch.days[d]) return;
   if(type==='push'){
     ch.days[d].pushSets.splice(idx,1);
