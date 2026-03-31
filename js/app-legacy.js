@@ -631,7 +631,10 @@ function logSet(n){
       if(/push[\s-]?up/.test(nameLower)){
         addChallengeQuickSilent('push', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " push-ups from workout");
-      } else if(/sit[\s-]?up|crunch|ab\s?wheel/.test(nameLower)){
+      } else if(state.challenge.secondEx==='squats' && /squat/.test(nameLower) && !/rack/.test(nameLower)){
+        addChallengeQuickSilent('sit', repsNum);
+        logDebug("🎯 Challenge: +" + repsNum + " squats from workout");
+      } else if(state.challenge.secondEx!=='squats' && /sit[\s-]?up|crunch|ab\s?wheel/.test(nameLower)){
         addChallengeQuickSilent('sit', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " sit-ups from workout");
       }
@@ -2718,12 +2721,18 @@ function saveCheckinSettings(){
 // ═══════════════════════════════════════════
 function getChallengeState(){
   if(!state.challenge) state.challenge={startDate:null,days:{},active:false};
+  if(!state.challenge.secondEx) state.challenge.secondEx='situps';
   return state.challenge;
 }
 function startChallenge(){
   state.challenge={startDate:todayStr(),days:{},active:true};
   save(); render();
   showToast('30-day challenge started! 💪');
+}
+function toggleChallengeEx(){
+  const ch=getChallengeState();
+  ch.secondEx=ch.secondEx==='situps'?'squats':'situps';
+  save(); logChallengeDay();
 }
 function logChallengeDay(){
   const ch=getChallengeState();
@@ -2733,6 +2742,9 @@ function logChallengeDay(){
   if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
   if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
   const day=ch.days[d];
+  const exLabel=ch.secondEx==='squats'?'BW SQUATS':'SIT-UPS';
+  const exLabelShort=ch.secondEx==='squats'?'squat':'sit';
+  const otherLabel=ch.secondEx==='squats'?'Sit-ups':'BW Squats';
 
   const pushSetRows=day.pushSets.map((s,i)=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--muted);">
@@ -2763,7 +2775,10 @@ function logChallengeDay(){
         ${day.pushSets.length?`<button onclick="addChallengeQuick('push',${day.pushSets[day.pushSets.length-1]})" style="width:100%;margin-top:4px;background:var(--accent);border:none;border-radius:6px;padding:6px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.pushSets[day.pushSets.length-1]}</button>`:''}
       </div>
       <div style="flex:1;">
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">SIT-UPS · ${day.situps}/100</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-size:9px;color:var(--dim);">${exLabel} · ${day.situps}/100</div>
+          <button onclick="toggleChallengeEx()" style="background:none;border:none;color:var(--accent);font-size:8px;cursor:pointer;padding:0;">↔ ${otherLabel}</button>
+        </div>
         <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:6px;">
           <div style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:3px;transition:width 0.3s;"></div>
         </div>
@@ -2859,7 +2874,7 @@ function renderChallenge(){
   if(!ch.active){
     return `<button onclick="startChallenge()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;text-align:center;">
       <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:4px;">30-DAY CHALLENGE</div>
-      <div style="font-size:12px;color:var(--muted);">100 push-ups + 100 sit-ups daily</div>
+      <div style="font-size:12px;color:var(--muted);">100 push-ups + 100 reps daily</div>
       <div style="font-size:10px;color:var(--dim);margin-top:4px;">Tap to start</div>
     </button>`;
   }
@@ -2892,7 +2907,7 @@ function renderChallenge(){
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:11px;color:var(--muted);">${daysCompleted}/30 days · ${pct}%</div>
-      <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' sit':'Not yet today'}</div>
+      <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' '+(ch.secondEx==='squats'?'squat':'sit'):'Not yet today'}</div>
     </div>
     <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG SOME WORK'}</button>
   </div>`;
