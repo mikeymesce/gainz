@@ -2771,6 +2771,7 @@ function logChallengeDay(){
           <button onclick="addChallengeQuick('push',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+5</button>
           <button onclick="addChallengeQuick('push',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
           <button onclick="addChallengeQuick('push',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+20</button>
+          <button onclick="addChallengeQuick('push',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
         </div>
         ${day.pushSets.length?`<button onclick="addChallengeQuick('push',${day.pushSets[day.pushSets.length-1]})" style="width:100%;margin-top:4px;background:var(--accent);border:none;border-radius:6px;padding:6px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.pushSets[day.pushSets.length-1]}</button>`:''}
       </div>
@@ -2786,6 +2787,7 @@ function logChallengeDay(){
         <div style="display:flex;gap:4px;margin-top:4px;">
           <button onclick="addChallengeQuick('sit',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+5</button>
           <button onclick="addChallengeQuick('sit',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
+          <button onclick="addChallengeQuick('sit',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+20</button>
           <button onclick="addChallengeQuick('sit',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
         </div>
         ${day.sitSets.length?`<button onclick="addChallengeQuick('sit',${day.sitSets[day.sitSets.length-1]})" style="width:100%;margin-top:4px;background:var(--accent);border:none;border-radius:6px;padding:6px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.sitSets[day.sitSets.length-1]}</button>`:''}
