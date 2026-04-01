@@ -70,6 +70,24 @@ import {
   inlineChallengeAdd
 } from './challenge.js';
 import {
+  DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
+  toggleCreatine, toggleVitamin, toggleAllVitamins, adjustCreatineDose,
+  addWater, removeWater, adjustCreatine, saveCreatineDose,
+  openVitaminSettings, addVitaminRow, saveVitaminList,
+  suppWeekCount, renderSuppCard,
+  renderDailyCheckin, openDailyCheckin, openCheckinSettings, saveCheckinSettings,
+  CARDIO_TYPES, getTodayCardio, openCardioLog, saveCardio, deleteCardio, renderCardioCard
+} from './daily-tracking.js';
+import {
+  toggleHomeCal, homeCalNav, openCalDay, openCalWorkout,
+  toggleCalVitamin, adjustCalWater, saveCalBW,
+  adjustCalCreatine, toggleCalCreatine,
+  buildHomeCalInner, buildHomeCal
+} from './home-calendar.js';
+import {
+  runTests, logDebug, openDebug, closeDebug, initTestsAndDebug, TEST_RESULTS
+} from './tests.js';
+import {
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud,
   renderCloudSyncCard, renderSyncUI
@@ -119,6 +137,21 @@ Object.assign(window, {
   logChallengeDay, addChallengeQuick, addChallengeQuickSilent, addChallengeSet,
   deleteChallengeSet, resetChallenge, renderChallenge, renderInlineChallenge,
   inlineChallengeAdd,
+  // Daily tracking
+  DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
+  toggleCreatine, toggleVitamin, toggleAllVitamins, adjustCreatineDose,
+  addWater, removeWater, adjustCreatine, saveCreatineDose,
+  openVitaminSettings, addVitaminRow, saveVitaminList,
+  suppWeekCount, renderSuppCard,
+  renderDailyCheckin, openDailyCheckin, openCheckinSettings, saveCheckinSettings,
+  CARDIO_TYPES, getTodayCardio, openCardioLog, saveCardio, deleteCardio, renderCardioCard,
+  // Home calendar
+  toggleHomeCal, homeCalNav, openCalDay, openCalWorkout,
+  toggleCalVitamin, adjustCalWater, saveCalBW,
+  adjustCalCreatine, toggleCalCreatine,
+  buildHomeCalInner, buildHomeCal,
+  // Tests & debug
+  runTests, logDebug, openDebug, closeDebug, initTestsAndDebug, TEST_RESULTS,
   // Cloud sync
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud,
