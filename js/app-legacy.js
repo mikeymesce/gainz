@@ -725,7 +725,9 @@ function deleteExercise(name){
   // also remove from setHistory
   setHistory=setHistory.filter(s=>s.exerciseName!==name);
   collapsedEx.delete(name);
+  doneExSet.delete(name);
   logDebug("🗑 Exercise removed: "+name);
+  showToast(name+" removed");
   render();
 }
 function moveExercise(name,dir){
