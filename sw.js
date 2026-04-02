@@ -2,7 +2,7 @@
 // Caches app files, checks for updates on every load,
 // and refreshes automatically when new code is deployed.
 
-const CACHE_NAME = 'gainz-v11';
+const CACHE_NAME = 'gainz-v12';
 const ASSETS = [
   '/gainz/',
   '/gainz/index.html',
@@ -22,6 +22,10 @@ const ASSETS = [
   '/gainz/js/research-tips.js',
   '/gainz/js/progress-chart.js',
   '/gainz/js/supabase.js',
+  '/gainz/js/challenge.js',
+  '/gainz/js/daily-tracking.js',
+  '/gainz/js/home-calendar.js',
+  '/gainz/js/tests.js',
 ];
 
 // Install — cache all assets
