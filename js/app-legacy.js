@@ -2923,7 +2923,7 @@ function renderLog(){
 
     const weightInput=bwOn
       ?`<div class="col"><span class="label">WEIGHT</span><div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--dim);">BW</div></div>`
-      :`<div class="col"><span class="label" style="display:flex;justify-content:space-between;align-items:center;">WEIGHT (lb)<button onclick="openPlateCalc(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;" title="Plate calculator">🔧</button></span><input class="input" type="number" id="w-${id}" value="" placeholder="${prefillW}" onfocus="if(!this.value)this.value=this.placeholder;" inputmode="decimal"/></div>`;
+      :`<div class="col"><span class="label" style="display:flex;justify-content:space-between;align-items:center;">WEIGHT (lb)<button onclick="openPlateCalc(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;" title="Plate calculator">🔧</button></span><input class="input" type="number" id="w-${id}" value="" placeholder="${prefillW}" onfocus="if(!this.value){this.value=this.placeholder;}this.select();" inputmode="decimal"/></div>`;
 
     const tipPanel=buildTipPanel(e.name);
     const reopenBtn=getTips(e.name)&&!hasTipShown(e.name)?`<button class="tip-reopen" onclick="openTip(${esc(e.name)});render();" title="Research tips" style="font-size:11px;letter-spacing:1px;color:var(--dim);opacity:0.5;">📚</button>`:"";
@@ -2950,7 +2950,7 @@ function renderLog(){
       ${overloadBadge}
       <div class="row" style="margin-top:10px;">
         ${weightInput}
-        <div class="col"><span class="label">REPS</span><input class="input" type="number" id="r-${id}" value="" placeholder="${prefillR}" onfocus="if(!this.value)this.value=this.placeholder;" inputmode="numeric"/></div>
+        <div class="col"><span class="label">REPS</span><input class="input" type="number" id="r-${id}" value="" placeholder="${prefillR}" onfocus="if(!this.value){this.value=this.placeholder;}this.select();" inputmode="numeric"/></div>
       </div>
       <button class="btn ghost" onclick="logSet(${esc(e.name)})" style="${isSSPrompt?'border-color:var(--superset)44;color:var(--superset);':''}">+ LOG SET${ssOn&&ssPairName?' ⚡':ssOn?' (no rest)':''}</button>
       ${(()=>{
