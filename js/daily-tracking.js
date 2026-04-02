@@ -16,7 +16,7 @@ function _render() { window.render(); }
 // ═══════════════════════════════════════════
 // SUPPLEMENTS — Daily creatine & vitamin tracking
 // ═══════════════════════════════════════════
-const DEFAULT_VITAMINS=['Vitamin D','Magnesium','Fish Oil','Allergy Pill'];
+export const DEFAULT_VITAMINS=['Vitamin D','Magnesium','Fish Oil','Allergy Pill'];
 
 export function getVitaminList(){
   return _state().vitaminTypes||DEFAULT_VITAMINS;
