@@ -416,11 +416,24 @@ function startRename(n){
 function commitRename(old){
   const i=document.getElementById("rin-"+sid(old)); if(!i) return;
   const nw=i.value.trim();
-  if(nw&&nw!==old&&activeWorkout){
-    activeWorkout.exercises=activeWorkout.exercises.map(e=>e.name===old?{...e,name:nw}:e);
-    if(state.exerciseRests[old]!==undefined){ state.exerciseRests[nw]=state.exerciseRests[old]; save(); }
-    if(collapsedEx.has(old)){ collapsedEx.delete(old); collapsedEx.add(nw); }
-  }
+  if(!nw||nw===old||!activeWorkout){ renamingEx=null; render(); return; }
+  // Prevent duplicate names
+  if(activeWorkout.exercises.some(e=>e.name===nw)){ renamingEx=null; render(); return; }
+  // Rename the exercise and update any ssPair references
+  activeWorkout.exercises=activeWorkout.exercises.map(e=>{
+    let updated=e;
+    if(e.name===old) updated={...updated,name:nw};
+    if(e.ssPair===old) updated={...updated,ssPair:nw};
+    return updated;
+  });
+  // Migrate exerciseRests
+  if(state.exerciseRests[old]!==undefined){ state.exerciseRests[nw]=state.exerciseRests[old]; delete state.exerciseRests[old]; save(); }
+  // Migrate collapsed state
+  if(collapsedEx.has(old)){ collapsedEx.delete(old); collapsedEx.add(nw); }
+  // Update name-keyed UI state
+  if(activeSSPrompt===old) activeSSPrompt=nw;
+  if(ssPickerOpen===old) ssPickerOpen=nw;
+  if(exMenuOpen===old) exMenuOpen=nw;
   renamingEx=null; render();
 }
 function cancelRename(){ renamingEx=null; render(); }
@@ -640,7 +653,7 @@ function logSet(n){
       if(/push[\s-]?up/.test(nameLower)){
         addChallengeQuickSilent('push', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " push-ups from workout");
-      } else if(state.challenge.secondEx==='squats' && /squat/.test(nameLower)){
+      } else if(/squat/i.test(nameLower)){
         addChallengeQuickSilent('sit', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " squats from workout");
       } else if(state.challenge.secondEx!=='squats' && /sit[\s-]?up|crunch|ab\s?wheel/.test(nameLower)){
@@ -867,7 +880,7 @@ function nextExercise(name){
 function dismissSummary(){
   workoutSummary=null;
   const el=document.getElementById("wo-summary");
-  if(el){ el.style.animation="summaryOut 0.3s ease forwards"; setTimeout(()=>{ workoutSummary=null; render(); try{ maybeShowSignupNudge(); }catch(e){ console.error('[GAINZ] signup nudge error:',e); } },280); }
+  if(el){ el.style.animation="summaryOut 0.3s ease forwards"; setTimeout(()=>{ workoutSummary=null; el.remove(); render(); try{ maybeShowSignupNudge(); }catch(e){ console.error('[GAINZ] signup nudge error:',e); } },280); }
   else { render(); try{ maybeShowSignupNudge(); }catch(e){ console.error('[GAINZ] signup nudge error:',e); } }
 }
 async function maybeShowSignupNudge(){
@@ -1295,6 +1308,9 @@ function render(){
   if(workoutSummary&&screen==="start"){
     const existing=document.getElementById("wo-summary");
     if(!existing){ try{ const el=document.createElement("div"); el.innerHTML=renderWorkoutSummary(); if(el.firstChild) document.body.appendChild(el.firstChild); }catch(sumErr){ console.error('[GAINZ] renderWorkoutSummary error:',sumErr); workoutSummary=null; } }
+  } else {
+    const stale=document.getElementById("wo-summary");
+    if(stale) stale.remove();
   }
   if(screen==="start"){ setTimeout(initCarouselFade,0); setTimeout(maybeShowHomeTour,300); }
   if(FEATURES.devMode){const t=performance.now()-renderStart;if(t>16)console.warn(`[GAINZ] render() took ${t.toFixed(1)}ms`);}
