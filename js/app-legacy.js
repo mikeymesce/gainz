@@ -1051,21 +1051,46 @@ function renderWorkoutSummary(){
     Pull:[{tip:'Training a muscle twice per week builds more than once — even with the same total sets. Hit back again in a few days.',src:'Schoenfeld et al., Sports Med, 2016'},{tip:'Grip strength limits your pulls. Try straps on heavy sets so your back gives out before your hands.',src:'Practical strength training application'},{tip:'Your lats are the widest muscle in your body. Most people undertrain them.',src:'Wernbom et al., Sports Med, 2007'},{tip:'Rows build posture. Posture builds presence. Keep pulling.',src:'Howe et al., Musculoskeletal Science and Practice, 2022'}],
     Legs:[{tip:'Leg day builds the largest muscles in your body. Consistent lower-body training is one of the best investments in long-term strength and metabolic health.',src:'Kraemer & Ratamess, Sports Med, 2005'},{tip:'Stretch your quads and hip flexors tonight. Leg day tightness is real and affects your next session.',src:'Behm & Chaouachi, Eur J Appl Physiol, 2011'}],
     Core:[
-      {tip:'Your core just got stronger. That transfers directly to bigger squats, deadlifts, and overhead presses.',src:'Kibler et al., Sports Med, 2006'},
-      {tip:'Core stability training reduces lower back injury risk. Multiple meta-analyses confirm it\'s more effective than general exercise for preventing back pain.',src:'Steffens et al., JAMA Internal Med, 2016'},
-      {tip:'Core endurance matters more than core strength for preventing low back pain. Train for time under tension, not max load.',src:'McGill, Low Back Disorders, 2016'},
-      {tip:'Anti-extension exercises (planks, ab wheel, dead bugs) activate the core with significantly less spinal compression than crunches and sit-ups.',src:'Escamilla et al., Physical Therapy, 2010'},
-      {tip:'Holding a plank beyond 60 seconds has minimal additional benefit. Short holds (10-30 sec) with harder progressions are more effective.',src:'McGill, Low Back Disorders, 2016'},
-      {tip:'Squats and deadlifts train your core as a stabilizer, but not through full range of motion. They\'re not a complete substitute for direct core work.',src:'Martuscello et al., J Strength Cond Res, 2013'},
-      {tip:'Ab visibility is determined by body fat percentage, not core training volume. For most men: 10-14%. For most women: 16-20%.',src:'Jackson & Pollock, Br J Nutrition, 1978'},
-      {tip:'You cannot spot-reduce belly fat by doing ab exercises. This has been tested and disproven multiple times.',src:'Vispute et al., J Strength Cond Res, 2011'},
-      {tip:'Core training 2-4x per week is sufficient. Daily core work is unnecessary and may impair recovery.',src:'Schoenfeld et al., Sports Med, 2016'},
-      {tip:'The transverse abdominis acts like a natural weight belt, stabilizing your spine. Train it by bracing — not sucking in.',src:'Hodges & Richardson, Experimental Brain Research, 1997'},
-      {tip:'Sit-ups are a poor core exercise. They recruit hip flexors too much, compress the spine, and isolate abs less than alternatives.',src:'McGill, J Electromyography Kinesiology, 2003'},
-      {tip:'The bird dog, side plank, and curl-up (McGill\'s Big Three) are the safest and most effective core exercises for spinal health.',src:'McGill, Low Back Disorders, 2016'},
-      {tip:'Unstable surfaces (Bosu balls) increase core activation slightly but reduce force production so much that they\'re worse for building core strength.',src:'Behm et al., J Strength Cond Res, 2010'},
-      {tip:'Core training improves balance and athletic performance across all age groups. Multiple meta-analyses confirm this.',src:'Granacher et al., Sports Med, 2013'},
-      {tip:'The core is roughly 35 muscles — not just your six-pack. It includes obliques, erector spinae, multifidus, diaphragm, and pelvic floor.',src:'Kibler et al., Sports Med, 2006'},
+      // Existing core tips
+      {title:'Core → Compound',tip:'Your core just got stronger. That transfers directly to bigger squats, deadlifts, and overhead presses.',src:'Kibler et al., Sports Med, 2006'},
+      {title:'Back Pain Shield',tip:'Core stability training reduces lower back injury risk. Multiple meta-analyses confirm it\'s more effective than general exercise for preventing back pain.',src:'Steffens et al., JAMA Internal Med, 2016'},
+      {title:'Endurance > Strength',tip:'Core endurance matters more than core strength for preventing low back pain. Train for time under tension, not max load.',src:'McGill, Low Back Disorders, 2016'},
+      {title:'Spine-Friendly Core',tip:'Anti-extension exercises (planks, ab wheel, dead bugs) activate the core with significantly less spinal compression than crunches and sit-ups.',src:'Escamilla et al., Physical Therapy, 2010'},
+      {title:'Plank Diminishing Returns',tip:'Holding a plank beyond 60 seconds has minimal additional benefit. Short holds (10-30 sec) with harder progressions are more effective.',src:'McGill, Low Back Disorders, 2016'},
+      {title:'Squats Aren\'t Enough',tip:'Squats and deadlifts train your core as a stabilizer, but not through full range of motion. They\'re not a complete substitute for direct core work.',src:'Martuscello et al., J Strength Cond Res, 2013'},
+      {title:'Six-Pack Math',tip:'Ab visibility is determined by body fat percentage, not core training volume. For most men: 10-14%. For most women: 16-20%.',src:'Jackson & Pollock, Br J Nutrition, 1978'},
+      {myth:true,title:'Spot Reduction',tip:'You cannot spot-reduce belly fat by doing ab exercises. This has been tested and disproven multiple times.',src:'Vispute et al., J Strength Cond Res, 2011'},
+      {title:'Frequency Sweet Spot',tip:'Core training 2-4x per week is sufficient. Daily core work is unnecessary and may impair recovery.',src:'Schoenfeld et al., Sports Med, 2016'},
+      {title:'Brace, Don\'t Suck In',tip:'The transverse abdominis acts like a natural weight belt, stabilizing your spine. Train it by bracing — not sucking in.',src:'Hodges & Richardson, Experimental Brain Research, 1997'},
+      {myth:true,title:'Sit-Ups Are Overrated',tip:'Sit-ups are a poor core exercise. They recruit hip flexors too much, compress the spine, and isolate abs less than alternatives.',src:'McGill, J Electromyography Kinesiology, 2003'},
+      {title:'The Big Three',tip:'The bird dog, side plank, and curl-up (McGill\'s Big Three) are the safest and most effective core exercises for spinal health.',src:'McGill, Low Back Disorders, 2016'},
+      {myth:true,title:'Bosu Ball Hype',tip:'Unstable surfaces (Bosu balls) increase core activation slightly but reduce force production so much that they\'re worse for building core strength.',src:'Behm et al., J Strength Cond Res, 2010'},
+      {title:'Balance Booster',tip:'Core training improves balance and athletic performance across all age groups. Multiple meta-analyses confirm this.',src:'Granacher et al., Sports Med, 2013'},
+      {title:'35 Muscles Deep',tip:'The core is roughly 35 muscles — not just your six-pack. It includes obliques, erector spinae, multifidus, diaphragm, and pelvic floor.',src:'Kibler et al., Sports Med, 2006'},
+      // New core tips — science
+      {title:'Lower Ab Targeting',tip:'Hanging leg raises activate lower abs way more than crunches. If you want to target that lower ab region, hang and lift.',src:'Contreras et al., Strength & Conditioning Journal, 2014'},
+      {title:'Breathe to Activate',tip:'Exhaling hard during the crunch phase increases ab activation by ~20%. Breathe out forcefully as you curl up.',src:'Ishida et al., J Physical Therapy Science, 2012'},
+      {title:'Anti-Rotation King',tip:'The Pallof press is one of the best anti-rotation exercises — it trains your obliques to resist movement, which is how your core actually works in sports and life.',src:'Hibbs et al., Sports Med, 2008'},
+      {title:'Stealth Core Work',tip:'Farmer\'s walks are elite core training in disguise. They challenge anti-lateral flexion, grip, and total-body stability all at once.',src:'McGill et al., J Strength Cond Res, 2009'},
+      {title:'Overload Your Abs',tip:'Cable crunches let you progressively overload your abs the same way you overload chest or back. Your abs respond to added resistance.',src:'Schoenfeld & Contreras, Strength & Conditioning Journal, 2011'},
+      {title:'Train All 3 Planes',tip:'Training core through all 3 planes (flexion, rotation, lateral flexion) beats single-plane work for functional strength.',src:'Huxel Bliven & Anderson, Sports Health, 2013'},
+      // New core tips — myths
+      {myth:true,title:'Volume ≠ Visibility',tip:'"More ab exercises = faster six-pack." A study had people do abs 5x/week for 6 weeks — zero change in belly fat. Diet drives visibility, training drives strength.',src:'Vispute et al., J Strength Cond Res, 2011'},
+      {myth:true,title:'Wrong Bracing Cue',tip:'"Suck your belly button to your spine." That only activates the transverse abdominis in isolation. For real lifting, push your abs OUT against your belt — 360-degree brace.',src:'Grenier & McGill, Clinical Biomechanics, 2007'},
+      {myth:true,title:'Machines vs. Bodyweight',tip:'"Ab machines are better than bodyweight." EMG studies show the ab wheel and hanging leg raises outperform most gym machines for activation.',src:'Escamilla et al., Physical Therapy, 2006'},
+      {myth:true,title:'The Burn Myth',tip:'"You need to feel a burn for abs to grow." The burn is just metabolic waste buildup. Mechanical tension drives growth — abs are no different from any other muscle.',src:'Schoenfeld, J Strength Cond Res, 2010'},
+      {myth:true,title:'Twisting Won\'t Shrink',tip:'"Twisting with weight shrinks your waist." Weighted oblique work can actually build thicker obliques, making your waist wider. For a smaller waist, focus on diet and anti-rotation.',src:'Contreras & Schoenfeld, Strength & Conditioning Journal, 2011'},
+      // New core tips — recovery
+      {title:'Fast Recoverers',tip:'Abs recover faster than most muscles — high slow-twitch fiber ratio. 24-48 hours rest is usually enough.',src:'Haggmark & Thorstensson, Acta Physiologica Scandinavica, 1979'},
+      {title:'Hip Flexor Check',tip:'Hip flexors sore after core day? Too many sit-up variations. Switch to planks and dead bugs — your actual abs will thank you.',src:'McGill, Low Back Disorders, 2016'},
+      {title:'Walk It Off',tip:'Walking after a hard core session reduces next-day stiffness. Light movement increases blood flow without adding training stress.',src:'Dupuy et al., Front Physiology, 2018'},
+      {title:'Roll the Upper Back',tip:'Foam roll your upper back (not lower) after core work to release tension from all that bracing.',src:'Cheatham et al., Int J Sports Physical Therapy, 2015'},
+      {title:'Breathe to Recover',tip:'Deep belly breaths after core training help your trunk muscles relax and downregulate. Five slow breaths, fully exhale each time.',src:'Ma et al., Front Psychology, 2017'},
+      // New core tips — fun facts
+      {title:'One Muscle',tip:'Your rectus abdominis is one continuous muscle — the "pack" lines are just connective tissue bands crossing it.',src:'Moore & Dalley, Clinically Oriented Anatomy, 2013'},
+      {title:'Genetics = Pack Count',tip:'Whether you have a 4-pack, 6-pack, or 8-pack is 100% genetic. Set before birth, can\'t be changed by training.',src:'Standring, Gray\'s Anatomy, 2020'},
+      {title:'Brain Fires First',tip:'Your brain fires core stabilizers ~30 milliseconds BEFORE any limb movement to protect your spine.',src:'Hodges & Richardson, Experimental Brain Research, 1997'},
+      {title:'Nature\'s Lifting Belt',tip:'Obliques form a natural X-brace — external and internal run opposite diagonals, like nature\'s lifting belt.',src:'Urquhart et al., J Electromyography Kinesiology, 2005'},
     ],
     Quick:[{tip:'Quick sessions still count. Consistency beats intensity every time.',src:'Androulakis-Korakakis et al., Sports Med, 2020'}],
   };
@@ -1133,6 +1158,7 @@ function renderWorkoutSummary(){
           <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">${pillar.icon} ${pillar.pillar}</span>
           ${pillarTip.myth?'<span style="font-size:8px;letter-spacing:1.5px;color:var(--accent);background:rgba(232,213,160,0.1);padding:2px 6px;border-radius:4px;">MYTH BUSTED</span>':''}
         </div>
+        ${pillarTip.title?`<div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);margin-bottom:4px;">${pillarTip.title}</div>`:''}
         <div style="font-size:13px;color:var(--text);line-height:1.5;">${pillarTip.tip}</div>
         <div style="font-size:9px;color:var(--dim);margin-top:8px;font-style:italic;">${pillarTip.src}</div>
       </div>
