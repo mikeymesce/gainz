@@ -3237,6 +3237,69 @@ function saveHistDuration(wIdx){
   showToast('Duration updated');
   render();
 }
+function histEditDate(wIdx){
+  const w=state.workouts[wIdx];
+  if(!w) return;
+  const d=w.timestamp?new Date(w.timestamp):new Date();
+  const isoDate=d.toISOString().slice(0,10);
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">EDIT DATE</div>
+    <input id="hdate-val" type="date" value="${isoDate}"
+      style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;padding:10px;margin-bottom:16px;box-sizing:border-box;"/>
+    <button class="btn primary" onclick="saveHistDate(${wIdx})">SAVE</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+function saveHistDate(wIdx){
+  const val=document.getElementById('hdate-val').value;
+  if(!val){ hideModal(); return; }
+  const d=new Date(val+'T12:00:00');
+  const displayDate=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  state.workouts[wIdx].date=displayDate;
+  state.workouts[wIdx].timestamp=d.getTime();
+  if(state.workouts.indexOf(historyDetail)===wIdx) historyDetail=state.workouts[wIdx];
+  histEditDirty=true;
+  saveImmediate();
+  hideModal();
+  showToast('Date updated');
+  render();
+}
+function histEditSplit(wIdx){
+  const w=state.workouts[wIdx];
+  if(!w) return;
+  const allSplits=Object.keys(ALL_SPLITS);
+  const opts=allSplits.map(s=>`<option value="${s}"${w.split===s?' selected':''}>${splitName(s)}</option>`).join('');
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">EDIT WORKOUT TYPE</div>
+    <select id="hsplit-val"
+      style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;padding:10px;margin-bottom:16px;box-sizing:border-box;">
+      ${opts}
+    </select>
+    <button class="btn primary" onclick="saveHistSplit(${wIdx})">SAVE</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+function saveHistSplit(wIdx){
+  const val=document.getElementById('hsplit-val').value;
+  if(!val){ hideModal(); return; }
+  state.workouts[wIdx].split=val;
+  if(state.workouts.indexOf(historyDetail)===wIdx) historyDetail=state.workouts[wIdx];
+  histEditDirty=true;
+  saveImmediate();
+  hideModal();
+  showToast('Workout type updated');
+  render();
+}
+function histSaveNotes(wIdx,val){
+  const trimmed=val.trim();
+  const w=state.workouts[wIdx];
+  if(!w) return;
+  if((w.notes||'')===(trimmed)) return;
+  state.workouts[wIdx].notes=trimmed||null;
+  if(state.workouts.indexOf(historyDetail)===wIdx) historyDetail=state.workouts[wIdx];
+  histEditDirty=true;
+  saveImmediate();
+}
 // ── Weekly Volume Wave Chart ──
 function renderVolumeWave(){
   if(!state.workouts||!state.workouts.length) return '';
@@ -3747,13 +3810,15 @@ function renderHistDetail(){
   const prCount=w.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.pr).length,0);
   const setCount=w.exercises.reduce((a,e)=>a+e.sets.length,0);
 
-  const sessionNotes=w.notes?`<div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Session Notes</div><div style="font-size:12px;color:var(--muted);line-height:1.5;">${w.notes}</div></div>`:'';
+  const sessionNotes=edit
+    ?`<div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Session Notes</div><textarea id="hist-notes-${wIdx}" rows="3" placeholder="Add notes…" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px;resize:vertical;box-sizing:border-box;line-height:1.5;" onblur="histSaveNotes(${wIdx},this.value)">${w.notes||''}</textarea></div>`
+    :w.notes?`<div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Session Notes</div><div style="font-size:12px;color:var(--muted);line-height:1.5;">${w.notes}</div></div>`:'';
   const saunaCard=w.sauna?`<div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">🧖 Sauna</div><div style="font-size:14px;color:var(--text);">${w.sauna.minutes} min${w.sauna.tempF?' @ '+w.sauna.tempF+'°F':''}</div></div>`:'';
   return `
     <div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:center;flex-wrap:wrap;gap:8px;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;line-height:1;">${splitName(w.split)}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;line-height:1;${edit?'cursor:pointer;':''}" ${edit?`onclick="histEditSplit(${wIdx})"`:''}>${splitName(w.split)}${edit?' ✎':''}</div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:10px;color:var(--dim)">${w.date}${w.duration?` · ${fmtMs(w.duration)}`:""}</span>
+        <span style="font-size:10px;color:var(--dim);${edit?'cursor:pointer;text-decoration:underline dotted;':''}" ${edit?`onclick="histEditDate(${wIdx})"`:''}>${w.date}${edit?' ✎':''}${w.duration?` · ${fmtMs(w.duration)}`:""}</span>
         <button onclick="toggleHistEdit()"
           style="background:${edit?"rgba(232,213,160,0.1)":"none"};border:1px solid ${edit?"var(--accent)":"var(--border2)"};border-radius:6px;padding:4px 10px;color:${edit?"var(--accent)":"var(--muted)"};font-family:inherit;font-size:11px;cursor:pointer;">
           ${edit?"✓ DONE":"✏️ EDIT"}
