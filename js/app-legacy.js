@@ -884,8 +884,7 @@ function dismissSummary(){
   else { render(); try{ maybeShowSignupNudge(); }catch(e){ console.error('[GAINZ] signup nudge error:',e); } }
 }
 async function maybeShowSignupNudge(){
-  // Only show if not signed in and haven't dismissed before
-  if(localStorage.getItem('gainz_signup_dismissed')) return;
+  // Show every time if not signed in
   try{
     const user=await getUser();
     if(user) return; // already signed in
@@ -902,7 +901,7 @@ async function maybeShowSignupNudge(){
       <input id="nudge-pass" class="input" type="password" placeholder="password" style="margin-bottom:12px;font-size:13px;"/>
       <button onclick="nudgeSignUp()" class="btn primary" style="width:100%;">CREATE ACCOUNT</button>
       <button onclick="nudgeSignIn()" class="btn ghost" style="width:100%;margin-top:8px;">ALREADY HAVE ONE — SIGN IN</button>
-      <button onclick="localStorage.setItem('gainz_signup_dismissed','1');hideModal();" style="background:none;border:none;color:var(--dim);font-size:10px;margin-top:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Maybe later</button>
+      <button onclick="hideModal();" style="background:none;border:none;color:var(--dim);font-size:10px;margin-top:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Maybe later</button>
     </div>
   `);
 }
