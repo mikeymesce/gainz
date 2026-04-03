@@ -74,6 +74,17 @@ function scrollToTimerEx(){
 }
 
 // ── Cloud Sync UI Handlers ──
+function friendlyAuthError(msg){
+  const m=(msg||'').toLowerCase();
+  if(m.includes('invalid login')) return 'Wrong email or password. Try again.';
+  if(m.includes('email not confirmed')) return 'Check your email and click the confirmation link first.';
+  if(m.includes('already registered')||m.includes('already been registered')) return 'That email already has an account. Try signing in instead.';
+  if(m.includes('invalid email')) return 'That doesn\'t look like a valid email address.';
+  if(m.includes('weak password')||m.includes('at least')) return 'Password needs to be at least 6 characters.';
+  if(m.includes('rate limit')||m.includes('too many')) return 'Too many attempts. Wait a minute and try again.';
+  if(m.includes('network')||m.includes('fetch')) return 'No internet connection. Try again when you\'re back online.';
+  return msg||'Something went wrong. Try again.';
+}
 async function cloudSignIn(){
   const email=document.getElementById('sync-email')?.value?.trim();
   const pass=document.getElementById('sync-pass')?.value;
@@ -81,7 +92,7 @@ async function cloudSignIn(){
   const errEl=document.getElementById('sync-error');
   const {error}=await signIn(email,pass);
   if(error){
-    if(errEl){errEl.textContent=error.message;errEl.style.display='block';}
+    if(errEl){errEl.textContent=friendlyAuthError(error.message);errEl.style.display='block';}
     return;
   }
   showToast('Signed in — syncing...');
@@ -96,21 +107,22 @@ async function cloudSignIn(){
 async function cloudSignUp(){
   const email=document.getElementById('sync-email')?.value?.trim();
   const pass=document.getElementById('sync-pass')?.value;
-  if(!email||!pass){showToast('Enter email and password');return;}
-  if(pass.length<6){showToast('Password must be at least 6 characters');return;}
+  if(!email){showToast('Enter your email');return;}
+  if(!pass||pass.length<6){showToast('Password needs at least 6 characters');return;}
   const errEl=document.getElementById('sync-error');
   const {error}=await signUp(email,pass);
   if(error){
-    if(errEl){errEl.textContent=error.message;errEl.style.display='block';}
+    if(errEl){errEl.textContent=friendlyAuthError(error.message);errEl.style.display='block';}
     return;
   }
-  showToast('Account created — check email to confirm, then sign in');
+  showToast('Check your email for the confirmation link!');
+  if(errEl){errEl.textContent='✓ Account created! Check your email inbox (and spam) for a confirmation link. Once confirmed, come back and sign in.';errEl.style.display='block';errEl.style.color='var(--green)';}
 }
 async function cloudResetPw(){
   const email=document.getElementById('sync-email')?.value?.trim();
-  if(!email){showToast('Enter your email first');return;}
+  if(!email){showToast('Type your email above first');return;}
   const {error}=await resetPassword(email);
-  if(error){showToast('Error: '+error.message);return;}
+  if(error){showToast(friendlyAuthError(error.message));return;}
   showToast('Password reset email sent — check your inbox');
 }
 async function cloudSignOut(){
@@ -895,11 +907,12 @@ async function maybeShowSignupNudge(){
       <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);letter-spacing:2px;margin-bottom:8px;">PROTECT YOUR DATA</div>
       <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px;">
         Your workout data only lives on this device right now. If you clear your browser or delete the app, <span style="color:var(--text);">it's gone forever.</span><br><br>
-        Create a free account to back it up.
+        Create a free account to back it up. Takes 10 seconds.
       </div>
-      <input id="nudge-email" class="input" type="email" placeholder="email" style="margin-bottom:8px;font-size:13px;"/>
-      <input id="nudge-pass" class="input" type="password" placeholder="password" style="margin-bottom:12px;font-size:13px;"/>
-      <button onclick="nudgeSignUp()" class="btn primary" style="width:100%;">CREATE ACCOUNT</button>
+      <input id="nudge-email" class="input" type="email" placeholder="email" style="margin-bottom:8px;font-size:13px;" autocomplete="email"/>
+      <input id="nudge-pass" class="input" type="password" placeholder="password (6+ characters)" style="margin-bottom:4px;font-size:13px;" autocomplete="new-password"/>
+      <div id="nudge-status" style="font-size:11px;color:var(--dim);margin-bottom:12px;display:none;line-height:1.5;"></div>
+      <button id="nudge-signup-btn" onclick="nudgeSignUp()" class="btn primary" style="width:100%;">CREATE ACCOUNT</button>
       <button onclick="nudgeSignIn()" class="btn ghost" style="width:100%;margin-top:8px;">ALREADY HAVE ONE — SIGN IN</button>
       <button onclick="hideModal();" style="background:none;border:none;color:var(--dim);font-size:10px;margin-top:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Maybe later</button>
     </div>
@@ -920,22 +933,37 @@ async function enableNotifications(){
 async function nudgeSignUp(){
   const email=document.getElementById('nudge-email')?.value?.trim();
   const pass=document.getElementById('nudge-pass')?.value;
-  if(!email||!pass){showToast('Enter email and password');return;}
+  const status=document.getElementById('nudge-status');
+  const btn=document.getElementById('nudge-signup-btn');
+  if(!email){if(status){status.textContent='Enter your email';status.style.color='var(--danger)';status.style.display='block';}return;}
+  if(!pass||pass.length<6){if(status){status.textContent='Password needs at least 6 characters';status.style.color='var(--danger)';status.style.display='block';}return;}
+  if(btn) btn.textContent='CREATING...';
   const {error}=await signUp(email,pass);
-  if(error){showToast('Error: '+error.message);return;}
-  hideModal();
-  showToast('Account created — check email to confirm, then sign in from Settings');
-  localStorage.setItem('gainz_signup_dismissed','1');
+  if(error){
+    if(status){status.textContent=friendlyAuthError(error.message);status.style.color='var(--danger)';status.style.display='block';}
+    if(btn) btn.textContent='CREATE ACCOUNT';
+    return;
+  }
+  // Show success state inline instead of closing modal
+  if(status){
+    status.innerHTML='✅ <strong>Account created!</strong><br>Check your email inbox (and spam folder) for a confirmation link.<br><br>Once you click the link, come back here and tap <strong>Sign In</strong> below.';
+    status.style.color='var(--green)';
+    status.style.display='block';
+  }
+  if(btn){btn.textContent='✓ CHECK YOUR EMAIL';btn.disabled=true;btn.style.opacity='0.5';}
 }
 async function nudgeSignIn(){
   const email=document.getElementById('nudge-email')?.value?.trim();
   const pass=document.getElementById('nudge-pass')?.value;
-  if(!email||!pass){showToast('Enter email and password');return;}
+  const status=document.getElementById('nudge-status');
+  if(!email||!pass){if(status){status.textContent='Enter email and password';status.style.color='var(--danger)';status.style.display='block';}return;}
   const {data,error}=await signIn(email,pass);
-  if(error){showToast('Error: '+error.message);return;}
+  if(error){
+    if(status){status.textContent=friendlyAuthError(error.message);status.style.color='var(--danger)';status.style.display='block';}
+    return;
+  }
   hideModal();
-  showToast('Signed in — your data is now backed up');
-  localStorage.setItem('gainz_signup_dismissed','1');
+  showToast('Signed in — your data is now backed up 🔒');
   const cloud=await syncFromCloud();
   if(cloud){ Object.assign(state,migrateState(cloud)); localStorage.setItem('gainz_v5',JSON.stringify(state)); }
   await syncToCloud();
