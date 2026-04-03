@@ -3204,6 +3204,39 @@ function histAddSet(wIdx, exName){
   ex.sets.push(last?{...last,pr:false,warmup:false}:{weight:'135',reps:'10',bw:false,pr:false,time:Date.now()});
   _histRecalc(wIdx);
 }
+function histEditDuration(wIdx){
+  const w=state.workouts[wIdx];
+  if(!w) return;
+  const curMins=Math.round((w.duration||0)/60000);
+  const curH=Math.floor(curMins/60);
+  const curM=curMins%60;
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">EDIT DURATION</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
+      <input id="hdur-h" type="number" inputmode="numeric" min="0" max="23" value="${curH}"
+        style="width:60px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;color:var(--text);padding:8px;"/>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--muted);">h</span>
+      <input id="hdur-m" type="number" inputmode="numeric" min="0" max="59" value="${curM}"
+        style="width:60px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;color:var(--text);padding:8px;"/>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--muted);">m</span>
+    </div>
+    <button class="btn primary" onclick="saveHistDuration(${wIdx})">SAVE</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+function saveHistDuration(wIdx){
+  const h=parseInt(document.getElementById('hdur-h').value)||0;
+  const m=parseInt(document.getElementById('hdur-m').value)||0;
+  const newDur=(h*60+m)*60000;
+  if(newDur<=0){ hideModal(); return; }
+  state.workouts[wIdx].duration=newDur;
+  if(historyDetail===state.workouts[wIdx]||state.workouts.indexOf(historyDetail)===wIdx) historyDetail=state.workouts[wIdx];
+  histEditDirty=true;
+  saveImmediate();
+  hideModal();
+  showToast('Duration updated');
+  render();
+}
 // ── Weekly Volume Wave Chart ──
 function renderVolumeWave(){
   if(!state.workouts||!state.workouts.length) return '';
@@ -3738,9 +3771,9 @@ function renderHistDetail(){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);line-height:1;">${setCount}</div>
         <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Sets</div>
       </div>
-      <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;text-align:center;padding:12px 6px;">
+      <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;text-align:center;padding:12px 6px;${edit?'cursor:pointer;':''}" ${edit?`onclick="histEditDuration(${wIdx})"`:''}>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);line-height:1;">${w.duration?Math.round(w.duration/60000)+"m":"—"}</div>
-        <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Time</div>
+        <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Time${edit?' ✎':''}</div>
       </div>
       <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:12px;text-align:center;padding:12px 6px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${prCount>0?"#52c87a":"var(--dim)"};line-height:1;">${prCount>0?prCount:"—"}</div>

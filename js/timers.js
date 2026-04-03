@@ -4,7 +4,8 @@
 import { GLOBAL_DEFAULT } from './config.js';
 
 let timerInterval = null;
-let timerLeft = 0;
+let timerEnd = null;     // wall-clock timestamp (ms) when rest timer expires
+let timerDone = false;   // true once beep fires, prevents double-fire
 let woTimerInterval = null;
 let woStartTime = null;
 let currentTimerExercise = null;
@@ -17,43 +18,49 @@ export function startTimer(exercise){
 
 // Used by superset flow and nextExercise — starts timer with arbitrary seconds/label
 export function startTimerRaw(seconds, label){
-  timerLeft = seconds;
   clearInterval(timerInterval);
+  timerDone = false;
+  timerEnd = Date.now() + seconds * 1000;
   const bar = document.getElementById("timer-bar");
   bar.classList.add("active");
   document.getElementById("timer-label").textContent = label;
   refreshTimerNum();
-  let overCount = 0;
+  // Poll at 250ms so the display stays accurate even after browser throttling
   timerInterval = setInterval(() => {
-    timerLeft--;
-    if(timerLeft > 0){
+    const remaining = Math.ceil((timerEnd - Date.now()) / 1000);
+    if(remaining > 0){
       refreshTimerNum();
-    } else if(timerLeft === 0){
+    } else if(!timerDone){
+      timerDone = true;
       clearInterval(timerInterval);
       playBeep();
       const d = document.getElementById("timer-display");
       if(d) d.innerHTML = `<div class="timer-done">✓ GO</div>`;
+      const overStart = Date.now();
       timerInterval = setInterval(() => {
-        overCount++;
+        const over = Math.floor((Date.now() - overStart) / 1000);
         const d2 = document.getElementById("timer-display");
-        if(d2) d2.innerHTML = `<div class="timer-num" id="timer-num" style="color:var(--muted);font-size:20px;">+${fmt(overCount)}</div>`;
-      }, 1000);
+        if(d2) d2.innerHTML = `<div class="timer-num" id="timer-num" style="color:var(--muted);font-size:20px;">+${fmt(over)}</div>`;
+      }, 500);
     }
-  }, 1000);
+  }, 250);
 }
 
 export function refreshTimerNum(){
+  const remaining = timerEnd ? Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000)) : 0;
   const e = document.getElementById("timer-num");
-  if(e) e.textContent = fmt(timerLeft);
+  if(e) e.textContent = fmt(remaining);
 }
 
 export function adjTimer(d){
-  timerLeft = Math.max(5, timerLeft + d);
+  if(timerEnd) timerEnd += d * 1000;
   refreshTimerNum();
 }
 
 export function skipTimer(){
   clearInterval(timerInterval);
+  timerEnd = null;
+  timerDone = false;
   const b = document.getElementById("timer-bar");
   if(b) b.classList.remove("active");
   const d = document.getElementById("timer-display");

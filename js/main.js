@@ -174,6 +174,24 @@ Object.assign(window, {
   }
 })();
 
+// Pause workout clock when app is backgrounded so background time isn't
+// counted toward workout duration. Shifts startTime forward by however long
+// the app was hidden, which also fixes the "3-hour workout" bug.
+{
+  let _bgHiddenAt = null;
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){
+      if(window.activeWorkout) _bgHiddenAt = Date.now();
+    } else {
+      if(window.activeWorkout && _bgHiddenAt){
+        window.activeWorkout.startTime += Date.now() - _bgHiddenAt;
+        try{ localStorage.setItem('gainz_recovery', JSON.stringify(window.activeWorkout)); }catch(e){}
+      }
+      _bgHiddenAt = null;
+    }
+  });
+}
+
 // Load legacy script — guaranteed to run after modules are ready
 const script = document.createElement('script');
 script.src = 'js/app-legacy.js';
