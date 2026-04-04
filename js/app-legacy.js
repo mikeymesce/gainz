@@ -1857,6 +1857,57 @@ function removeHomeTour(){
 // Home calendar widget — moved to js/home-calendar.js
 
 
+function renderThisWeek(){
+  const weekStart=new Date();
+  weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+  weekStart.setHours(0,0,0,0);
+  const thisWeek=state.workouts.filter(w=>new Date(w.timestamp)>=weekStart);
+  if(!thisWeek.length) return '';
+  const totalVol=thisWeek.reduce((a,w)=>a+(w.totalVolume||0),0);
+  const totalSets=thisWeek.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.length,0),0);
+  const totalMin=Math.round(thisWeek.reduce((a,w)=>a+(w.duration||0),0)/60000);
+  const prCount=thisWeek.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.filter(s=>s.pr).length,0),0);
+  const splits=[...new Set(thisWeek.map(w=>splitName(w.split)))];
+  return `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
+    <div style="font-size:8px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">THIS WEEK</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);line-height:1;">${thisWeek.length}</div>
+        <div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">WORKOUTS</div>
+      </div>
+      <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);line-height:1;">${totalVol>0?Math.round(totalVol/1000)+'k':'—'}</div>
+        <div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">LB MOVED</div>
+      </div>
+      <div style="flex:1;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);line-height:1;">${totalMin}</div>
+        <div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">MINUTES</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:10px;color:var(--dim);">${splits.join(' · ')}</div>
+      <div style="display:flex;gap:6px;font-size:10px;">
+        ${prCount?`<span style="color:var(--accent);">🏆 ${prCount} PR${prCount!==1?'s':''}</span>`:''}
+        <span style="color:var(--muted);">${totalSets} sets</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderTemplateQuickLaunch(){
+  const templates=state.templates||[];
+  if(!templates.length) return '';
+  return `<div style="margin-bottom:10px;">
+    <div style="font-size:8px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">QUICK START FROM TEMPLATE</div>
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;">
+      ${templates.slice(0,6).map(t=>`<button onclick="loadTemplate('${t.id}')" style="flex-shrink:0;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;cursor:pointer;text-align:left;min-width:120px;">
+        <div style="font-size:12px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">${t.name}</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:3px;">${t.exercises.length} exercises</div>
+      </button>`).join('')}
+    </div>
+  </div>`;
+}
+
 function renderHome(){
   const rec=getRec();
   const lw=state.workouts[0];
@@ -2135,6 +2186,10 @@ function renderHome(){
         <button onclick="event.stopPropagation();quickStart()" style="background:none;border:1px solid rgba(232,213,160,0.25);border-radius:12px;padding:13px 16px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">QUICK START</button>
       </div>
     </div>
+
+    ${renderThisWeek()}
+
+    ${renderTemplateQuickLaunch()}
 
     ${renderDailyCheckin()}
 
