@@ -34,17 +34,26 @@ MFP ─────┘
 ## Phase 4: Injury Tracking
 Log injuries → app adjusts exercise suggestions → flags overloading injured areas → tracks recovery → tells you when it's safe to reintroduce movements.
 
+## Phase 5: Motion Tracking
+Phone replaces manual logging — auto-detects exercises, counts reps, flags form issues.
+
+- **Camera-based (near-term):** TensorFlow.js + MoveNet pose estimation in-browser. Phone propped up, watches you lift. Identifies exercise, counts reps, estimates ROM. Weight still entered manually.
+- **Wearable-based (mid-term):** Apple Watch companion app (requires native Swift). Best accuracy for rep counting via accelerometer/gyroscope. Also captures heart rate during sets.
+- **Full auto (long-term):** Camera detects plates on bar → auto-logs weight. Combined with wearable for rep count. True hands-free logging.
+
 ---
 
 ## Tech Roadmap
 
 | What | When |
 |---|---|
-| Split codebase into multiple files | Now |
+| Split codebase into multiple files | ✅ Done |
+| User accounts & auth | ✅ Done (Supabase) |
 | AI/LLM layer for advice | Phase 2 |
 | Backend server + database | Phase 3 |
-| User accounts & auth | Phase 3 |
 | API integration layer | Phase 3 |
+| Camera pose estimation (TF.js) | Phase 5 |
+| Apple Watch companion (native) | Phase 5 |
 
 ## Principles
 
