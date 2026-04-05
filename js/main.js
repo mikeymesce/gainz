@@ -50,7 +50,8 @@ import {
 import {
   getActiveSplits, getRec, getLastSession, isPR,
   getWeeklyMuscleSets, getSuggestedWeight, splitName,
-  setProgram
+  setProgram,
+  roundToNearest5, calcWarmupSets, loadWarmups
 } from './workout-logic.js';
 import {
   startTimer, startTimerRaw, refreshTimerNum, adjTimer,
@@ -124,6 +125,7 @@ Object.assign(window, {
   getActiveSplits, getRec, getLastSession, isPR,
   getWeeklyMuscleSets, getSuggestedWeight, splitName,
   setProgram,
+  roundToNearest5, calcWarmupSets, loadWarmups,
   // Timers
   startTimer, startTimerRaw, refreshTimerNum, adjTimer,
   skipTimer, startWoTimer, stopWoTimer, getTimerExercise,

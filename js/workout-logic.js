@@ -58,6 +58,44 @@ export function getWeeklyMuscleSets(){
   return counts;
 }
 
+// ── Warmup Set Calculator ──
+// Rounds a weight to the nearest 5lb (e.g. 137 → 135, 138 → 140)
+export function roundToNearest5(w){ return Math.round(w / 5) * 5; }
+
+// Given a working weight, returns an array of warmup set objects:
+// [{weight, reps, label}]
+// Classic protocol: bar × 10, 40%, 60%, 80% × 3-5 reps each
+export function calcWarmupSets(workingWeight){
+  const w = parseFloat(workingWeight);
+  if(!w || w <= 45) return [];
+  const sets = [
+    { pct: 0,   reps: 10, label: 'Bar'  },
+    { pct: 0.40, reps: 8,  label: '40%' },
+    { pct: 0.60, reps: 5,  label: '60%' },
+    { pct: 0.80, reps: 3,  label: '80%' },
+  ];
+  return sets.map(s => {
+    const raw = s.pct === 0 ? 45 : w * s.pct;
+    const weight = roundToNearest5(Math.max(45, raw));
+    return { weight, reps: s.reps, label: s.label };
+  }).filter((s, i, arr) => {
+    // Drop any warmup step that equals or exceeds the working weight
+    if(s.weight >= w) return false;
+    // Drop duplicate weights (e.g. bar step == 40% step on light lifts)
+    return arr.findIndex(x => x.weight === s.weight) === i;
+  });
+}
+
+// Returns warmup sets for an exercise based on its last session working weight,
+// or the current session's suggested weight. Returns [] if not applicable.
+export function loadWarmups(name){
+  const last = getLastSession(name);
+  const workSets = last ? last.sets.filter(s => !s.bw && !s.warmup && parseFloat(s.weight) > 0) : [];
+  if(!workSets.length) return [];
+  const topWeight = Math.max(...workSets.map(s => parseFloat(s.weight)));
+  return calcWarmupSets(topWeight);
+}
+
 export function getSuggestedWeight(name){
   const last = getLastSession(name);
   if(!last || !last.sets.length) return null;

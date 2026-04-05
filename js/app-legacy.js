@@ -1189,11 +1189,235 @@ function renderWorkoutSummary(){
         <div style="font-size:13px;color:var(--text);line-height:1.5;">${pillarTip.tip}</div>
         <div style="font-size:9px;color:var(--dim);margin-top:8px;font-style:italic;">${pillarTip.src}</div>
       </div>
-      <button class="btn primary" onclick="dismissSummary()" style="width:100%;margin-top:12px;font-size:13px;">DONE ✓</button>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn" onclick="shareWorkoutCard()" style="flex:1;font-size:13px;background:var(--bg3);border:1px solid var(--accent);color:var(--accent);">SHARE 📤</button>
+        <button class="btn primary" onclick="dismissSummary()" style="flex:1;font-size:13px;">DONE ✓</button>
+      </div>
     </div>
   </div>`;
   }catch(sumErr){ console.error('[GAINZ] renderWorkoutSummary error:',sumErr); workoutSummary=null; return ""; }
 }
+
+function shareWorkoutCard(){
+  const w=workoutSummary;
+  if(!w) return;
+  try{
+    const WIDTH=1080, HEIGHT=1920;
+    const canvas=document.createElement('canvas');
+    canvas.width=WIDTH; canvas.height=HEIGHT;
+    const ctx=canvas.getContext('2d');
+
+    // --- Colors matching app design system ---
+    const bg='#080808', cardBg='#0f0f12', border='#1e1e24';
+    const accent='#e8d5a0', text='#f0ece0', muted='#6a6560', dim='#3a3630';
+
+    // --- Background ---
+    ctx.fillStyle=bg;
+    ctx.fillRect(0,0,WIDTH,HEIGHT);
+
+    // Subtle gradient overlay at top
+    const grad=ctx.createLinearGradient(0,0,0,400);
+    grad.addColorStop(0,'rgba(232,213,160,0.06)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grad;
+    ctx.fillRect(0,0,WIDTH,400);
+
+    let y=100;
+
+    // --- GAINZ logo text ---
+    ctx.textAlign='center';
+    ctx.fillStyle=accent;
+    ctx.font='700 72px "Bebas Neue", sans-serif';
+    ctx.fillText('GAINZ',WIDTH/2,y);
+    y+=20;
+
+    // Thin gold line
+    ctx.strokeStyle=accent;
+    ctx.globalAlpha=0.3;
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(WIDTH/2-120,y);ctx.lineTo(WIDTH/2+120,y);ctx.stroke();
+    ctx.globalAlpha=1;
+    y+=50;
+
+    // --- Date ---
+    ctx.fillStyle=muted;
+    ctx.font='400 28px "DM Sans", sans-serif';
+    ctx.fillText(w.date||new Date().toLocaleDateString(),WIDTH/2,y);
+    y+=60;
+
+    // --- Split name ---
+    ctx.fillStyle=text;
+    ctx.font='700 96px "Bebas Neue", sans-serif';
+    ctx.fillText((splitName(w.split)+' Day').toUpperCase(),WIDTH/2,y);
+    y+=70;
+
+    // --- Stats grid (2x2) ---
+    const durMins=Math.round((w.duration||0)/60000);
+    const durStr=durMins>=60?Math.floor(durMins/60)+'h '+(durMins%60)+'m':durMins+'min';
+    const setCount=w.exercises.reduce((a,e)=>a+(e.sets?e.sets.length:0),0);
+    const prCount=w.exercises.reduce((a,e)=>a+(e.sets?e.sets.filter(s=>s.pr).length:0),0);
+    const stats=[
+      {value:w.totalVolume>0?w.totalVolume.toLocaleString():'—',label:'LB MOVED'},
+      {value:durStr,label:'DURATION'},
+      {value:String(setCount),label:'SETS'},
+      {value:prCount>0?prCount+' PR'+(prCount>1?'s':''):'—',label:'RECORDS'},
+    ];
+
+    const gridX=100, gridW=(WIDTH-200)/2, gridH=160, gridGap=16;
+    y+=10;
+    for(let i=0;i<4;i++){
+      const col=i%2, row=Math.floor(i/2);
+      const cx=gridX+col*(gridW+gridGap);
+      const cy=y+row*(gridH+gridGap);
+
+      // Card background
+      ctx.fillStyle=cardBg;
+      ctx.beginPath();
+      ctx.roundRect(cx,cy,gridW,gridH,16);
+      ctx.fill();
+      ctx.strokeStyle=border;
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.roundRect(cx,cy,gridW,gridH,16);
+      ctx.stroke();
+
+      // Value
+      ctx.fillStyle=accent;
+      ctx.font='700 56px "Bebas Neue", sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(stats[i].value,cx+gridW/2,cy+85);
+
+      // Label
+      ctx.fillStyle=muted;
+      ctx.font='500 20px "DM Sans", sans-serif';
+      ctx.fillText(stats[i].label,cx+gridW/2,cy+125);
+    }
+    y+=2*(gridH+gridGap)+40;
+
+    // --- Exercise list with top set ---
+    ctx.textAlign='left';
+    const exPadX=100;
+    const maxExercises=Math.min(w.exercises.length,10);
+
+    // Section header
+    ctx.fillStyle=dim;
+    ctx.font='500 22px "DM Sans", sans-serif';
+    ctx.fillText('EXERCISES',exPadX,y);
+    y+=16;
+
+    // Thin separator
+    ctx.strokeStyle=border;
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(exPadX,y);ctx.lineTo(WIDTH-exPadX,y);ctx.stroke();
+    y+=30;
+
+    for(let i=0;i<maxExercises;i++){
+      const ex=w.exercises[i];
+      const sets=(ex.sets||[]).filter(s=>!s.warmup);
+      // Find top set by weight
+      let topSet=null;
+      for(const s of sets){
+        const wt=parseFloat(s.weight)||0;
+        if(!topSet||wt>=(parseFloat(topSet.weight)||0)) topSet=s;
+      }
+
+      // Exercise name
+      ctx.fillStyle=text;
+      ctx.font='400 34px "DM Sans", sans-serif';
+      ctx.fillText(ex.name,exPadX,y);
+
+      // Top set on the right
+      if(topSet){
+        const topStr=(topSet.bw?'BW':topSet.weight)+' \u00D7 '+topSet.reps;
+        ctx.textAlign='right';
+        ctx.fillStyle=accent;
+        ctx.font='700 34px "Bebas Neue", sans-serif';
+        ctx.fillText(topStr,WIDTH-exPadX,y);
+        ctx.textAlign='left';
+      }
+
+      // PR badge
+      const hasPR=sets.some(s=>s.pr);
+      if(hasPR){
+        ctx.textAlign='right';
+        ctx.fillStyle=accent;
+        ctx.font='400 22px "DM Sans", sans-serif';
+        ctx.fillText('PR',WIDTH-exPadX,y+28);
+        ctx.textAlign='left';
+        y+=30;
+      }
+
+      y+=52;
+
+      // Check if running out of space
+      if(y>HEIGHT-280){
+        if(i<maxExercises-1){
+          ctx.fillStyle=muted;
+          ctx.font='400 28px "DM Sans", sans-serif';
+          ctx.fillText('+'+(w.exercises.length-i-1)+' more...',exPadX,y);
+          y+=50;
+        }
+        break;
+      }
+    }
+
+    // --- Bottom area: tagline + branding ---
+    const taglines=[
+      'EVERY REP COUNTS.','BUILT, NOT BORN.','EARN YOUR STRENGTH.',
+      'DISCIPLINE OVER MOTIVATION.','THE WORK SPEAKS FOR ITSELF.',
+      'STRONGER THAN YESTERDAY.','NO SHORTCUTS.','TRUST THE PROCESS.',
+    ];
+    const tagline=taglines[Math.floor(Math.random()*taglines.length)];
+
+    const bottomY=HEIGHT-120;
+
+    // Thin line above tagline
+    ctx.strokeStyle=border;
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(WIDTH/2-200,bottomY-60);ctx.lineTo(WIDTH/2+200,bottomY-60);ctx.stroke();
+
+    ctx.textAlign='center';
+    ctx.fillStyle=accent;
+    ctx.globalAlpha=0.7;
+    ctx.font='700 36px "Bebas Neue", sans-serif';
+    ctx.fillText(tagline,WIDTH/2,bottomY-20);
+
+    ctx.globalAlpha=0.3;
+    ctx.fillStyle=muted;
+    ctx.font='400 22px "DM Sans", sans-serif';
+    ctx.fillText('GAINZ \u2014 TRACK YOUR STRENGTH',WIDTH/2,bottomY+25);
+    ctx.globalAlpha=1;
+
+    // --- Export ---
+    canvas.toBlob(async function(blob){
+      if(!blob) return;
+      const file=new File([blob],'gainz-workout.png',{type:'image/png'});
+
+      // Try Web Share API first (mobile)
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file],title:'GAINZ Workout',text:splitName(w.split)+' Day \u2014 '+durStr});
+          return;
+        }catch(shareErr){
+          if(shareErr.name==='AbortError') return;
+          console.warn('[GAINZ] Share failed, falling back:',shareErr);
+        }
+      }
+
+      // Fallback: download the image
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download='gainz-'+w.split+'-'+(w.date||'workout').replace(/\//g,'-')+'.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},5000);
+      showToast('Image saved \u2014 share it!');
+    },'image/png');
+  }catch(err){
+    console.error('[GAINZ] shareWorkoutCard error:',err);
+    showToast('Share failed \u2014 try a screenshot instead');
+  }
+}
+
 function detectSplit(exercises){
   const exNames=exercises.map(e=>e.name);
   let best=null, bestCount=0;
@@ -2954,7 +3178,7 @@ function renderLog(){
     const isRenaming=renamingEx===e.name;
     const nameEl=isRenaming
       ?`<input class="ex-name-input" id="rin-${id}" value="${e.name.replace(/"/g,'&quot;')}" onblur="commitRename(${esc(e.name)})" onkeydown="if(event.key==='Enter')commitRename(${esc(e.name)});if(event.key==='Escape')cancelRename();"/>`
-      :`<span class="ex-name" onclick="toggleCollapse(${esc(e.name)})" style="cursor:pointer;">${e.name}</span>`;
+      :`<span class="ex-name" onclick="toggleCollapse(${esc(e.name)})" style="cursor:pointer;">${e.name}</span><button onclick="event.stopPropagation();openExerciseHistory(${esc(e.name)})" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:2px 7px;color:var(--dim);font-family:'DM Sans',sans-serif;font-size:9px;cursor:pointer;letter-spacing:0.5px;margin-left:6px;vertical-align:middle;">HISTORY</button>`;
     const renBtn=""; // moved to overflow menu
     const exIdx=activeWorkout.exercises.findIndex(e2=>e2.name===e.name);
     const upBtn=""; const downBtn=""; // moved to overflow menu
@@ -3113,6 +3337,22 @@ function renderLog(){
         </div>
       </div>
       ${e.notes ? `<textarea class="notes-inp" rows="1" oninput="updateNote(${esc(e.name)},this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';" style="height:auto;">${e.notes}</textarea>` : `<button onclick="this.replaceWith((()=>{const t=document.createElement('textarea');t.className='notes-inp';t.placeholder='notes...';t.rows=1;t.oninput=function(){updateNote(${JSON.stringify(e.name)},this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';};t.focus();return t;})())" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:4px 0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;">+ add note</button>`}
+      ${(()=>{
+        if(!e.warmupNext) return '';
+        const wSets = loadWarmups(e.name);
+        if(!wSets.length) return `<div style="margin-top:8px;padding:10px 12px;background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2);border-radius:10px;font-size:11px;color:var(--dim);">No warmup data — log a working set first.</div>`;
+        const rows = wSets.map(s =>
+          `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(100,160,255,0.1);">
+            <span style="font-size:12px;color:#7aacff;font-weight:600;min-width:36px;">${s.label}</span>
+            <span style="font-size:13px;color:var(--text);font-weight:700;">${s.weight}lb</span>
+            <span style="font-size:12px;color:var(--muted);">× ${s.reps}</span>
+          </div>`
+        ).join('');
+        return `<div style="margin-top:8px;padding:10px 12px;background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2);border-radius:10px;">
+          <div style="font-size:9px;letter-spacing:2px;color:#7aacff;margin-bottom:8px;">WARMUP PLAN</div>
+          ${rows}
+        </div>`;
+      })()}
     </div>`;
   }).join("");
 
@@ -3848,7 +4088,7 @@ function renderHistDetail(){
 
     return `<div class="card${e.superset?" ss-card":""}">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-        <span style="font-size:13px;color:var(--text);flex:1;">${e.name}</span>
+        <span style="font-size:13px;color:var(--text);flex:1;cursor:pointer;text-decoration:underline dotted var(--border2);" onclick="openExerciseHistory(${esc(e.name)})">${e.name}</span>
         ${e.superset?`<span class="tag sstag">⚡SS</span>`:""}
         ${e.bwMode?`<span style="font-size:10px;color:var(--green)">BW</span>`:""}
         ${edit?`<button onclick="histDeleteExercise(${wIdx},${esc(e.name)})"
@@ -3961,6 +4201,85 @@ function renderProgDetail(){
     <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:1px;line-height:1;margin-bottom:6px;">${ex}</div>
     ${summaryCard}
     ${rows||"<div style='color:var(--dim);font-size:13px;'>No data yet.</div>"}`;
+}
+
+// ═══════════════════════════════════════════
+// EXERCISE HISTORY MODAL
+// ═══════════════════════════════════════════
+function openExerciseHistory(name){
+  // Gather all sessions containing this exercise (most recent first)
+  const sessions=state.workouts.filter(w=>w.exercises.find(e=>e.name===name));
+  if(!sessions.length){ showToast('No history for '+name); return; }
+
+  // All-time stats
+  const totalSets=sessions.reduce((a,w)=>a+w.exercises.find(e=>e.name===name).sets.length,0);
+  const allWeights=sessions.flatMap(w=>w.exercises.find(e=>e.name===name).sets.filter(s=>!s.bw&&!s.warmup).map(s=>parseFloat(s.weight)||0));
+  const bestWeight=Math.max(0,...allWeights);
+  const best1RMVal=sessions.reduce((best,w)=>{
+    const e=w.exercises.find(e=>e.name===name);
+    const rm=Math.max(0,...e.sets.filter(s=>!s.bw&&!s.warmup).map(s=>est1RM(s.weight,s.reps)));
+    return Math.max(best,rm);
+  },0);
+
+  // Stats row
+  const statsHtml=bestWeight>0?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;text-align:center;">
+    <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:14px 8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent);line-height:1;">${bestWeight}lb</div>
+      <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Best Weight</div>
+    </div>
+    <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:14px 8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#52c87a;line-height:1;">${best1RMVal}lb</div>
+      <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Est. 1RM</div>
+    </div>
+    <div style="background:#0f0f12;border:1px solid #1e1e24;border-radius:14px;padding:14px 8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent);line-height:1;">${totalSets}</div>
+      <div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-transform:uppercase;">Total Sets</div>
+    </div>
+  </div>`:'';
+
+  // Progress chart (needs sessions in chronological order)
+  const chronological=sessions.slice().reverse();
+  const chart=buildProgChart(chronological,name);
+
+  // Session-by-session history (most recent first)
+  const bests=sessions.map(w=>Math.max(0,...w.exercises.find(e=>e.name===name).sets.filter(s=>!s.bw).map(s=>parseFloat(s.weight)||0)));
+  const maxW=Math.max(...bests,1);
+  const sessionRows=sessions.map((w,i)=>{
+    const e=w.exercises.find(e=>e.name===name);
+    const b=bests[i],v=vol(e.sets),pct=Math.min(100,(b/maxW)*100);
+    const setList=e.sets.map((s,si)=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:11px;color:var(--muted);">
+          ${s.warmup?'<span style="font-size:9px;background:rgba(100,160,255,0.15);border:1px solid rgba(100,160,255,0.3);border-radius:4px;padding:1px 5px;color:#7aacff;font-weight:700;">W</span> ':''}Set ${si+1}: ${s.bw?"BW":s.weight+"lb"} × ${s.reps}
+        </span>
+        <span style="display:flex;align-items:center;gap:5px;">
+          ${s.pr?'<span class="pr-ticket">PR</span>':""}
+          ${!s.bw&&!s.warmup?'<span style="font-size:10px;color:var(--dim);">'+(parseFloat(s.weight)*parseInt(s.reps)).toLocaleString()+'lb</span>':""}
+        </span>
+      </div>`).join("");
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:10px;color:var(--dim)">${w.date}</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${v>0?'<span style="font-size:11px;color:var(--muted)">'+v.toLocaleString()+'lb</span>':""}
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);letter-spacing:0.5px;">${b>0?b+"lb":"BW"}</span>
+        </div>
+      </div>
+      ${b>0?'<div class="prog-bg" style="margin-bottom:8px;"><div class="prog-fill" style="width:'+pct+'%"></div></div>':""}
+      ${setList}
+    </div>`;
+  }).join("");
+
+  showModal(`
+    <div style="max-height:80vh;overflow-y:auto;padding-bottom:12px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;line-height:1;margin-bottom:4px;">${name}</div>
+      <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:16px;">${sessions.length} SESSION${sessions.length!==1?'S':''}</div>
+      ${statsHtml}
+      ${chart?'<div style="margin-bottom:16px;">'+chart+'</div>':''}
+      ${sessionRows||'<div style="color:var(--dim);font-size:13px;">No data yet.</div>'}
+    </div>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CLOSE</button>
+  `);
 }
 
 // Tests, debug panel, logo handlers — moved to js/tests.js
