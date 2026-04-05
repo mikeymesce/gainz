@@ -87,6 +87,89 @@ export function getTodayNutrition() {
   return window.state?.nutritionLog?.[dateStr] || [];
 }
 
+// ── Macro targets — get with defaults ────────────────────────────────────────
+function getMacroTargets() {
+  return window.state?.macroTargets || { calories: 2500, protein: 180, carbs: 250, fat: 80 };
+}
+
+// ── Macro targets modal ───────────────────────────────────────────────────────
+export function openMacroTargetsModal() {
+  const t = getMacroTargets();
+  window.showModal?.(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY MACRO TARGETS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      ${[
+        ['calories','CALORIES','var(--accent)','kcal'],
+        ['protein','PROTEIN','#52c87a','g'],
+        ['carbs','CARBS','#7aacff','g'],
+        ['fat','FAT','#ffb347','g']
+      ].map(([field, lbl, color, unit]) => `
+        <div>
+          <div style="font-size:9px;color:${color};letter-spacing:1px;margin-bottom:6px;">${lbl} (${unit})</div>
+          <input id="mt-${field}" type="number" inputmode="decimal" value="${t[field]||0}"
+            style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;padding:10px 8px;text-align:center;box-sizing:border-box;"/>
+        </div>
+      `).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:16px;line-height:1.5;">
+      Set your daily targets. The app will show your progress and project weekly weight change based on your calorie surplus or deficit.
+    </div>
+    <button class="btn primary" onclick="window.saveMacroTargets()">SAVE TARGETS</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+
+export function saveMacroTargets() {
+  const fields = ['calories','protein','carbs','fat'];
+  const targets = {};
+  fields.forEach(f => {
+    const el = document.getElementById(`mt-${f}`);
+    targets[f] = el ? (parseFloat(el.value) || 0) : getMacroTargets()[f];
+  });
+  if (!window.state.macroTargets) window.state.macroTargets = {};
+  Object.assign(window.state.macroTargets, targets);
+  window.saveAndSync?.();
+  window.hideModal?.();
+  window.showToast?.('Targets saved ✓');
+  window.render?.();
+}
+
+// ── Weekly weight projection ──────────────────────────────────────────────────
+// Formula: 3,500 cal surplus = +1 lb gained, 3,500 cal deficit = -1 lb lost
+function getWeeklyProjection() {
+  const log = window.state?.nutritionLog || {};
+  const targetCals = getMacroTargets().calories || 2500;
+
+  let weeklyNet = 0;
+  let daysWithData = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const items = log[dateStr] || [];
+    if (items.length) {
+      const dayCals = items.reduce((sum, item) => sum + (item.calories || 0), 0);
+      weeklyNet += dayCals - targetCals;
+      daysWithData++;
+    }
+  }
+
+  if (!daysWithData) return null;
+
+  // Project the full 7-day week based on the days we have data for
+  const avgDailySurplus = weeklyNet / daysWithData;
+  const projectedWeeklyNet = avgDailySurplus * 7;
+  const weightChangeLbs = projectedWeeklyNet / 3500;
+
+  return {
+    daysWithData,
+    avgDailySurplus: Math.round(avgDailySurplus),
+    projectedWeeklyNet: Math.round(projectedWeeklyNet),
+    weightChangeLbs: Math.round(weightChangeLbs * 10) / 10  // 1 decimal
+  };
+}
+
 // ── Mic + text input ─────────────────────────────────────────────────────────
 export function startMicCapture() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -167,6 +250,8 @@ export async function processMealText(text) {
 // ── Render ────────────────────────────────────────────────────────────────────
 export function renderNutrition() {
   const todayItems = getTodayNutrition();
+  const targets = getMacroTargets();
+
   const totals = todayItems.reduce((acc, item) => ({
     calories: acc.calories + (item.calories || 0),
     protein:  acc.protein  + (item.protein  || 0),
@@ -174,11 +259,50 @@ export function renderNutrition() {
     fat:      acc.fat      + (item.fat      || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 
-  const macroStat = (val, label, color) => `
-    <div style="text-align:center;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:${color};line-height:1;">${Math.round(val)}${label==='CAL'?'':' g'}</div>
-      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:3px;">${label}</div>
-    </div>`;
+  // Progress bar macro stat
+  const macroStat = (val, target, label, color) => {
+    const pct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
+    const over = val > target && target > 0;
+    return `
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">${label}</div>
+          <div style="font-size:9px;color:var(--dim);">${Math.round(val)}${label==='CAL'?'':' g'} <span style="color:${over?'#ff6b6b':color};">/ ${target}${label==='CAL'?'':' g'}</span></div>
+        </div>
+        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${over?'#ff6b6b':color};border-radius:3px;transition:width .3s;"></div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${color};line-height:1;margin-top:6px;">${Math.round(val)}${label==='CAL'?'':' g'}</div>
+      </div>`;
+  };
+
+  // Weekly projection card
+  const proj = getWeeklyProjection();
+  const projHtml = proj ? (() => {
+    const surplus = proj.projectedWeeklyNet;
+    const lbs = proj.weightChangeLbs;
+    const gaining = surplus > 0;
+    const color = gaining ? '#ff9f43' : '#52c87a';
+    const arrow = gaining ? '↑' : '↓';
+    const label = gaining ? 'projected gain' : 'projected loss';
+    const absLbs = Math.abs(lbs);
+    const absCal = Math.abs(surplus);
+    return `
+      <div class="card" style="margin-bottom:20px;border-color:${color}33;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+          <div style="font-size:10px;letter-spacing:1px;color:var(--dim);">WEEKLY PROJECTION</div>
+          <div style="font-size:9px;color:var(--dim);">${proj.daysWithData}/7 days logged</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:${color};line-height:1;">${arrow} ${absLbs} lb</div>
+          <div>
+            <div style="font-size:11px;color:${color};letter-spacing:1px;">${label} this week</div>
+            <div style="font-size:10px;color:var(--dim);margin-top:2px;">${absCal} cal ${gaining?'surplus':'deficit'} projected</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px;">~${Math.abs(proj.avgDailySurplus)} cal/day ${gaining?'over':'under'} target</div>
+          </div>
+        </div>
+      </div>`;
+  })() : '';
 
   // Pending items (returned from AI, before user confirms)
   const pendingHtml = _pendingItems.length ? `
@@ -239,18 +363,25 @@ export function renderNutrition() {
 
   return `
     <div style="padding:16px 16px 100px;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;margin-bottom:16px;">NUTRITION</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;">NUTRITION</div>
+        <button onclick="window.openMacroTargetsModal()"
+          style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:var(--muted);font-family:inherit;font-size:10px;letter-spacing:1px;padding:8px 12px;cursor:pointer;">
+          SET TARGETS
+        </button>
+      </div>
 
       <div class="card" style="margin-bottom:20px;">
-        <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:12px;">TODAY</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;">
-          ${macroStat(totals.calories, 'CAL', 'var(--accent)')}
-          ${macroStat(totals.protein, 'PROTEIN', '#52c87a')}
-          ${macroStat(totals.carbs, 'CARBS', '#7aacff')}
-          ${macroStat(totals.fat, 'FAT', '#ffb347')}
+        <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:14px;">TODAY</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          ${macroStat(totals.calories, targets.calories, 'CAL', 'var(--accent)')}
+          ${macroStat(totals.protein, targets.protein, 'PROTEIN', '#52c87a')}
+          ${macroStat(totals.carbs, targets.carbs, 'CARBS', '#7aacff')}
+          ${macroStat(totals.fat, targets.fat, 'FAT', '#ffb347')}
         </div>
       </div>
 
+      ${projHtml}
       ${micSection}
       ${pendingHtml}
       ${logHtml}

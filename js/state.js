@@ -22,6 +22,7 @@ export function migrateState(s) {
   if(!s.vitaminTypes) s.vitaminTypes = ['Vitamin D','Fish Oil','Multivitamin'];
   if(!s.measurements) s.measurements = [];
   if(!s.nutritionLog) s.nutritionLog = {};
+  if(!s.macroTargets) s.macroTargets = { calories: 2500, protein: 180, carbs: 250, fat: 80 };
   if(!s._localUpdatedAt) s._localUpdatedAt = Date.now();
   if(!s._lastSyncedAt) s._lastSyncedAt = 0;
   s.schemaVersion = SCHEMA_VERSION;

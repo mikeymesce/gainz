@@ -95,7 +95,8 @@ import {
 } from './supabase.js';
 import {
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
-  editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition
+  editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
+  openMacroTargetsModal, saveMacroTargets
 } from './nutrition.js';
 
 // Expose all module exports to window so app-legacy.js can use them
@@ -165,6 +166,7 @@ Object.assign(window, {
   // Nutrition
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
+  openMacroTargetsModal, saveMacroTargets,
 });
 
 // ── Ambient particles (persistent floating embers) ──
