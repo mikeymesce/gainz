@@ -4312,7 +4312,14 @@ function renderProgDetail(){
 function openExerciseHistory(name){
   // Gather all sessions containing this exercise (most recent first)
   const sessions=state.workouts.filter(w=>w.exercises.find(e=>e.name===name));
-  if(!sessions.length){ showToast('No history for '+name); return; }
+  if(!sessions.length){
+    showModal(`
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;margin-bottom:8px;">${name}</div>
+      <div style="color:var(--dim);font-size:14px;padding:24px 0;">No history yet — log this exercise to start tracking.</div>
+      <button class="btn ghost" onclick="hideModal()">CLOSE</button>
+    `);
+    return;
+  }
 
   // All-time stats
   const totalSets=sessions.reduce((a,w)=>a+w.exercises.find(e=>e.name===name).sets.length,0);
