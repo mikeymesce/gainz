@@ -495,6 +495,7 @@ let histSearchTerm='';
 let workoutSummary=null;
 let funStatIdx=-1; // -1 = use daily rotation, 0+ = manual cycle
 let expandedLastSession=new Set();
+let noteActiveFor=new Set(); // exercise names with note input open
 let activeSSPrompt=null; // name of exercise user should do next in superset
 let ssPickerOpen=null;  // exercise name whose SS picker is open
 let exMenuOpen=null;    // exercise name whose ⋮ overflow menu is open
@@ -810,6 +811,11 @@ function openWeighIn(){
 function updateNote(n,val){
   const ex=activeWorkout?.exercises.find(e=>e.name===n);
   if(ex) ex.notes=val;
+}
+function openNoteInput(name){
+  noteActiveFor.add(name);
+  render();
+  setTimeout(()=>{ const el=document.getElementById('note-inp-'+name.replace(/[^a-z0-9]/gi,'_')); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } },60);
 }
 function toggleLastSession(n){ expandedLastSession.has(n)?expandedLastSession.delete(n):expandedLastSession.add(n); render(); }
 function toggleSS(n){ if(!activeWorkout) return; activeWorkout.exercises=activeWorkout.exercises.map(e=>e.name===n?{...e,superset:!e.superset}:e); render(); }
@@ -1495,7 +1501,7 @@ function finishWorkout(){
   haptic("medium");
   logDebug("🏁 Workout finished: " + w.split + " · " + w.exercises.length + " exercises");
   const finishedW=w;
-  activeWorkout=null; setHistory=[]; skipTimer(); stopWoTimer(); collapsedEx.clear(); doneExSet.clear();
+  activeWorkout=null; setHistory=[]; skipTimer(); stopWoTimer(); collapsedEx.clear(); doneExSet.clear(); noteActiveFor.clear();
   workoutSummary=finishedW; screen="start"; render();
 }
 
@@ -3441,7 +3447,7 @@ function renderLog(){
           <button style="background:none;border:none;color:var(--dim);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="showRestEditor(${esc(e.name)})">⏱${restFmt}</button>
         </div>
       </div>
-      ${e.notes ? `<textarea class="notes-inp" rows="1" oninput="updateNote(${esc(e.name)},this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';" style="height:auto;">${e.notes}</textarea>` : `<button onclick="this.replaceWith((()=>{const t=document.createElement('textarea');t.className='notes-inp';t.placeholder='notes...';t.rows=1;t.oninput=function(){updateNote(${JSON.stringify(e.name)},this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';};t.focus();return t;})())" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:4px 0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;">+ add note</button>`}
+      ${(e.notes||noteActiveFor.has(e.name)) ? `<textarea id="note-inp-${e.name.replace(/[^a-z0-9]/gi,'_')}" class="notes-inp" rows="1" placeholder="notes..." oninput="updateNote(${esc(e.name)},this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';" style="height:auto;">${e.notes||''}</textarea>` : `<button onclick="openNoteInput(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:4px 0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;">+ add note</button>`}
       ${(()=>{
         if(!e.warmupNext) return '';
         const wSets = loadWarmups(e.name);
