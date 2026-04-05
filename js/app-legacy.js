@@ -1578,6 +1578,7 @@ function render(){
     if(screen==="start") c.innerHTML=renderHome();
     else if(screen==="log") c.innerHTML=renderLog();
     else if(screen==="me") c.innerHTML=renderMe();
+    else if(screen==="nutrition") c.innerHTML=typeof renderNutrition==='function'?renderNutrition():'';
     else if(screen==="settings"){ c.innerHTML=renderSettings(); setTimeout(()=>{ if(typeof renderSyncUI==='function') renderSyncUI(); },50); }
     else if(screen==="programBuilder") c.innerHTML=renderProgramBuilder();
     else if(screen==="prHistory") c.innerHTML=renderPRHistory();
@@ -1612,6 +1613,7 @@ function renderNav(){
   const tabs=[
     ["start","▲","START"],
     ["me","◎","ME"],
+    ["nutrition","◆","EAT"],
     ["settings","⚙","MORE"]
   ];
   if(activeWorkout) tabs.splice(1,0,["log","●","LOG"]);

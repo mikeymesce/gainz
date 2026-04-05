@@ -93,6 +93,10 @@ import {
   syncToCloud, syncFromCloud,
   renderCloudSyncCard, renderSyncUI
 } from './supabase.js';
+import {
+  renderNutrition, startMicCapture, showMealTextInput, processMealText,
+  editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition
+} from './nutrition.js';
 
 // Expose all module exports to window so app-legacy.js can use them
 Object.assign(window, {
@@ -158,6 +162,9 @@ Object.assign(window, {
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud,
   renderCloudSyncCard, renderSyncUI,
+  // Nutrition
+  renderNutrition, startMicCapture, showMealTextInput, processMealText,
+  editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
 });
 
 // ── Ambient particles (persistent floating embers) ──
