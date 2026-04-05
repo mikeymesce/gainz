@@ -2874,6 +2874,92 @@ function buildBWChart(){
   </div>`;
 }
 
+// ── Body Measurements ──────────────────────────────────────────────────────
+const MEASURE_FIELDS = [
+  ['neck','Neck'],['chest','Chest'],['waist','Waist'],['hips','Hips'],
+  ['leftArm','L Arm'],['rightArm','R Arm'],['leftThigh','L Thigh'],['rightThigh','R Thigh']
+];
+
+function logMeasurements(data){
+  if(!state.measurements) state.measurements=[];
+  const entry={date:today(),timestamp:Date.now(),...data};
+  state.measurements.unshift(entry);
+  state.measurements=state.measurements.slice(0,90);
+  saveAndSync();
+  showToast('Measurements logged ✓');
+  render();
+}
+
+function openMeasurementsModal(){
+  const last=(state.measurements||[])[0]||{};
+  const inputs=MEASURE_FIELDS.map(([key,lbl])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <label style="font-size:12px;color:var(--muted);">${lbl} <span style="font-size:10px;color:var(--dim);">(in)</span></label>
+      <input id="m-${key}" type="number" inputmode="decimal" step="0.1" placeholder="${last[key]||'—'}"
+        style="width:80px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 10px;text-align:center;"/>
+    </div>`).join('');
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">LOG MEASUREMENTS</div>
+    ${inputs}
+    <button class="btn primary" style="margin-top:16px;" onclick="
+      const d={};
+      ${MEASURE_FIELDS.map(([key])=>`const _${key}=parseFloat(document.getElementById('m-${key}').value);if(!isNaN(_${key})&&_${key}>0)d['${key}']=_${key};`).join('')}
+      if(!Object.keys(d).length){showToast('Enter at least one measurement');return;}
+      logMeasurements(d);hideModal();">LOG MEASUREMENTS</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+
+function buildMeasurementSparkline(vals){
+  if(!vals||vals.length<2) return '';
+  const W=80,H=28,pad=3;
+  const IW=W-pad*2, IH=H-pad*2;
+  const min=Math.min(...vals), max=Math.max(...vals);
+  const range=max-min||1;
+  const px=(i)=>pad+(i/(vals.length-1))*IW;
+  const py=(v)=>pad+IH-((v-min)/range)*IH;
+  const pts=vals.map((v,i)=>`${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+  const lx=px(vals.length-1).toFixed(1), ly=py(vals[vals.length-1]).toFixed(1);
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;">
+    <polyline points="${pts}" fill="none" stroke="rgba(232,213,160,0.5)" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="${lx}" cy="${ly}" r="2.5" fill="var(--accent)"/>
+  </svg>`;
+}
+
+function renderMeasurementsSection(){
+  const entries=state.measurements||[];
+  const last=entries[0]||{};
+  const prev=entries[1]||{};
+  const hasData=MEASURE_FIELDS.some(([key])=>last[key]!==undefined);
+
+  const rows=MEASURE_FIELDS.map(([key,lbl])=>{
+    const cur=last[key];
+    if(cur===undefined) return '';
+    const old=prev[key];
+    const delta=old!==undefined?(cur-old):null;
+    const deltaStr=delta===null?'—':delta>0?`+${delta.toFixed(1)}`:`${delta.toFixed(1)}`;
+    const deltaColor=delta===null?'var(--dim)':delta>0?'var(--accent)':'#4caf50';
+    const sparkVals=entries.slice(0,8).map(e=>e[key]).filter(v=>v!==undefined).reverse();
+    return `<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:64px;font-size:11px;color:var(--muted);flex-shrink:0;">${lbl}</div>
+      <div style="flex:1;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);line-height:1;">${cur}"</div>
+        <div style="font-size:10px;color:${deltaColor};margin-top:1px;">${deltaStr}"</div>
+      </div>
+      <div style="flex-shrink:0;">${buildMeasurementSparkline(sparkVals)||'<div style="width:80px;height:28px;"></div>'}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="card" style="padding:14px 18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${hasData?'10px':'0'};">
+      <div style="font-size:11px;color:var(--muted);">${hasData?`Last: ${last.date}`:'No measurements yet'}</div>
+      <button onclick="openMeasurementsModal()"
+        style="background:var(--accent);color:#080808;border:none;border-radius:10px;padding:8px 14px;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">LOG</button>
+    </div>
+    ${hasData?rows:''}
+  </div>`;
+}
+
 function renderSettings(){
   const defaultRest = state.defaultRest || 45;
   const prog = state.program || "ppl";
@@ -3023,6 +3109,9 @@ function renderSettings(){
         </div>`).join('')}
       ${buildBWChart()}
     </div>
+
+    ${sectionHead('Measurements')}
+    ${renderMeasurementsSection()}
 
     ${sectionHead('Import')}
     <div style="margin-bottom:24px;">
