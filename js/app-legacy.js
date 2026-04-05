@@ -165,6 +165,7 @@ setTimeout(async ()=>{
 // never destroy it. iOS Safari can always find it.
 // ═══════════════════════════════════════════
 let pickerFilter = "all";
+let pickerMuscle = null;
 
 function setPickerFilter(f){
   pickerFilter = f;
@@ -173,6 +174,16 @@ function setPickerFilter(f){
   document.getElementById("filter-stacks").classList.toggle("active", f==="stacks");
   const customBar = document.getElementById("ex-picker-custom");
   if(customBar) customBar.style.display = f==="stacks" ? "none" : "";
+  const muscleRow = document.getElementById("picker-muscle-row");
+  if(muscleRow) muscleRow.style.display = f==="stacks" ? "none" : "";
+  rebuildPickerList();
+}
+
+function setPickerMuscle(m){
+  pickerMuscle = pickerMuscle === m ? null : m;
+  document.querySelectorAll(".picker-muscle-chip").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.muscle === pickerMuscle);
+  });
   rebuildPickerList();
 }
 
@@ -205,14 +216,17 @@ function rebuildPickerList(){
     ? [...new Set(Object.values(ALL_SPLITS).flat())].filter(e=>!activeWorkout.exercises.find(x=>x.name===e))
     : (ALL_SPLITS[activeWorkout.split]||[]).filter(e=>!activeWorkout.exercises.find(x=>x.name===e));
   if(pickerFilter==="research") avail = avail.filter(e=>!!RESEARCH_TIPS[e]);
+  if(pickerMuscle) avail = avail.filter(e=>(EX_MUSCLES[e]||[]).includes(pickerMuscle));
   const hasRes = ex => !!RESEARCH_TIPS[ex];
   list.innerHTML = avail.map(ex=>
     `<button class="pick-btn${hasRes(ex)?" has-research":""}" data-ex="${ex}">${ex}${hasRes(ex)?`<span class="pick-badge">📚</span>`:""}</button>`
-  ).join("") + (avail.length===0 ? `<div style="color:var(--dim);font-size:13px;padding:8px 0;">${pickerFilter==="research"?"No researched exercises left to add!":"All exercises added!"}</div>` : "");
+  ).join("") + (avail.length===0 ? `<div style="color:var(--dim);font-size:13px;padding:8px 0;">${pickerFilter==="research"?"No researched exercises left to add!":pickerMuscle?`No ${pickerMuscle} exercises left to add!`:"All exercises added!"}</div>` : "");
 }
 
 function openPicker(){
   if(!activeWorkout) return;
+  pickerMuscle = null;
+  document.querySelectorAll(".picker-muscle-chip").forEach(btn=>btn.classList.remove("active"));
   rebuildPickerList();
   document.getElementById("ex-picker").classList.add("open");
   document.getElementById("custom-ex-input").value="";
