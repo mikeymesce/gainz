@@ -2,7 +2,7 @@
 // Caches app files, checks for updates on every load,
 // and refreshes automatically when new code is deployed.
 
-const CACHE_NAME = 'gainz-v14';
+const CACHE_NAME = 'gainz-v15';
 const ASSETS = [
   '/gainz/',
   '/gainz/index.html',
@@ -29,44 +29,66 @@ const ASSETS = [
   '/gainz/js/nutrition.js',
 ];
 
-// Install — cache all assets
+// Install — cache all assets, bypassing browser HTTP cache
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(ASSETS.map(url =>
+        fetch(url, { cache: 'reload' }).then(res => {
+          if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+          return cache.put(url, res);
+        })
+      ))
+    )
   );
-  self.skipWaiting(); // activate immediately
+  self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate — clean old caches, then force-refresh all open tabs
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME && k !== 'onesignal-sdk').map(k => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
+     .then(() => self.clients.matchAll({ type: 'window' }))
+     .then(clients => clients.forEach(c => c.navigate(c.url)))
   );
-  self.clients.claim(); // take control immediately
 });
 
-// Fetch — serve from cache, update in background
+// Fetch — network-first for navigation, stale-while-revalidate for assets
 self.addEventListener('fetch', e => {
-  // Skip non-GET, external requests, and OneSignal
   if (e.request.method !== 'GET') return;
   if (!e.request.url.includes('mikeymesce.github.io/gainz')) return;
   if (e.request.url.includes('onesignal')) return;
   if (e.request.url.includes('supabase')) return;
   if (e.request.url.includes('googleapis')) return;
 
+  // Navigation requests (HTML pages) — always try network first
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request, { cache: 'reload' })
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // JS/CSS assets — serve from cache, update in background
   e.respondWith(
     caches.match(e.request).then(cached => {
-      // Return cached version immediately
       const fetchPromise = fetch(e.request).then(response => {
-        // Update cache with fresh version
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
         }
         return response;
-      }).catch(() => cached); // offline fallback to cache
+      }).catch(() => cached);
 
       return cached || fetchPromise;
     })
