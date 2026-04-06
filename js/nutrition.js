@@ -97,6 +97,30 @@ export function deleteNutritionItem(idx) {
   window.render?.();
 }
 
+// ── Water tracking ────────────────────────────────────────────────────────────
+export function addWater(oz) {
+  const dateStr = window.today?.() || new Date().toISOString().slice(0, 10);
+  if (!window.state.waterLog) window.state.waterLog = {};
+  window.state.waterLog[dateStr] = (window.state.waterLog[dateStr] || 0) + oz;
+  // Prune to last 60 days
+  const keys = Object.keys(window.state.waterLog).sort();
+  if (keys.length > 60) keys.slice(0, keys.length - 60).forEach(k => delete window.state.waterLog[k]);
+  window.saveAndSync?.();
+  window.render?.();
+}
+
+export function resetWater() {
+  const dateStr = window.today?.() || new Date().toISOString().slice(0, 10);
+  if (window.state.waterLog) delete window.state.waterLog[dateStr];
+  window.saveAndSync?.();
+  window.render?.();
+}
+
+function getTodayWater() {
+  const dateStr = window.today?.() || new Date().toISOString().slice(0, 10);
+  return window.state?.waterLog?.[dateStr] || 0;
+}
+
 // ── Macro targets — get with defaults ────────────────────────────────────────
 function getMacroTargets() {
   return window.state?.macroTargets || { calories: 2500, protein: 180, carbs: 250, fat: 80 };
@@ -314,6 +338,36 @@ export function renderNutrition() {
       </div>`;
   })() : '';
 
+  // Water card
+  const waterOz = getTodayWater();
+  const waterGoal = 64; // 8 cups
+  const waterPct = Math.min(100, Math.round((waterOz / waterGoal) * 100));
+  const waterCups = (waterOz / 8).toFixed(1);
+  const waterColor = waterOz >= waterGoal ? '#52c87a' : '#7aacff';
+  const waterCardHtml = `
+    <div class="card" style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:18px;">💧</span>
+          <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${waterColor};line-height:1;">${waterOz} oz</div>
+            <div style="font-size:9px;color:var(--dim);letter-spacing:1px;">${waterCups} cups / ${waterGoal} oz goal</div>
+          </div>
+        </div>
+        ${waterOz > 0 ? `<button onclick="window.resetWater()" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;letter-spacing:0.5px;">reset</button>` : ''}
+      </div>
+      <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:12px;">
+        <div style="height:100%;width:${waterPct}%;background:${waterColor};border-radius:3px;transition:width .3s;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        ${[8, 16, 32].map(oz => `
+          <button onclick="window.addWater(${oz})"
+            style="padding:12px 0;background:rgba(122,172,255,0.08);border:1px solid rgba(122,172,255,0.2);border-radius:12px;color:#7aacff;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;cursor:pointer;">
+            +${oz} oz
+          </button>`).join('')}
+      </div>
+    </div>`;
+
   // Pending items (returned from AI, before user confirms)
   const pendingHtml = _pendingItems.length ? `
     <div style="margin-bottom:20px;">
@@ -394,6 +448,7 @@ export function renderNutrition() {
       </div>
 
       ${projHtml}
+      ${waterCardHtml}
       ${micSection}
       ${pendingHtml}
       ${logHtml}
