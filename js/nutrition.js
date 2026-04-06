@@ -524,6 +524,49 @@ export function renderNutrition() {
 
       ${projHtml}
       ${waterCardHtml}
+
+      ${(() => {
+        // ── 7-Day Macro History ──
+        const log = window.state?.nutritionLog || {};
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const key = d.toISOString().slice(0, 10);
+          const items = log[key] || [];
+          const cals = items.reduce((s, it) => s + (it.calories || 0), 0);
+          const pro = items.reduce((s, it) => s + (it.protein || 0), 0);
+          const dayName = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+          days.push({ dayName, cals: Math.round(cals), pro: Math.round(pro), hasData: items.length > 0 });
+        }
+        const maxCal = Math.max(targets.calories, ...days.map(d => d.cals), 1);
+        const hasAnyData = days.some(d => d.hasData);
+        if (!hasAnyData) return '';
+        const bars = days.map(d => {
+          const h = d.cals > 0 ? Math.max(4, Math.round((d.cals / maxCal) * 80)) : 0;
+          const over = d.cals > targets.calories;
+          const color = d.cals === 0 ? 'var(--bg3)' : over ? '#ff6b6b' : 'var(--accent)';
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+            <div style="font-size:8px;color:var(--dim);">${d.cals || '-'}</div>
+            <div style="width:100%;max-width:28px;height:80px;display:flex;align-items:flex-end;justify-content:center;">
+              <div style="width:100%;height:${h}px;background:${color};border-radius:4px 4px 2px 2px;transition:height .3s;"></div>
+            </div>
+            <div style="font-size:8px;color:${d.dayName==='Today'?'var(--accent)':'var(--dim)'};">${d.dayName}</div>
+            ${d.pro ? `<div style="font-size:7px;color:#52c87a;">${d.pro}g P</div>` : ''}
+          </div>`;
+        }).join('');
+        const targetLineY = Math.round((1 - targets.calories / maxCal) * 80);
+        return `
+          <div class="card" style="margin-bottom:20px;">
+            <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:12px;">7-DAY CALORIES</div>
+            <div style="position:relative;">
+              <div style="position:absolute;top:${targetLineY}px;left:0;right:0;border-top:1px dashed rgba(232,213,160,0.25);z-index:1;"></div>
+              <div style="position:absolute;top:${targetLineY - 8}px;right:0;font-size:7px;color:var(--dim);z-index:2;">goal</div>
+              <div style="display:flex;gap:4px;padding-top:14px;">${bars}</div>
+            </div>
+          </div>`;
+      })()}
+
       ${micSection}
       ${pendingHtml}
       ${logHtml}

@@ -2461,6 +2461,26 @@ function renderHome(){
       </div>
     </div>
 
+    ${state.workouts.length===0?`
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:18px;margin-bottom:12px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:10px;">GETTING STARTED</div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:14px;">Your first workout builds the foundation. Here's the plan:</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</div>
+          <div><div style="font-size:12px;color:var(--text);font-weight:600;">Tap START above</div><div style="font-size:11px;color:var(--dim);margin-top:2px;">Pick a split or hit Quick Start</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</div>
+          <div><div style="font-size:12px;color:var(--text);font-weight:600;">Add exercises & log sets</div><div style="font-size:11px;color:var(--dim);margin-top:2px;">Weight auto-fills next time</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</div>
+          <div><div style="font-size:12px;color:var(--text);font-weight:600;">Finish & track progress</div><div style="font-size:11px;color:var(--dim);margin-top:2px;">PRs, streaks & stats build from here</div></div>
+        </div>
+      </div>
+    </div>`:''}
+
     ${renderThisWeek()}
 
     ${renderTemplateQuickLaunch()}

@@ -187,18 +187,40 @@ Object.assign(window, {
   }
 })();
 
-// Pause workout clock when app is backgrounded so background time isn't
-// counted toward workout duration. Shifts startTime forward by however long
-// the app was hidden, which also fixes the "3-hour workout" bug.
+// Handle app backgrounding: pause workout clock, preserve rest timer,
+// and offer auto-finish if user was away too long.
 {
   let _bgHiddenAt = null;
+  const AUTO_FINISH_THRESHOLD = 30 * 60 * 1000; // 30 minutes away = offer to finish
+
   document.addEventListener('visibilitychange', () => {
     if(document.hidden){
       if(window.activeWorkout) _bgHiddenAt = Date.now();
     } else {
       if(window.activeWorkout && _bgHiddenAt){
-        window.activeWorkout.startTime += Date.now() - _bgHiddenAt;
+        const awayMs = Date.now() - _bgHiddenAt;
+        // Shift workout DURATION clock so background time isn't counted
+        // (rest timer uses wall-clock time so it naturally keeps ticking)
+        window.activeWorkout.startTime += awayMs;
         try{ localStorage.setItem('gainz_recovery', JSON.stringify(window.activeWorkout)); }catch(e){}
+
+        // If away 30+ min, offer to auto-finish
+        if(awayMs >= AUTO_FINISH_THRESHOLD && window.activeWorkout.exercises.some(e => e.sets.length > 0)){
+          const mins = Math.round(awayMs / 60000);
+          setTimeout(() => {
+            if(typeof window.showModal === 'function'){
+              window.showModal(`
+                <div style="text-align:center;">
+                  <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">WELCOME BACK</div>
+                  <div style="font-size:13px;color:var(--text);margin-bottom:6px;">You were away for ${mins} minutes.</div>
+                  <div style="font-size:12px;color:var(--dim);margin-bottom:20px;">Want to finish this workout or keep going?</div>
+                  <button class="btn primary" style="width:100%;margin-bottom:8px;" onclick="hideModal();finishWorkout();">FINISH WORKOUT</button>
+                  <button class="btn ghost" style="width:100%;" onclick="hideModal();">KEEP GOING</button>
+                </div>
+              `);
+            }
+          }, 300);
+        }
       }
       _bgHiddenAt = null;
     }
