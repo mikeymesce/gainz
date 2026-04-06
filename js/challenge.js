@@ -217,26 +217,54 @@ export function renderChallenge(){
       <div style="font-size:10px;color:var(--dim);margin-top:4px;">Tap to start</div>
     </button>`;
   }
-  const start=parseDateKey(ch.startDate);
-  const dayNum=Math.floor((new Date()-start)/86400000)+1;
+  let start=parseDateKey(ch.startDate);
+  let dayNum=Math.floor((new Date()-start)/86400000)+1;
+
+  // ── Auto-reset / perfect month chaining ──
+  // Count how many complete 30-day periods have passed
+  if(dayNum>30){
+    const periodsCompleted=Math.floor((dayNum-1)/30);
+    // Check if ALL days from start through the last completed period boundary are perfect
+    let allPerfect=true;
+    for(let d=0;d<periodsCompleted*30;d++){
+      const cd=new Date(start.getTime()); cd.setDate(cd.getDate()+d);
+      const data=ch.days[dateKey(cd)];
+      if(!data||data.pushups<100||data.situps<100){ allPerfect=false; break; }
+    }
+    if(!allPerfect){
+      // Imperfect period — reset to fresh 30 days
+      ch.startDate=todayStr();
+      ch.days={};
+      _save();
+      showToast('New month, new challenge! 💪');
+      start=parseDateKey(ch.startDate);
+      dayNum=1;
+    }
+  }
+
+  // Target = 30 × (consecutive perfect periods + 1)
+  // e.g. perfect first 30 → target becomes 60, perfect 60 → 90, etc.
+  const perfectPeriods=Math.floor((dayNum-1)/30); // periods fully behind us that were perfect (otherwise we'd have reset)
+  const target=30*(perfectPeriods+1);
+
   const daysCompleted=Object.values(ch.days).filter(d=>d.pushups>=100&&d.situps>=100).length;
   const todayDone=ch.days[todayStr()];
   const todayComplete=todayDone&&todayDone.pushups>=100&&todayDone.situps>=100;
-  const pct=Math.round((daysCompleted/30)*100);
+  const pct=Math.round((daysCompleted/target)*100);
   // Calculate challenge streak (consecutive days completed ending today or yesterday)
   let challengeStreak=0;
   const checkDate=new Date();
-  // If today isn't done yet, start checking from yesterday
   if(!todayComplete) checkDate.setDate(checkDate.getDate()-1);
-  for(let i=0;i<30;i++){
+  for(let i=0;i<target;i++){
     const ds=checkDate.toDateString();
     const dd=ch.days[ds];
     if(dd&&dd.pushups>=100&&dd.situps>=100){ challengeStreak++; checkDate.setDate(checkDate.getDate()-1); }
     else break;
   }
 
-  // Build 30-day grid
-  const dots=[...Array(30)].map((_,i)=>{
+  // Build day grid — scales dot size for extended challenges
+  const dotSize=target<=30?14:target<=60?10:8;
+  const dots=[...Array(target)].map((_,i)=>{
     const dotDate=new Date(start.getTime()); dotDate.setDate(dotDate.getDate()+i);
     const ds=dateKey(dotDate);
     const data=ch.days[ds];
@@ -246,17 +274,19 @@ export function renderChallenge(){
     const isPast=dotDate<new Date()&&!isToday;
     const bg=done?'var(--green)':partial?'var(--accent)':isToday?'var(--accent)':'var(--bg3)';
     const opacity=done?'1':partial?'0.5':isToday?'0.3':isPast?'0.15':'0.1';
-    return `<div style="width:14px;height:14px;border-radius:3px;background:${bg};opacity:${opacity};"></div>`;
+    return `<div style="width:${dotSize}px;height:${dotSize}px;border-radius:3px;background:${bg};opacity:${opacity};"></div>`;
   }).join('');
+
+  const label=target>30?`${target}-DAY STREAK · DAY ${dayNum}`:`30-DAY CHALLENGE · DAY ${Math.min(dayNum,30)}`;
 
   return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">30-DAY CHALLENGE · DAY ${Math.min(dayNum,30)}</div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">${label}</div>
       <button onclick="resetChallenge()" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <div style="font-size:11px;color:var(--muted);">${daysCompleted}/30 days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
+      <div style="font-size:11px;color:var(--muted);">${daysCompleted}/${target} days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
       <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' '+(ch.secondEx==='squats'?'squat':'sit'):'Not yet today'}</div>
     </div>
     <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG SOME WORK'}</button>
