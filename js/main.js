@@ -73,7 +73,7 @@ import {
 import {
   DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
   toggleCreatine, toggleVitamin, toggleAllVitamins, adjustCreatineDose,
-  addWater, removeWater, adjustCreatine, saveCreatineDose,
+  addWater as addWaterCheckin, removeWater as removeWaterCheckin, adjustCreatine, saveCreatineDose,
   openVitaminSettings, addVitaminRow, saveVitaminList,
   suppWeekCount, renderSuppCard,
   renderDailyCheckin, openDailyCheckin, openCheckinSettings, saveCheckinSettings,
@@ -148,7 +148,7 @@ Object.assign(window, {
   // Daily tracking
   DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
   toggleCreatine, toggleVitamin, toggleAllVitamins, adjustCreatineDose,
-  addWater, removeWater, adjustCreatine, saveCreatineDose,
+  addWaterCheckin, removeWaterCheckin, adjustCreatine, saveCreatineDose,
   openVitaminSettings, addVitaminRow, saveVitaminList,
   suppWeekCount, renderSuppCard,
   renderDailyCheckin, openDailyCheckin, openCheckinSettings, saveCheckinSettings,

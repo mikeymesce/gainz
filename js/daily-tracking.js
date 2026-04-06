@@ -274,9 +274,9 @@ export function openDailyCheckin(){
       </div>
       <div style="flex:1;min-width:0;background:#0f0f12;border:1px solid #1e1e24;border-radius:10px;padding:10px 6px;text-align:center;">
         <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
-          <button onclick="removeWater();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
+          <button onclick="removeWaterCheckin();openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">−</button>
           <div style="font-size:14px;font-weight:700;color:${waterOz>=(state.waterGoal||100)?'var(--green)':'var(--accent)'};">💧${waterOz}</div>
-          <button onclick="addWater(8);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
+          <button onclick="addWaterCheckin(8);openDailyCheckin();" style="background:none;border:1px solid #1e1e24;border-radius:6px;width:24px;height:24px;color:var(--muted);font-size:14px;cursor:pointer;">+</button>
         </div>
         <div style="font-size:7px;color:var(--muted);margin-top:3px;">${waterOz>=(state.waterGoal||100)?'✓ GOAL':'/'+(state.waterGoal||100)+'oz'}</div>
       </div>
