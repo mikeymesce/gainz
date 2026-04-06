@@ -721,6 +721,34 @@ function deleteSet(exName,idx){
   if(ex){ ex.sets.splice(idx,1); render(); }
 }
 let dropInputOpen=null; // {exName, setIdx}
+let editSetFor=null; // {exName, setIdx}
+function openEditSet(exName,setIdx){
+  editSetFor={exName,setIdx};
+  render();
+  setTimeout(()=>{const el=document.getElementById('edit-w-'+setIdx);if(el){el.focus();el.select();}},80);
+}
+function closeEditSet(){ editSetFor=null; render(); }
+function saveEditSet(exName,setIdx){
+  const ex=activeWorkout?.exercises.find(e=>e.name===exName);
+  if(!ex) return;
+  const s=ex.sets[setIdx];
+  if(!s) return;
+  const wEl=document.getElementById('edit-w-'+setIdx);
+  const rEl=document.getElementById('edit-r-'+setIdx);
+  if(!s.bw && wEl){
+    const w=parseFloat(wEl.value);
+    if(!isNaN(w)&&w>0) s.weight=w;
+  }
+  if(rEl){
+    const r=parseInt(rEl.value);
+    if(!isNaN(r)&&r>0) s.reps=r;
+  }
+  // Re-check PR
+  s.pr=isPR(exName,s.weight,s.reps,activeWorkout.id);
+  editSetFor=null;
+  save();
+  render();
+}
 function openDropInput(exName,setIdx){
   dropInputOpen={exName,setIdx};
   render();
@@ -1501,7 +1529,7 @@ function finishWorkout(){
   haptic("medium");
   logDebug("🏁 Workout finished: " + w.split + " · " + w.exercises.length + " exercises");
   const finishedW=w;
-  activeWorkout=null; setHistory=[]; skipTimer(); stopWoTimer(); collapsedEx.clear(); doneExSet.clear(); noteActiveFor.clear();
+  activeWorkout=null; setHistory=[]; skipTimer(); stopWoTimer(); collapsedEx.clear(); doneExSet.clear(); noteActiveFor.clear(); editSetFor=null; dropInputOpen=null;
   workoutSummary=finishedW; screen="start"; render();
 }
 
@@ -3339,8 +3367,25 @@ function renderLog(){
           <button class="set-del" onclick="closeDropInput()" style="font-size:11px;">✕</button>
         </div>`:'';
       const setVol=(!s.bw&&!s.warmup)?parseFloat(s.weight)*parseInt(s.reps)+(s.drops?s.drops.reduce((a,d)=>a+(parseFloat(d.weight)||0)*(parseInt(d.reps)||0),0):0):0;
+      const isEditingThisSet=editSetFor&&editSetFor.exName===e.name&&editSetFor.setIdx===i;
+      if(isEditingThisSet){
+        return `
+        <div class="set-row" data-ex="${e.name.replace(/"/g,'&quot;')}" data-idx="${i}" style="flex-wrap:wrap;gap:6px;padding:8px 12px;">
+          <span style="font-size:11px;color:var(--dim);flex-shrink:0;">Set ${i+1}</span>
+          ${s.bw
+            ?`<span style="font-size:12px;color:var(--muted);">BW</span>`
+            :`<input id="edit-w-${i}" class="input" type="number" inputmode="decimal" value="${s.weight}" style="width:65px;font-size:13px;padding:5px 8px;text-align:center;" onkeydown="if(event.key==='Enter'){document.getElementById('edit-r-${i}').focus();event.preventDefault();}"/><span style="font-size:11px;color:var(--dim);">lb</span>`}
+          <span style="font-size:11px;color:var(--dim);">×</span>
+          <input id="edit-r-${i}" class="input" type="number" inputmode="numeric" value="${s.reps}" style="width:55px;font-size:13px;padding:5px 8px;text-align:center;" onkeydown="if(event.key==='Enter'){saveEditSet(${esc(e.name)},${i});event.preventDefault();}"/>
+          <span style="font-size:11px;color:var(--dim);">reps</span>
+          <span style="display:flex;gap:6px;margin-left:auto;">
+            <button class="btn ghost" onclick="saveEditSet(${esc(e.name)},${i})" style="padding:4px 10px;font-size:11px;">SAVE</button>
+            <button class="set-del" onclick="closeEditSet()">✕</button>
+          </span>
+        </div>`;
+      }
       return `
-      <div class="set-row" data-ex="${e.name.replace(/"/g,'&quot;')}" data-idx="${i}">
+      <div class="set-row" data-ex="${e.name.replace(/"/g,'&quot;')}" data-idx="${i}" onclick="openEditSet(${esc(e.name)},${i})" style="cursor:pointer;">
         <span style="display:flex;align-items:center;gap:6px;">
           ${s.warmup?`<span style="font-size:9px;background:rgba(100,160,255,0.15);border:1px solid rgba(100,160,255,0.3);border-radius:4px;padding:1px 5px;color:#7aacff;font-weight:700;letter-spacing:1px;">W</span>`:""}
           ${s.pr?`<span class="pr-ticket">PR</span>`:""}
@@ -3350,7 +3395,7 @@ function renderLog(){
         <span style="display:flex;align-items:center;gap:6px;">
           ${(!s.bw&&!s.warmup&&setVol)?`<span class="set-vol">${setVol.toLocaleString()}lb</span>`:""}
           <button style="background:none;border:none;color:var(--dim);font-size:9px;padding:2px 4px;cursor:pointer;letter-spacing:0.5px;" onclick="event.stopPropagation();openDropInput(${esc(e.name)},${i})">+DROP</button>
-          <button class="set-del" onclick="deleteSet(${esc(e.name)},${i})">✕</button>
+          <button class="set-del" onclick="event.stopPropagation();deleteSet(${esc(e.name)},${i})">✕</button>
         </span>
       </div>${dropRows}${dropForm}`;
     }).join("");
