@@ -109,6 +109,21 @@ export function addWater(oz) {
   window.render?.();
 }
 
+export function addCustomWater() {
+  window.showModal?.(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">CUSTOM AMOUNT</div>
+    <input id="custom-water-inp" type="number" inputmode="decimal" placeholder="oz"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:#7aacff;font-family:'Bebas Neue',sans-serif;font-size:36px;padding:12px;text-align:center;box-sizing:border-box;margin-bottom:14px;" autofocus/>
+    <button class="btn primary" onclick="
+      const v=parseFloat(document.getElementById('custom-water-inp').value);
+      if(!v||v<=0){window.showToast('Enter an amount');return;}
+      window.hideModal();window.addWater(v);
+    " style="background:#7aacff;color:#080808;">LOG WATER</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+  setTimeout(() => document.getElementById('custom-water-inp')?.focus(), 100);
+}
+
 export function resetWater() {
   const dateStr = window.today?.() || new Date().toISOString().slice(0, 10);
   if (window.state.waterLog) delete window.state.waterLog[dateStr];
@@ -121,16 +136,40 @@ function getTodayWater() {
   return window.state?.waterLog?.[dateStr] || 0;
 }
 
+function getWaterGoal() {
+  return window.state?.macroTargets?.waterGoal || 64;
+}
+
+// Returns last 7 days of water data as [{dateStr, oz, hit}]
+function getWaterHistory() {
+  const log = window.state?.waterLog || {};
+  const goal = getWaterGoal();
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const oz = log[dateStr] || 0;
+    const day = d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1);
+    return { dateStr, oz, hit: oz >= goal, day, isToday: i === 0 };
+  }).reverse();
+}
+
 // ── Macro targets — get with defaults ────────────────────────────────────────
 function getMacroTargets() {
-  return window.state?.macroTargets || { calories: 2500, protein: 180, carbs: 250, fat: 80 };
+  return window.state?.macroTargets || { calories: 2500, protein: 180, carbs: 250, fat: 80, waterGoal: 64 };
 }
 
 // ── Macro targets modal ───────────────────────────────────────────────────────
 export function openMacroTargetsModal() {
   const t = getMacroTargets();
+  // Suggest water goal based on bodyweight: 0.5 oz per lb
+  const bwEntries = window.state?.bodyweight || [];
+  const latestBw = bwEntries.length ? bwEntries[0].weight : null;
+  const suggestedWater = latestBw ? Math.round(latestBw * 0.5 / 8) * 8 : null; // round to nearest 8oz
+
   window.showModal?.(`
-    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY MACRO TARGETS</div>
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">DAILY TARGETS</div>
+    <div style="font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:8px;">MACROS</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       ${[
         ['calories','CALORIES','var(--accent)','kcal'],
@@ -145,16 +184,23 @@ export function openMacroTargetsModal() {
         </div>
       `).join('')}
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:16px;line-height:1.5;">
-      Set your daily targets. The app will show your progress and project weekly weight change based on your calorie surplus or deficit.
+    <div style="font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:8px;">WATER GOAL</div>
+    <div style="margin-bottom:6px;">
+      <div style="font-size:9px;color:#7aacff;letter-spacing:1px;margin-bottom:6px;">DAILY GOAL (oz)</div>
+      <input id="mt-waterGoal" type="number" inputmode="decimal" value="${t.waterGoal||64}"
+        style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:#7aacff;font-family:'Bebas Neue',sans-serif;font-size:22px;padding:10px 8px;text-align:center;box-sizing:border-box;"/>
     </div>
+    ${suggestedWater ? `
+      <div style="font-size:10px;color:var(--dim);margin-bottom:14px;">
+        Based on your weight (${latestBw}lb), suggested goal is <span style="color:#7aacff;cursor:pointer;" onclick="document.getElementById('mt-waterGoal').value=${suggestedWater}">${suggestedWater} oz</span> — tap to use it
+      </div>` : `<div style="font-size:10px;color:var(--dim);margin-bottom:14px;">Log your bodyweight to get a personalized suggestion (0.5 oz per lb)</div>`}
     <button class="btn primary" onclick="window.saveMacroTargets()">SAVE TARGETS</button>
     <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
   `);
 }
 
 export function saveMacroTargets() {
-  const fields = ['calories','protein','carbs','fat'];
+  const fields = ['calories','protein','carbs','fat','waterGoal'];
   const targets = {};
   fields.forEach(f => {
     const el = document.getElementById(`mt-${f}`);
@@ -340,32 +386,61 @@ export function renderNutrition() {
 
   // Water card
   const waterOz = getTodayWater();
-  const waterGoal = 64; // 8 cups
+  const waterGoal = getWaterGoal();
   const waterPct = Math.min(100, Math.round((waterOz / waterGoal) * 100));
   const waterCups = (waterOz / 8).toFixed(1);
-  const waterColor = waterOz >= waterGoal ? '#52c87a' : '#7aacff';
+  const waterHit = waterOz >= waterGoal;
+  const waterColor = waterHit ? '#52c87a' : '#7aacff';
+  const ozLeft = Math.max(0, waterGoal - waterOz);
+  const statusMsg = waterHit
+    ? `Goal crushed! 💧`
+    : ozLeft <= 16
+      ? `Almost there — ${ozLeft} oz to go`
+      : `${ozLeft} oz to go`;
+  const waterHistory = getWaterHistory();
+  const streakDots = waterHistory.map(d => `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <div style="width:28px;height:28px;border-radius:50%;
+        background:${d.oz === 0 ? 'var(--bg3)' : d.hit ? '#52c87a' : '#7aacff'};
+        border:${d.isToday ? '2px solid ' + waterColor : '2px solid transparent'};
+        display:flex;align-items:center;justify-content:center;
+        font-size:9px;color:${d.oz === 0 ? 'var(--dim)' : '#080808'};font-weight:700;">
+        ${d.oz > 0 ? (d.hit ? '✓' : Math.round(d.oz/8)) : ''}
+      </div>
+      <div style="font-size:8px;color:${d.isToday ? waterColor : 'var(--dim)'};">${d.day}</div>
+    </div>`).join('');
   const waterCardHtml = `
-    <div class="card" style="margin-bottom:20px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:18px;">💧</span>
-          <div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${waterColor};line-height:1;">${waterOz} oz</div>
-            <div style="font-size:9px;color:var(--dim);letter-spacing:1px;">${waterCups} cups / ${waterGoal} oz goal</div>
+    <div class="card" style="margin-bottom:20px;${waterHit ? 'border-color:#52c87a44;' : ''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:${waterColor};line-height:1;">💧 ${waterOz}<span style="font-size:14px;"> oz</span></div>
           </div>
+          <div style="font-size:10px;color:var(--dim);margin-top:2px;">${statusMsg}</div>
         </div>
-        ${waterOz > 0 ? `<button onclick="window.resetWater()" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;letter-spacing:0.5px;">reset</button>` : ''}
+        <div style="text-align:right;">
+          <div style="font-size:9px;color:var(--dim);">${waterCups} cups</div>
+          <div style="font-size:9px;color:var(--dim);">goal: ${waterGoal} oz</div>
+          ${waterOz > 0 ? `<button onclick="window.resetWater()" style="background:none;border:none;color:var(--dim);font-size:10px;cursor:pointer;padding:2px 0;display:block;margin-top:4px;">reset</button>` : ''}
+        </div>
       </div>
-      <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:12px;">
-        <div style="height:100%;width:${waterPct}%;background:${waterColor};border-radius:3px;transition:width .3s;"></div>
+      <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:14px;">
+        <div style="height:100%;width:${waterPct}%;background:${waterColor};border-radius:4px;transition:width .4s;"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-        ${[8, 16, 32].map(oz => `
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px;">
+        ${streakDots}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;">
+        ${[8, 16, 24, 32].map(oz => `
           <button onclick="window.addWater(${oz})"
-            style="padding:12px 0;background:rgba(122,172,255,0.08);border:1px solid rgba(122,172,255,0.2);border-radius:12px;color:#7aacff;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;cursor:pointer;">
-            +${oz} oz
+            style="padding:11px 0;background:rgba(122,172,255,0.08);border:1px solid rgba(122,172,255,0.2);border-radius:12px;color:#7aacff;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;cursor:pointer;">
+            +${oz}
           </button>`).join('')}
       </div>
+      <button onclick="window.addCustomWater()"
+        style="width:100%;margin-top:8px;padding:9px;background:none;border:1px solid var(--border2);border-radius:12px;color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;">
+        + CUSTOM AMOUNT
+      </button>
     </div>`;
 
   // Pending items (returned from AI, before user confirms)
