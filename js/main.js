@@ -96,7 +96,7 @@ import {
 import {
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
-  openMacroTargetsModal, saveMacroTargets
+  openMacroTargetsModal, saveMacroTargets, deleteNutritionItem
 } from './nutrition.js';
 
 // Expose all module exports to window so app-legacy.js can use them
@@ -166,7 +166,7 @@ Object.assign(window, {
   // Nutrition
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
-  openMacroTargetsModal, saveMacroTargets,
+  openMacroTargetsModal, saveMacroTargets, deleteNutritionItem,
 });
 
 // ── Ambient particles (persistent floating embers) ──

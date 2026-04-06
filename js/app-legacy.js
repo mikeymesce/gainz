@@ -2918,6 +2918,21 @@ function openMeasurementsModal(){
   `);
 }
 
+function openMeasurementHistory(key, lbl){
+  const entries=(state.measurements||[]).filter(e=>e[key]!==undefined);
+  if(!entries.length){ showToast('No history for '+lbl); return; }
+  const rows=entries.map(e=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;color:var(--muted);">${e.date}</span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);">${e[key]}"</span>
+    </div>`).join('');
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">${lbl.toUpperCase()} HISTORY</div>
+    <div style="max-height:60vh;overflow-y:auto;">${rows}</div>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:14px;">CLOSE</button>
+  `);
+}
+
 function buildMeasurementSparkline(vals){
   if(!vals||vals.length<2) return '';
   const W=80,H=28,pad=3;
@@ -2948,13 +2963,13 @@ function renderMeasurementsSection(){
     const deltaStr=delta===null?'—':delta>0?`+${delta.toFixed(1)}`:`${delta.toFixed(1)}`;
     const deltaColor=delta===null?'var(--dim)':delta>0?'var(--accent)':'#4caf50';
     const sparkVals=entries.slice(0,8).map(e=>e[key]).filter(v=>v!==undefined).reverse();
-    return `<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+    return `<div onclick="openMeasurementHistory('${key}','${lbl}')" style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
       <div style="width:64px;font-size:11px;color:var(--muted);flex-shrink:0;">${lbl}</div>
       <div style="flex:1;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);line-height:1;">${cur}"</div>
         <div style="font-size:10px;color:${deltaColor};margin-top:1px;">${deltaStr}"</div>
       </div>
-      <div style="flex-shrink:0;">${buildMeasurementSparkline(sparkVals)||'<div style="width:80px;height:28px;"></div>'}</div>
+      <div style="flex-shrink:0;display:flex;align-items:center;gap:6px;">${buildMeasurementSparkline(sparkVals)||'<div style="width:80px;height:28px;"></div>'}<span style="font-size:12px;color:var(--dim);">›</span></div>
     </div>`;
   }).join('');
 
@@ -3451,7 +3466,7 @@ function renderLog(){
       ${(()=>{
         if(!e.warmupNext) return '';
         const wSets = loadWarmups(e.name);
-        if(!wSets.length) return `<div style="margin-top:8px;padding:10px 12px;background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2);border-radius:10px;font-size:11px;color:var(--dim);">No warmup data — log a working set first.</div>`;
+        if(!wSets.length) return `<div style="margin-top:8px;padding:10px 12px;background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2);border-radius:10px;font-size:11px;color:var(--dim);">No previous session found — complete this exercise once to unlock warmup sets.</div>`;
         const rows = wSets.map(s =>
           `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(100,160,255,0.1);">
             <span style="font-size:12px;color:#7aacff;font-weight:600;min-width:36px;">${s.label}</span>

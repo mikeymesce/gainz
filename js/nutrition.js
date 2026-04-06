@@ -87,6 +87,16 @@ export function getTodayNutrition() {
   return window.state?.nutritionLog?.[dateStr] || [];
 }
 
+// ── Delete a logged meal item ─────────────────────────────────────────────────
+export function deleteNutritionItem(idx) {
+  const dateStr = window.today?.() || new Date().toISOString().slice(0, 10);
+  if (!window.state?.nutritionLog?.[dateStr]) return;
+  window.state.nutritionLog[dateStr].splice(idx, 1);
+  if (!window.state.nutritionLog[dateStr].length) delete window.state.nutritionLog[dateStr];
+  window.saveAndSync?.();
+  window.render?.();
+}
+
 // ── Macro targets — get with defaults ────────────────────────────────────────
 function getMacroTargets() {
   return window.state?.macroTargets || { calories: 2500, protein: 180, carbs: 250, fat: 80 };
@@ -335,12 +345,14 @@ export function renderNutrition() {
   const logHtml = todayItems.length ? `
     <div>
       <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">TODAY'S LOG</div>
-      ${todayItems.map(item => `
+      ${todayItems.map((item, i) => `
         <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding:10px 14px;">
           <span style="font-size:13px;color:var(--text);flex:1;">${item.name}</span>
           <div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">
             <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);">${Math.round(item.calories||0)}</span>
             <span style="font-size:11px;color:#52c87a;">${Math.round(item.protein||0)}g P</span>
+            <button onclick="window.deleteNutritionItem(${i})"
+              style="background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:0 0 0 6px;line-height:1;">✕</button>
           </div>
         </div>
       `).join('')}
