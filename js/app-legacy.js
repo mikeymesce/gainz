@@ -3586,6 +3586,48 @@ function confirmHistEdit(save){
   histEditDirty=false;
   render();
 }
+function openNotesModal(){
+  // Collect every note across all workouts — session-level + exercise-level
+  const notes = [];
+  (state.workouts || []).forEach(w => {
+    if (w.notes && w.notes.trim()) {
+      notes.push({ timestamp: w.timestamp, date: w.date, label: splitName(w.split) + ' — Session', text: w.notes.trim() });
+    }
+    (w.exercises || []).forEach(e => {
+      if (e.notes && e.notes.trim()) {
+        notes.push({ timestamp: w.timestamp, date: w.date, label: e.name, text: e.notes.trim() });
+      }
+    });
+  });
+
+  notes.sort((a, b) => b.timestamp - a.timestamp);
+
+  if (!notes.length) {
+    showToast('No notes yet — add notes during workouts');
+    return;
+  }
+
+  const rows = notes.map(n => {
+    const d = new Date(n.timestamp);
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `
+      <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+          <div style="font-size:11px;color:var(--accent);font-weight:600;">${n.label}</div>
+          <div style="font-size:9px;color:var(--dim);letter-spacing:0.5px;">${n.date} · ${time}</div>
+        </div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;font-style:italic;">"${n.text}"</div>
+      </div>`;
+  }).join('');
+
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">ALL NOTES</div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:14px;">${notes.length} note${notes.length===1?'':'s'} across all workouts</div>
+    <div style="max-height:65vh;overflow-y:auto;">${rows}</div>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:14px;">CLOSE</button>
+  `);
+}
+
 function deleteWorkout(idx){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">DELETE WORKOUT?</div>
@@ -4039,7 +4081,10 @@ function renderMe(){
         <input id="hist-search" class="input" placeholder="Search by exercise..." value="${histSearchTerm||''}"
           oninput="histSearchTerm=this.value;render()" style="font-size:13px;padding:10px 14px;"/>
         ${histSearchTerm?`<button onclick="histSearchTerm='';render()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;">✕</button>`:''}
-      </div>`;
+      </div>
+      <button onclick="openNotesModal()" style="width:100%;margin-bottom:12px;padding:10px;background:none;border:1px solid var(--border2);border-radius:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;text-align:left;">
+        📝 VIEW ALL NOTES
+      </button>`;
       const calHeatMap=(()=>{
         const today=new Date(); today.setHours(0,0,0,0);
         const weeks=8;
