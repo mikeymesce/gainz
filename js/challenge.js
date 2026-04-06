@@ -212,40 +212,47 @@ export function renderChallenge(){
   const ch=getChallengeState();
   if(!ch.active){
     return `<button onclick="startChallenge()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;text-align:center;">
-      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:4px;">30-DAY CHALLENGE</div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:4px;">MONTHLY CHALLENGE</div>
       <div style="font-size:12px;color:var(--muted);">100 push-ups + 100 reps daily</div>
       <div style="font-size:10px;color:var(--dim);margin-top:4px;">Tap to start</div>
     </button>`;
   }
   let start=parseDateKey(ch.startDate);
-  let dayNum=Math.floor((new Date()-start)/86400000)+1;
+  const now=new Date();
+  let dayNum=Math.floor((now-start)/86400000)+1;
 
   // ── Auto-reset / perfect month chaining ──
-  // Count how many complete 30-day periods have passed
-  if(dayNum>30){
-    const periodsCompleted=Math.floor((dayNum-1)/30);
-    // Check if ALL days from start through the last completed period boundary are perfect
+  // Challenge runs on calendar months. At the start of a new month,
+  // check if every day from startDate through end of last month was perfect.
+  // Perfect → chain (target extends through end of current month).
+  // Missed any day → reset (new challenge starts the 1st of this month).
+  const startMonthEnd=new Date(start.getFullYear(),start.getMonth()+1,0); // last day of start's month
+  if(now>startMonthEnd){
+    // We've crossed at least one month boundary — check all completed months
+    const lastMonthEnd=new Date(now.getFullYear(),now.getMonth(),0); // last day of previous month
     let allPerfect=true;
-    for(let d=0;d<periodsCompleted*30;d++){
-      const cd=new Date(start.getTime()); cd.setDate(cd.getDate()+d);
+    const cd=new Date(start.getTime());
+    while(cd<=lastMonthEnd){
       const data=ch.days[dateKey(cd)];
       if(!data||data.pushups<100||data.situps<100){ allPerfect=false; break; }
+      cd.setDate(cd.getDate()+1);
     }
     if(!allPerfect){
-      // Imperfect period — reset to fresh 30 days
-      ch.startDate=todayStr();
+      // Reset — new challenge aligned to 1st of this month
+      const firstOfMonth=new Date(now.getFullYear(),now.getMonth(),1);
+      ch.startDate=dateKey(firstOfMonth);
       ch.days={};
       _save();
       showToast('New month, new challenge! 💪');
-      start=parseDateKey(ch.startDate);
-      dayNum=1;
+      start=firstOfMonth;
+      dayNum=now.getDate(); // day of current month
     }
   }
 
-  // Target = 30 × (consecutive perfect periods + 1)
-  // e.g. perfect first 30 → target becomes 60, perfect 60 → 90, etc.
-  const perfectPeriods=Math.floor((dayNum-1)/30); // periods fully behind us that were perfect (otherwise we'd have reset)
-  const target=30*(perfectPeriods+1);
+  // Target = days from startDate through end of current month
+  const endOfMonth=new Date(now.getFullYear(),now.getMonth()+1,0);
+  const target=Math.floor((endOfMonth-start)/86400000)+1;
+  const daysInThisMonth=endOfMonth.getDate();
 
   const daysCompleted=Object.values(ch.days).filter(d=>d.pushups>=100&&d.situps>=100).length;
   const todayDone=ch.days[todayStr()];
@@ -263,7 +270,7 @@ export function renderChallenge(){
   }
 
   // Build day grid — scales dot size for extended challenges
-  const dotSize=target<=30?14:target<=60?10:8;
+  const dotSize=target<=31?14:target<=62?10:8;
   const dots=[...Array(target)].map((_,i)=>{
     const dotDate=new Date(start.getTime()); dotDate.setDate(dotDate.getDate()+i);
     const ds=dateKey(dotDate);
@@ -277,7 +284,10 @@ export function renderChallenge(){
     return `<div style="width:${dotSize}px;height:${dotSize}px;border-radius:3px;background:${bg};opacity:${opacity};"></div>`;
   }).join('');
 
-  const label=target>30?`${target}-DAY STREAK · DAY ${dayNum}`:`30-DAY CHALLENGE · DAY ${Math.min(dayNum,30)}`;
+  // Label: show month name for single-month, or streak length for chained months
+  const monthNames=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const isChained=start.getMonth()!==now.getMonth()||start.getFullYear()!==now.getFullYear();
+  const label=isChained?`${dayNum}-DAY STREAK · ${monthNames[now.getMonth()]}`:`${monthNames[now.getMonth()]} CHALLENGE · DAY ${dayNum}/${daysInThisMonth}`;
 
   return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
