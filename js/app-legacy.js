@@ -2485,8 +2485,6 @@ function renderHome(){
 
     ${renderTemplateQuickLaunch()}
 
-    ${renderDailyCheckin()}
-
     ${renderChallenge()}
 `;
 }

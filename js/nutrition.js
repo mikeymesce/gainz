@@ -570,6 +570,8 @@ export function renderNutrition() {
       ${micSection}
       ${pendingHtml}
       ${logHtml}
+
+      ${typeof window.renderDailyCheckin === 'function' ? window.renderDailyCheckin() : ''}
     </div>
   `;
 }
