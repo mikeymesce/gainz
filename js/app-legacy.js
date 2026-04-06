@@ -3166,16 +3166,34 @@ function renderSettings(){
     ${sectionHead('Body Weight')}
     <div class="card" style="padding:14px 18px;">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:${(state.bodyweight||[]).length?'12px':'0'};">
-        <input class="input" id="bw-input" type="number" placeholder="lbs" inputmode="decimal"
-          style="font-size:16px;flex:1;padding:10px 14px;"/>
+        <div style="position:relative;flex:1;">
+          <input class="input" id="bw-input" type="number" placeholder="185" inputmode="decimal"
+            style="font-size:16px;width:100%;padding:10px 36px 10px 14px;box-sizing:border-box;"/>
+          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);pointer-events:none;">lb</span>
+        </div>
         <button onclick="logBW(document.getElementById('bw-input').value)"
           style="background:var(--accent);color:#080808;border:none;border-radius:12px;padding:11px 18px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">LOG</button>
       </div>
-      ${(state.bodyweight||[]).slice(0,5).map((e,i)=>`
+      ${(state.bodyweight||[]).slice(0,5).map((e,i)=>{
+        const prev=(state.bodyweight||[])[i+1];
+        const delta=prev?Math.round((e.weight-prev.weight)*10)/10:null;
+        const deltaStr=delta===null?'':delta>0?`<span style="color:#ff9f43;font-size:10px;">+${delta}</span>`
+          :delta<0?`<span style="color:#52c87a;font-size:10px;">${delta}</span>`
+          :`<span style="color:var(--dim);font-size:10px;">—</span>`;
+        const friendlyDate=new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+        const timeLabel=e.timeOfDay?` · ${e.timeOfDay}`:'';
+        return `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;${i<Math.min((state.bodyweight||[]).length,5)-1?'border-bottom:1px solid #1e1e24;':''}">
-          <span style="font-size:11px;color:var(--muted);">${e.date}</span>
-          <span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);">${e.weight} lb</span>
-        </div>`).join('')}
+          <div>
+            <span style="font-size:11px;color:var(--muted);">${friendlyDate}</span>
+            <span style="font-size:10px;color:var(--dim);">${timeLabel}</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:8px;">
+            ${deltaStr}
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);">${e.weight} lb</span>
+          </div>
+        </div>`;
+      }).join('')}
       ${buildBWChart()}
     </div>
 

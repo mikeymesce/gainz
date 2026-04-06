@@ -156,7 +156,16 @@ function getWaterHistory() {
 
 // ── Macro targets — get with defaults ────────────────────────────────────────
 function getMacroTargets() {
-  return window.state?.macroTargets || { calories: 2500, protein: 180, carbs: 250, fat: 80, waterGoal: 64 };
+  const defaults = { calories: 2500, protein: 180, carbs: 250, fat: 80, waterGoal: 64 };
+  const saved = window.state?.macroTargets;
+  if (!saved) return defaults;
+  return {
+    calories:  saved.calories  || defaults.calories,
+    protein:   saved.protein   || defaults.protein,
+    carbs:     saved.carbs     || defaults.carbs,
+    fat:       saved.fat       || defaults.fat,
+    waterGoal: saved.waterGoal || defaults.waterGoal,
+  };
 }
 
 // ── Macro targets modal ───────────────────────────────────────────────────────
@@ -331,6 +340,7 @@ export async function processMealText(text) {
 export function renderNutrition() {
   const todayItems = getTodayNutrition();
   const targets = getMacroTargets();
+  const targetsSet = !!window.state?.macroTargets?.calories;
 
   const totals = todayItems.reduce((acc, item) => ({
     calories: acc.calories + (item.calories || 0),
@@ -339,50 +349,107 @@ export function renderNutrition() {
     fat:      acc.fat      + (item.fat      || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 
-  // Progress bar macro stat
+  // Progress bar macro stat — value shown once (above bar), no duplicate below
   const macroStat = (val, target, label, color) => {
     const pct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
     const over = val > target && target > 0;
+    const unit = label === 'CAL' ? '' : ' g';
     return `
       <div>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
           <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">${label}</div>
-          <div style="font-size:9px;color:var(--dim);">${Math.round(val)}${label==='CAL'?'':' g'} <span style="color:${over?'#ff6b6b':color};">/ ${target}${label==='CAL'?'':' g'}</span></div>
+          <div style="font-size:9px;color:var(--dim);">${Math.round(val)}${unit} <span style="color:${over?'#ff6b6b':color};">/ ${target}${unit}</span></div>
         </div>
         <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;">
           <div style="height:100%;width:${pct}%;background:${over?'#ff6b6b':color};border-radius:3px;transition:width .3s;"></div>
         </div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${color};line-height:1;margin-top:6px;">${Math.round(val)}${label==='CAL'?'':' g'}</div>
       </div>`;
   };
 
-  // Weekly projection card
-  const proj = getWeeklyProjection();
-  const projHtml = proj ? (() => {
-    const surplus = proj.projectedWeeklyNet;
-    const lbs = proj.weightChangeLbs;
-    const gaining = surplus > 0;
-    const color = gaining ? '#ff9f43' : '#52c87a';
-    const arrow = gaining ? '↑' : '↓';
-    const label = gaining ? 'projected gain' : 'projected loss';
-    const absLbs = Math.abs(lbs);
-    const absCal = Math.abs(surplus);
-    return `
-      <div class="card" style="margin-bottom:20px;border-color:${color}33;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
-          <div style="font-size:10px;letter-spacing:1px;color:var(--dim);">WEEKLY PROJECTION</div>
-          <div style="font-size:9px;color:var(--dim);">${proj.daysWithData}/7 days logged</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:${color};line-height:1;">${arrow} ${absLbs} lb</div>
-          <div>
-            <div style="font-size:11px;color:${color};letter-spacing:1px;">${label} this week</div>
-            <div style="font-size:10px;color:var(--dim);margin-top:2px;">${absCal} cal ${gaining?'surplus':'deficit'} projected</div>
-            <div style="font-size:9px;color:var(--muted);margin-top:2px;">~${Math.abs(proj.avgDailySurplus)} cal/day ${gaining?'over':'under'} target</div>
+  // Mic / log entry section (primary action — shown first)
+  const micSection = !_pendingItems.length ? `
+    <div style="text-align:center;margin-bottom:24px;">
+      <button id="nutrition-mic-btn" onclick="window.startMicCapture()"
+        style="width:80px;height:80px;border-radius:50%;background:rgba(232,255,0,0.08);border:2px solid var(--accent);font-size:32px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;">
+        🎙️
+      </button>
+      <div style="font-size:11px;color:var(--dim);margin-top:10px;letter-spacing:1px;">TAP TO LOG A MEAL</div>
+      <button onclick="window.showMealTextInput()"
+        style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;margin-top:8px;letter-spacing:1px;display:block;margin-left:auto;margin-right:auto;opacity:0.7;text-decoration:underline;">
+        type instead
+      </button>
+    </div>
+  ` : '';
+
+  // Pending items (AI parsed, before user confirms) — oninput so LOG MEAL captures mid-edit values
+  const pendingHtml = _pendingItems.length ? `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">REVIEW & CONFIRM</div>
+      ${_pendingItems.map((item, i) => `
+        <div class="card" style="margin-bottom:8px;">
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.name}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+            ${[['calories','CAL','var(--accent)'],['protein','PRO','#52c87a'],['carbs','CARB','#7aacff'],['fat','FAT','#ffb347']].map(([field,lbl,color]) => `
+              <div style="text-align:center;">
+                <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">${lbl}</div>
+                <input type="number" inputmode="decimal" value="${Math.round(item[field]||0)}"
+                  oninput="window.editPendingItem(${i},'${field}',this.value)"
+                  style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:${color};font-family:'Bebas Neue',sans-serif;font-size:18px;padding:6px 2px;text-align:center;"/>
+              </div>
+            `).join('')}
           </div>
         </div>
-      </div>`;
-  })() : '';
+      `).join('')}
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="window.confirmNutritionLog()"
+          style="flex:1;background:var(--accent);color:#080808;border:none;border-radius:12px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;">LOG MEAL</button>
+        <button onclick="window.clearPendingItems()"
+          style="background:var(--bg3);border:1px solid var(--border2);color:var(--dim);border-radius:12px;padding:13px 16px;font-size:16px;cursor:pointer;">✕</button>
+      </div>
+    </div>
+  ` : `<div id="nutrition-pending-area"></div>`;
+
+  // Today's log — all 4 macros visible per item
+  const logHtml = todayItems.length ? `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">TODAY'S LOG</div>
+      ${todayItems.map((item, i) => `
+        <div class="card" style="margin-bottom:6px;padding:10px 14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:13px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;">${item.name}</span>
+            <button onclick="window.deleteNutritionItem(${i})"
+              style="background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;">✕</button>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--accent);">${Math.round(item.calories||0)} cal</span>
+            <span style="font-size:11px;color:#52c87a;">${Math.round(item.protein||0)}g P</span>
+            <span style="font-size:11px;color:#7aacff;">${Math.round(item.carbs||0)}g C</span>
+            <span style="font-size:11px;color:#ffb347;">${Math.round(item.fat||0)}g F</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Targets not set — nudge (only if user hasn't set them yet)
+  const targetsHint = !targetsSet ? `
+    <div style="margin-bottom:16px;padding:10px 14px;background:rgba(232,213,160,0.06);border:1px solid rgba(232,213,160,0.15);border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:11px;color:var(--muted);">Set your macro targets to track progress</div>
+      <button onclick="window.openMacroTargetsModal()" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;letter-spacing:1px;font-family:inherit;white-space:nowrap;">SET →</button>
+    </div>
+  ` : '';
+
+  // Macro summary card
+  const macroCard = `
+    <div class="card" style="margin-bottom:20px;">
+      <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:14px;">TODAY</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        ${macroStat(totals.calories, targets.calories, 'CAL', 'var(--accent)')}
+        ${macroStat(totals.protein,  targets.protein,  'PRO', '#52c87a')}
+        ${macroStat(totals.carbs,    targets.carbs,    'CARBS', '#7aacff')}
+        ${macroStat(totals.fat,      targets.fat,      'FAT', '#ffb347')}
+      </div>
+    </div>`;
 
   // Water card
   const waterOz = getTodayWater();
@@ -413,9 +480,7 @@ export function renderNutrition() {
     <div class="card" style="margin-bottom:20px;${waterHit ? 'border-color:#52c87a44;' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
         <div>
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:${waterColor};line-height:1;">💧 ${waterOz}<span style="font-size:14px;"> oz</span></div>
-          </div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:${waterColor};line-height:1;">💧 ${waterOz}<span style="font-size:14px;"> oz</span></div>
           <div style="font-size:10px;color:var(--dim);margin-top:2px;">${statusMsg}</div>
         </div>
         <div style="text-align:right;">
@@ -443,64 +508,76 @@ export function renderNutrition() {
       </button>
     </div>`;
 
-  // Pending items (returned from AI, before user confirms)
-  const pendingHtml = _pendingItems.length ? `
-    <div style="margin-bottom:20px;">
-      <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">REVIEW & CONFIRM</div>
-      ${_pendingItems.map((item, i) => `
-        <div class="card" style="margin-bottom:8px;">
-          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;">${item.name}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
-            ${[['calories','CAL','var(--accent)'],['protein','PRO','#52c87a'],['carbs','CARB','#7aacff'],['fat','FAT','#ffb347']].map(([field,lbl,color]) => `
-              <div style="text-align:center;">
-                <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">${lbl}</div>
-                <input type="number" inputmode="decimal" value="${Math.round(item[field]||0)}"
-                  onchange="window.editPendingItem(${i},'${field}',this.value)"
-                  style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:${color};font-family:'Bebas Neue',sans-serif;font-size:18px;padding:6px 2px;text-align:center;"/>
-              </div>
-            `).join('')}
+  // 7-day calorie chart
+  const chartHtml = (() => {
+    const log = window.state?.nutritionLog || {};
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const items = log[key] || [];
+      const cals = items.reduce((s, it) => s + (it.calories || 0), 0);
+      const pro  = items.reduce((s, it) => s + (it.protein  || 0), 0);
+      const dayName = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+      days.push({ dayName, cals: Math.round(cals), pro: Math.round(pro), hasData: items.length > 0 });
+    }
+    if (!days.some(d => d.hasData)) return '';
+    const maxCal = Math.max(targets.calories, ...days.map(d => d.cals), 1);
+    const bars = days.map(d => {
+      const h = d.cals > 0 ? Math.max(4, Math.round((d.cals / maxCal) * 80)) : 0;
+      const over = d.cals > targets.calories && targets.calories > 0;
+      const color = d.cals === 0 ? 'var(--bg3)' : over ? '#ff6b6b' : 'var(--accent)';
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+        <div style="font-size:8px;color:var(--dim);">${d.cals || '-'}</div>
+        <div style="width:100%;max-width:28px;height:80px;display:flex;align-items:flex-end;justify-content:center;">
+          <div style="width:100%;height:${h}px;background:${color};border-radius:4px 4px 2px 2px;transition:height .3s;"></div>
+        </div>
+        <div style="font-size:8px;color:${d.dayName==='Today'?'var(--accent)':'var(--dim)'};">${d.dayName}</div>
+        ${d.pro ? `<div style="font-size:7px;color:#52c87a;">${d.pro}g P</div>` : ''}
+      </div>`;
+    }).join('');
+    const targetLineY = targetsSet ? Math.round((1 - targets.calories / maxCal) * 80) : -1;
+    return `
+      <div class="card" style="margin-bottom:20px;">
+        <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:12px;">7-DAY CALORIES</div>
+        <div style="position:relative;">
+          ${targetsSet ? `
+            <div style="position:absolute;top:${targetLineY}px;left:0;right:0;border-top:1px dashed rgba(232,213,160,0.25);z-index:1;"></div>
+            <div style="position:absolute;top:${targetLineY - 8}px;right:0;font-size:7px;color:var(--dim);z-index:2;">goal</div>
+          ` : ''}
+          <div style="display:flex;gap:4px;padding-top:14px;">${bars}</div>
+        </div>
+      </div>`;
+  })();
+
+  // Weekly projection — only meaningful if targets are set
+  const proj = getWeeklyProjection();
+  const projHtml = (() => {
+    if (!targetsSet) return '';
+    if (!proj) return '';
+    const surplus = proj.projectedWeeklyNet;
+    const lbs = proj.weightChangeLbs;
+    const gaining = surplus > 0;
+    const color = gaining ? '#ff9f43' : '#52c87a';
+    const arrow = gaining ? '↑' : '↓';
+    const label = gaining ? 'projected gain' : 'projected loss';
+    return `
+      <div class="card" style="margin-bottom:20px;border-color:${color}33;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+          <div style="font-size:10px;letter-spacing:1px;color:var(--dim);">WEEKLY PROJECTION</div>
+          <div style="font-size:9px;color:var(--dim);">${proj.daysWithData}/7 days logged</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:${color};line-height:1;">${arrow} ${Math.abs(lbs)} lb</div>
+          <div>
+            <div style="font-size:11px;color:${color};letter-spacing:1px;">${label} this week</div>
+            <div style="font-size:10px;color:var(--dim);margin-top:2px;">${Math.abs(surplus)} cal ${gaining?'surplus':'deficit'} projected</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px;">~${Math.abs(proj.avgDailySurplus)} cal/day ${gaining?'over':'under'} target</div>
           </div>
         </div>
-      `).join('')}
-      <div style="display:flex;gap:8px;margin-top:12px;">
-        <button onclick="window.confirmNutritionLog()"
-          style="flex:1;background:var(--accent);color:#080808;border:none;border-radius:12px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;">LOG MEAL</button>
-        <button onclick="window.clearPendingItems()"
-          style="background:var(--bg3);border:1px solid var(--border2);color:var(--dim);border-radius:12px;padding:13px 16px;font-size:16px;cursor:pointer;">✕</button>
-      </div>
-    </div>
-  ` : `<div id="nutrition-pending-area"></div>`;
-
-  const logHtml = todayItems.length ? `
-    <div>
-      <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">TODAY'S LOG</div>
-      ${todayItems.map((item, i) => `
-        <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding:10px 14px;">
-          <span style="font-size:13px;color:var(--text);flex:1;">${item.name}</span>
-          <div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);">${Math.round(item.calories||0)}</span>
-            <span style="font-size:11px;color:#52c87a;">${Math.round(item.protein||0)}g P</span>
-            <button onclick="window.deleteNutritionItem(${i})"
-              style="background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:0 0 0 6px;line-height:1;">✕</button>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  ` : '';
-
-  const micSection = !_pendingItems.length ? `
-    <div style="text-align:center;margin-bottom:24px;">
-      <button id="nutrition-mic-btn" onclick="window.startMicCapture()"
-        style="width:80px;height:80px;border-radius:50%;background:rgba(232,255,0,0.08);border:2px solid var(--accent);font-size:32px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;">
-        🎙️
-      </button>
-      <div style="font-size:11px;color:var(--dim);margin-top:10px;letter-spacing:1px;">TAP TO LOG A MEAL</div>
-      <button onclick="window.showMealTextInput()"
-        style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;margin-top:6px;letter-spacing:1px;display:block;margin-left:auto;margin-right:auto;">
-        type instead
-      </button>
-    </div>
-  ` : '';
+      </div>`;
+  })();
 
   return `
     <div style="padding:16px 16px 100px;">
@@ -512,64 +589,14 @@ export function renderNutrition() {
         </button>
       </div>
 
-      <div class="card" style="margin-bottom:20px;">
-        <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:14px;">TODAY</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-          ${macroStat(totals.calories, targets.calories, 'CAL', 'var(--accent)')}
-          ${macroStat(totals.protein, targets.protein, 'PROTEIN', '#52c87a')}
-          ${macroStat(totals.carbs, targets.carbs, 'CARBS', '#7aacff')}
-          ${macroStat(totals.fat, targets.fat, 'FAT', '#ffb347')}
-        </div>
-      </div>
-
-      ${projHtml}
-      ${waterCardHtml}
-
-      ${(() => {
-        // ── 7-Day Macro History ──
-        const log = window.state?.nutritionLog || {};
-        const days = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const key = d.toISOString().slice(0, 10);
-          const items = log[key] || [];
-          const cals = items.reduce((s, it) => s + (it.calories || 0), 0);
-          const pro = items.reduce((s, it) => s + (it.protein || 0), 0);
-          const dayName = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
-          days.push({ dayName, cals: Math.round(cals), pro: Math.round(pro), hasData: items.length > 0 });
-        }
-        const maxCal = Math.max(targets.calories, ...days.map(d => d.cals), 1);
-        const hasAnyData = days.some(d => d.hasData);
-        if (!hasAnyData) return '';
-        const bars = days.map(d => {
-          const h = d.cals > 0 ? Math.max(4, Math.round((d.cals / maxCal) * 80)) : 0;
-          const over = d.cals > targets.calories;
-          const color = d.cals === 0 ? 'var(--bg3)' : over ? '#ff6b6b' : 'var(--accent)';
-          return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
-            <div style="font-size:8px;color:var(--dim);">${d.cals || '-'}</div>
-            <div style="width:100%;max-width:28px;height:80px;display:flex;align-items:flex-end;justify-content:center;">
-              <div style="width:100%;height:${h}px;background:${color};border-radius:4px 4px 2px 2px;transition:height .3s;"></div>
-            </div>
-            <div style="font-size:8px;color:${d.dayName==='Today'?'var(--accent)':'var(--dim)'};">${d.dayName}</div>
-            ${d.pro ? `<div style="font-size:7px;color:#52c87a;">${d.pro}g P</div>` : ''}
-          </div>`;
-        }).join('');
-        const targetLineY = Math.round((1 - targets.calories / maxCal) * 80);
-        return `
-          <div class="card" style="margin-bottom:20px;">
-            <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:12px;">7-DAY CALORIES</div>
-            <div style="position:relative;">
-              <div style="position:absolute;top:${targetLineY}px;left:0;right:0;border-top:1px dashed rgba(232,213,160,0.25);z-index:1;"></div>
-              <div style="position:absolute;top:${targetLineY - 8}px;right:0;font-size:7px;color:var(--dim);z-index:2;">goal</div>
-              <div style="display:flex;gap:4px;padding-top:14px;">${bars}</div>
-            </div>
-          </div>`;
-      })()}
-
+      ${targetsHint}
       ${micSection}
       ${pendingHtml}
       ${logHtml}
+      ${macroCard}
+      ${waterCardHtml}
+      ${chartHtml}
+      ${projHtml}
 
       ${typeof window.renderDailyCheckin === 'function' ? window.renderDailyCheckin() : ''}
     </div>
