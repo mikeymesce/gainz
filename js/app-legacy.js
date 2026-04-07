@@ -552,15 +552,13 @@ function startWorkout(split){
     if(activeWorkout){ try{ localStorage.setItem("gainz_recovery",JSON.stringify(activeWorkout)); }catch(e){} }
     else{ clearInterval(autoSaveInterval); }
   },20000);
-  // Smart Start: auto-load exercises from last same-split workout
+  // Smart Start: offer to load exercises from last same-split workout
   const lastSame=state.workouts.find(w=>w.split===split);
+  render();
   if(lastSame){
-    lastSame.exercises.forEach(e=>addExercise(e.name));
-    render();
-    showToast('Loaded last '+splitName(split)+' day');
+    setTimeout(()=>showExercisePickerModal(lastSame.exercises.map(e=>e.name), 'Last '+splitName(split)+' Day', false),100);
   } else {
-    render();
-    setTimeout(openPicker, 100);
+    setTimeout(openPicker,100);
   }
 }
 function initSwipeCollapse(){
@@ -784,8 +782,13 @@ function deleteDrop(exName,setIdx,dropIdx){
   render();
 }
 function deleteExerciseConfirm(name){
-  if(!confirm("Remove "+name+"?")) return;
-  deleteExercise(name);
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">REMOVE EXERCISE</div>
+    <div style="font-size:15px;color:var(--text);margin-bottom:16px;">${name}</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:20px;">Remove from this workout? Sets logged so far will be lost.</div>
+    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);" onclick="deleteExercise(${esc(name)});hideModal();">REMOVE</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
 }
 function deleteExercise(name){
   if(!activeWorkout) return;
@@ -842,8 +845,25 @@ function updateNote(n,val){
 }
 function openNoteInput(name){
   noteActiveFor.add(name);
-  render();
-  setTimeout(()=>{ const el=document.getElementById('note-inp-'+name.replace(/[^a-z0-9]/gi,'_')); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } },60);
+  const safeName=name.replace(/[^a-z0-9]/gi,'_');
+  const btn=document.getElementById('note-btn-'+safeName);
+  if(btn){
+    // Swap button for textarea in-place — no full render, so keyboard stays up on mobile
+    const ta=document.createElement('textarea');
+    ta.id='note-inp-'+safeName;
+    ta.className='notes-inp';
+    ta.rows=1;
+    ta.placeholder='notes...';
+    ta.style.height='auto';
+    ta.value=activeWorkout?.exercises.find(e=>e.name===name)?.notes||'';
+    ta.oninput=function(){updateNote(name,this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';};
+    btn.replaceWith(ta);
+    setTimeout(()=>{ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);},50);
+  } else {
+    // Fallback: full render (e.g. if note already existed and textarea is already there)
+    render();
+    setTimeout(()=>{const el=document.getElementById('note-inp-'+safeName);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},60);
+  }
 }
 function toggleLastSession(n){ expandedLastSession.has(n)?expandedLastSession.delete(n):expandedLastSession.add(n); render(); }
 function toggleSS(n){ if(!activeWorkout) return; activeWorkout.exercises=activeWorkout.exercises.map(e=>e.name===n?{...e,superset:!e.superset}:e); render(); }
@@ -2514,9 +2534,33 @@ function loadTemplate(id){
   const t=(state.templates||[]).find(t=>t.id===id);
   if(!t) return;
   if(!activeWorkout) startWorkoutSilent(t.split);
-  t.exercises.forEach(e=>addExercise(e.name));
   screen='log'; render();
-  showToast('📋 Loaded: '+t.name);
+  setTimeout(()=>showExercisePickerModal(t.exercises.map(e=>e.name), t.name, true),100);
+}
+// Shows a checklist of exercises so user can deselect before loading.
+// showAddMore: if true, shows "+ Add More" button to open picker after loading.
+function showExercisePickerModal(exerciseNames, title, showAddMore){
+  if(!exerciseNames||!exerciseNames.length) { openPicker(); return; }
+  const checkboxes=exerciseNames.map((n,i)=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 0;${i<exerciseNames.length-1?'border-bottom:1px solid #1e1e24;':''}cursor:pointer;">
+      <input type="checkbox" id="ex-pick-${i}" checked style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;"/>
+      <span style="font-size:13px;color:var(--text);">${n}</span>
+    </label>`).join('');
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">LOAD WORKOUT</div>
+    <div style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:14px;">${title}</div>
+    <div style="margin-bottom:16px;max-height:50vh;overflow-y:auto;">${checkboxes}</div>
+    <button class="btn primary" onclick="
+      const selected=Array.from(document.querySelectorAll('[id^=ex-pick-]')).filter(c=>c.checked).map(c=>parseInt(c.id.replace('ex-pick-','')));
+      const names=${JSON.stringify(exerciseNames)};
+      selected.forEach(i=>addExercise(names[i]));
+      hideModal();
+      render();
+      ${showAddMore?'if(selected.length>0)showToast(selected.length+\' exercise\'+(selected.length===1?\'\':\' s\')+\' loaded\');':''}
+    ">LOAD SELECTED</button>
+    <button class="btn ghost" onclick="hideModal()${showAddMore?';openPicker()':''}" style="margin-top:8px;">${showAddMore?'+ ADD DIFFERENT':'START EMPTY'}</button>
+    <button class="btn ghost" onclick="abandonWorkout()" style="margin-top:8px;color:var(--dim);font-size:11px;">CANCEL</button>
+  `);
 }
 function startWorkoutSilent(split){
   activeWorkout={split,exercises:[],startTime:Date.now(),notes:''};
@@ -3543,7 +3587,7 @@ function renderLog(){
           <button style="background:none;border:none;color:var(--dim);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="showRestEditor(${esc(e.name)})">⏱${restFmt}</button>
         </div>
       </div>
-      ${(e.notes||noteActiveFor.has(e.name)) ? `<textarea id="note-inp-${e.name.replace(/[^a-z0-9]/gi,'_')}" class="notes-inp" rows="1" placeholder="notes..." oninput="updateNote(${esc(e.name)},this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';" style="height:auto;">${e.notes||''}</textarea>` : `<button onclick="openNoteInput(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:4px 0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;">+ add note</button>`}
+      ${(e.notes||noteActiveFor.has(e.name)) ? `<textarea id="note-inp-${e.name.replace(/[^a-z0-9]/gi,'_')}" class="notes-inp" rows="1" placeholder="notes..." oninput="updateNote(${esc(e.name)},this.value);this.style.height='auto';this.style.height=this.scrollHeight+'px';" style="height:auto;">${e.notes||''}</textarea>` : `<button id="note-btn-${e.name.replace(/[^a-z0-9]/gi,'_')}" onclick="openNoteInput(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:4px 0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;">+ add note</button>`}
       ${(()=>{
         if(!e.warmupNext) return '';
         const wSets = loadWarmups(e.name);
