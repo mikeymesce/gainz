@@ -381,8 +381,49 @@ function addCustomExercise(){
 // ═══════════════════════════════════════════
 // GENERAL MODAL
 // ═══════════════════════════════════════════
-function showModal(h){ document.getElementById("modal-inner").innerHTML=h; document.getElementById("modal").classList.add("open"); }
+function showModal(h){
+  const inner=document.getElementById("modal-inner");
+  inner.style.transform=''; inner.style.transition='';
+  inner.innerHTML=h;
+  document.getElementById("modal").classList.add("open");
+}
 function hideModal(){ document.getElementById("modal").classList.remove("open"); }
+
+function initModalDismiss(){
+  const modal=document.getElementById("modal");
+  const inner=document.getElementById("modal-inner");
+  if(!modal||!inner) return;
+
+  // Tap backdrop to close
+  modal.addEventListener("click", e=>{ if(e.target===modal) hideModal(); });
+
+  // Swipe down to close
+  let startY=0, dragging=false;
+  inner.addEventListener("touchstart", e=>{
+    if(inner.scrollTop>0) return; // don't intercept when scrolled
+    startY=e.touches[0].clientY;
+    dragging=true;
+    inner.style.transition="none";
+  },{passive:true});
+  inner.addEventListener("touchmove", e=>{
+    if(!dragging) return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy>0) inner.style.transform=`translateY(${dy}px)`;
+  },{passive:true});
+  inner.addEventListener("touchend", e=>{
+    if(!dragging) return;
+    dragging=false;
+    const dy=e.changedTouches[0].clientY-startY;
+    inner.style.transition="transform 0.28s ease";
+    if(dy>110){
+      inner.style.transform="translateY(100%)";
+      setTimeout(()=>{ hideModal(); inner.style.transform=""; inner.style.transition=""; },260);
+    } else {
+      inner.style.transform="";
+      setTimeout(()=>{ inner.style.transition=""; },300);
+    }
+  },{passive:true});
+}
 
 function showRestEditor(ex){
   const cur=state.exerciseRests[ex]??GLOBAL_DEFAULT;
@@ -4649,6 +4690,7 @@ if(location.search.includes('reset')){
 checkOnline();
 runTests();
 initTestsAndDebug();
+initModalDismiss();
 render();
 // First open: setup flow → cinematic. All other opens: cinematic directly.
 if (!maybeShowSetup()) {

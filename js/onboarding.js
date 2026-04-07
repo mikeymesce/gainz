@@ -7,35 +7,75 @@
 let _setupStep = 1;           // 1, 2, or 3
 export let _setupData = {};  // { name, goal, bodyweight } — exported so main.js can put it on window
 
-function _calcTargets(goal, bw) {
-  // bw in lbs — if not provided, use common defaults per goal
+function _calcTargets(goal, bw, weeklyRate) {
+  // Uses TDEE estimate (BW × 15) ± weekly rate adjustment
+  // 1 lb of fat = 3500 cal → 500 cal/day per lb/week
   const hasBW = bw && bw > 0;
   const round50 = n => Math.round(n / 50) * 50;
   const round5  = n => Math.round(n / 5) * 5;
   const round10 = n => Math.round(n / 10) * 10;
+
   if (goal === 'muscle') {
-    const cal  = hasBW ? round50(bw * 17) : 2800;
+    const rate = weeklyRate || 0.5;
+    const tdee = hasBW ? bw * 15 : 2500;
+    const cal  = round50(tdee + rate * 500);
     const pro  = hasBW ? Math.round(bw)   : 180;
     const fat  = hasBW ? round5(bw * 0.4) : 80;
-    const carb = hasBW ? Math.max(round10((cal - pro*4 - fat*9) / 4), 50) : 280;
+    const carb = Math.max(round10((cal - pro*4 - fat*9) / 4), 50);
     const water= hasBW ? round5(bw * 0.5) : 64;
     return { calories: cal, protein: pro, carbs: carb, fat, waterGoal: water };
   }
   if (goal === 'fat') {
-    const cal  = hasBW ? round50(bw * 12) : 1800;
+    const rate = weeklyRate || 1.0;
+    const tdee = hasBW ? bw * 15 : 2500;
+    const cal  = round50(Math.max(tdee - rate * 500, 1200)); // floor at 1200
     const pro  = hasBW ? Math.round(bw * 0.9) : 150;
     const fat  = hasBW ? round5(bw * 0.35)    : 60;
-    const carb = hasBW ? Math.max(round10((cal - pro*4 - fat*9) / 4), 30) : 140;
+    const carb = Math.max(round10((cal - pro*4 - fat*9) / 4), 30);
     const water= hasBW ? round5(bw * 0.5) : 64;
     return { calories: cal, protein: pro, carbs: carb, fat, waterGoal: water };
   }
   // maintain
-  const cal  = hasBW ? round50(bw * 15) : 2200;
+  const tdee = hasBW ? bw * 15 : 2200;
+  const cal  = round50(tdee);
   const pro  = hasBW ? Math.round(bw * 0.75) : 150;
   const fat  = hasBW ? round5(bw * 0.45)     : 65;
-  const carb = hasBW ? Math.max(round10((cal - pro*4 - fat*9) / 4), 100) : 210;
+  const carb = Math.max(round10((cal - pro*4 - fat*9) / 4), 100);
   const water= hasBW ? round5(bw * 0.5) : 64;
   return { calories: cal, protein: pro, carbs: carb, fat, waterGoal: water };
+}
+
+function _weeksToGoal(bw, goalWeight, weeklyRate) {
+  if (!bw || !goalWeight || !weeklyRate || bw === goalWeight) return null;
+  const diff = Math.abs(goalWeight - bw);
+  const weeks = Math.round(diff / weeklyRate);
+  if (weeks <= 0) return null;
+  return weeks;
+}
+
+// Updates just the live preview card on step 2 — no full re-render so keyboard stays up
+function _updateStep2Preview() {
+  const preview = document.getElementById('setup-step2-preview');
+  if (!preview) return;
+  const { goal, bodyweight: bw, goalWeight, weeklyRate } = _setupData;
+  if (!bw || bw <= 0) { preview.innerHTML = ''; return; }
+
+  const t = _calcTargets(goal, bw, weeklyRate);
+  const weeks = _weeksToGoal(bw, goalWeight, weeklyRate);
+  const timelineHtml = weeks && goalWeight ? `
+    <div style="margin-top:10px;padding:8px 12px;background:rgba(232,213,160,0.06);border-radius:8px;font-size:11px;color:var(--muted);text-align:center;">
+      At this pace → <strong style="color:var(--accent);">${goalWeight} lb</strong> in ~<strong style="color:var(--accent);">${weeks} weeks</strong>
+    </div>` : '';
+
+  preview.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:12px;background:var(--bg2);border-radius:12px;border:1px solid var(--border2);">
+      ${[['CAL','calories','var(--accent)',''],['PRO','protein','#52c87a','g'],['CARBS','carbs','#7aacff','g'],['FAT','fat','#ffb347','g']].map(([lbl,key,color,unit])=>`
+        <div style="text-align:center;">
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;">${lbl}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${color};">${t[key]}${unit}</div>
+        </div>`).join('')}
+    </div>
+    ${timelineHtml}`;
 }
 
 function _stepDots(current) {
@@ -96,48 +136,73 @@ export function _renderSetupStep() {
   }
 
   if (_setupStep === 2) {
-    const suggested = _calcTargets(_setupData.goal, _setupData.bodyweight);
-    const preview = _setupData.bodyweight ? `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:14px;padding:14px;background:var(--bg2);border-radius:12px;border:1px solid var(--border2);">
-        ${[['CAL','calories','var(--accent)',''],['PRO','protein','#52c87a','g'],['CARBS','carbs','#7aacff','g'],['FAT','fat','#ffb347','g']].map(([lbl,key,color,unit])=>`
-          <div style="text-align:center;">
-            <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;">${lbl}</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${color};">${suggested[key]}${unit}</div>
-          </div>`).join('')}
-      </div>` : '';
+    const showPace = _setupData.goal !== 'fit';
+    const paceOptions = _setupData.goal === 'muscle'
+      ? [0.25, 0.5, 1]
+      : [0.5, 1, 1.5, 2];
+    const defaultRate = _setupData.goal === 'muscle' ? 0.5 : 1;
+    if (!_setupData.weeklyRate) _setupData.weeklyRate = defaultRate;
+
     el.innerHTML = `
       <div style="flex:1;display:flex;flex-direction:column;padding:48px 24px 40px;">
-        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;">How much do you weigh?</div>
-        <div style="font-size:13px;color:var(--dim);margin-bottom:32px;">Used to calculate your calorie & water targets. Optional — you can skip.</div>
+        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;">Your weight</div>
+        <div style="font-size:13px;color:var(--dim);margin-bottom:24px;">We'll use this to calculate your exact calorie target.</div>
 
-        <div style="position:relative;margin-bottom:8px;">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">CURRENT WEIGHT</div>
+        <div style="position:relative;margin-bottom:20px;">
           <input id="setup-bw" class="input" type="number" inputmode="decimal" placeholder="185"
             value="${_setupData.bodyweight||''}"
             style="font-size:24px;text-align:center;padding-right:48px;"
-            oninput="_setupData.bodyweight=parseFloat(this.value)||0;_renderSetupStep();"/>
+            oninput="_setupData.bodyweight=parseFloat(this.value)||0;_updateStep2Preview();"/>
           <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none;">lb</span>
         </div>
-        ${preview}
 
-        <div style="margin-top:auto;padding-top:32px;">
+        ${showPace ? `
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">GOAL WEIGHT (OPTIONAL)</div>
+        <div style="position:relative;margin-bottom:20px;">
+          <input id="setup-goal-wt" class="input" type="number" inputmode="decimal" placeholder="${_setupData.goal==='muscle'?'195':'160'}"
+            value="${_setupData.goalWeight||''}"
+            style="font-size:24px;text-align:center;padding-right:48px;"
+            oninput="_setupData.goalWeight=parseFloat(this.value)||0;_updateStep2Preview();"/>
+          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none;">lb</span>
+        </div>
+
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">
+          ${_setupData.goal==='muscle'?'WEEKLY GAIN TARGET':'WEEKLY LOSS TARGET'}
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          ${paceOptions.map(r=>`
+            <button onclick="_setupData.weeklyRate=${r};_updateStep2Preview();_renderStep2Pace();"
+              id="pace-btn-${String(r).replace('.','_')}"
+              style="flex:1;padding:10px 4px;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;
+                background:${_setupData.weeklyRate===r?'rgba(232,213,160,0.12)':'var(--bg2)'};
+                border:2px solid ${_setupData.weeklyRate===r?'var(--accent)':'var(--border2)'};
+                color:${_setupData.weeklyRate===r?'var(--accent)':'var(--muted)'};">
+              ${r} lb
+            </button>`).join('')}
+        </div>` : ''}
+
+        <div id="setup-step2-preview"></div>
+
+        <div style="margin-top:auto;padding-top:24px;">
           <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px;">${_stepDots(2)}</div>
-          <button class="btn primary" onclick="_setupGoNext()">
-            ${_setupData.bodyweight ? 'NEXT →' : 'SKIP →'}
-          </button>
+          <button class="btn primary" onclick="_setupGoNext()">NEXT →</button>
           <button class="btn ghost" onclick="_setupStep=1;_renderSetupStep();" style="margin-top:8px;">← BACK</button>
         </div>
       </div>`;
-    // Autofocus after render
-    setTimeout(() => document.getElementById('setup-bw')?.focus(), 80);
+    setTimeout(() => { document.getElementById('setup-bw')?.focus(); }, 80);
+    // Populate preview if we already have a weight (e.g. back-navigation)
+    if (_setupData.bodyweight) _updateStep2Preview();
   }
 
   if (_setupStep === 3) {
-    const t = _calcTargets(_setupData.goal, _setupData.bodyweight);
+    const t = _calcTargets(_setupData.goal, _setupData.bodyweight, _setupData.weeklyRate);
     const GOAL_META_LABEL = { muscle: 'BUILD MUSCLE', fat: 'LOSE FAT', fit: 'STAY FIT' };
+    const rateLabel = _setupData.weeklyRate ? ` · ${_setupData.weeklyRate} lb/wk` : '';
     el.innerHTML = `
       <div style="flex:1;display:flex;flex-direction:column;padding:48px 24px 40px;">
         <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;">Your suggested targets</div>
-        <div style="font-size:12px;color:var(--dim);margin-bottom:6px;">Based on: <span style="color:var(--accent);">${GOAL_META_LABEL[_setupData.goal]||''}</span>${_setupData.bodyweight?` · <span style="color:var(--muted);">${_setupData.bodyweight} lb</span>`:''}</div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:6px;">Based on: <span style="color:var(--accent);">${GOAL_META_LABEL[_setupData.goal]||''}</span>${_setupData.bodyweight?` · <span style="color:var(--muted);">${_setupData.bodyweight} lb</span>`:''}${rateLabel?`<span style="color:var(--dim);">${rateLabel}</span>`:''}</div>
         <div style="font-size:11px;color:var(--dim);margin-bottom:24px;">Adjust anything before saving — you can always change these later.</div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
@@ -178,6 +243,19 @@ export function _renderSetupStep() {
         <button class="btn ghost" onclick="_setupStep=2;_renderSetupStep();" style="margin-top:8px;">← BACK</button>
       </div>`;
   }
+}
+
+// Re-styles pace buttons in-place without re-rendering the whole step
+export function _renderStep2Pace() {
+  const paceOptions = _setupData.goal === 'muscle' ? [0.25, 0.5, 1] : [0.5, 1, 1.5, 2];
+  paceOptions.forEach(r => {
+    const btn = document.getElementById('pace-btn-' + String(r).replace('.','_'));
+    if (!btn) return;
+    const active = _setupData.weeklyRate === r;
+    btn.style.background = active ? 'rgba(232,213,160,0.12)' : 'var(--bg2)';
+    btn.style.borderColor = active ? 'var(--accent)' : 'var(--border2)';
+    btn.style.color       = active ? 'var(--accent)'  : 'var(--muted)';
+  });
 }
 
 export function _setupGoNext() {

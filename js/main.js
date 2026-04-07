@@ -36,8 +36,8 @@ import {
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
   maybeShowCinematic, dismissCinematic, skipCinematic,
-  maybeShowSetup,
-  _setupData, _setupGoNext, _setupSave, _renderSetupStep
+  maybeShowSetup, _setupData, _setupGoNext, _setupSave,
+  _renderSetupStep, _renderStep2Pace, _updateStep2Preview
 } from './onboarding.js';
 import {
   openImportModal, closeImportModal, renderImportStep,
@@ -123,7 +123,7 @@ Object.assign(window, {
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
   maybeShowCinematic, dismissCinematic, skipCinematic,
-  maybeShowSetup, _setupData, _setupGoNext, _setupSave, _renderSetupStep,
+  maybeShowSetup, _setupData, _setupGoNext, _setupSave, _renderSetupStep, _renderStep2Pace, _updateStep2Preview,
   // Import
   openImportModal, closeImportModal, renderImportStep,
   importStartParse, importToggle, importCommit,
