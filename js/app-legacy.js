@@ -546,6 +546,13 @@ let histEditSnapshot=null; // snapshot before editing
 let meTab="history";
 let progressSearch="";
 function quickStart(){
+  // Jump straight to workout — no split picker, no prompts
+  if(activeWorkout){screen='log';render();return;}
+  startWorkoutSilent('Quick');
+  screen='log';render();
+  setTimeout(openPicker,100);
+}
+function quickStartModal(){
   const splits=getActiveSplits();
   const EXTRAS=[
     {key:'_cardio',label:'Cardio',icon:'🏃',color:'#26de81',action:'openCardioLog()'},
@@ -2515,10 +2522,10 @@ function renderHome(){
       <div style="font-size:11px;color:var(--dim);margin-bottom:14px;">${lastLine}</div>
       ${(()=>{const est=estimateDuration(rec);return est?`<div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;">⏱ ~${est} min avg</div>`:''})()}
       <div style="display:flex;gap:8px;">
-        <button class="sb-rec-cta" onclick="event.stopPropagation();startWorkout('${rec}')" style="flex:1;">
-          START ${splitName(rec).toUpperCase()} DAY &nbsp;&#8594;
+        <button class="sb-rec-cta" onclick="event.stopPropagation();quickStart()" style="flex:1;">
+          QUICK START &nbsp;&#8594;
         </button>
-        <button onclick="event.stopPropagation();quickStart()" style="background:none;border:1px solid rgba(232,213,160,0.25);border-radius:12px;padding:13px 16px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">QUICK START</button>
+        <button onclick="event.stopPropagation();startWorkout('${rec}')" style="background:none;border:1px solid rgba(232,213,160,0.25);border-radius:12px;padding:13px 16px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">${splitName(rec).toUpperCase()}</button>
       </div>
     </div>
 

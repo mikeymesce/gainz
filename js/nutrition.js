@@ -9,7 +9,8 @@ const SUPABASE_URL = 'https://bvnkzimwskuruhdmzpbt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bmt6aW13c2t1cnVoZG16cGJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MTc3NzgsImV4cCI6MjA4OTE5Mzc3OH0.6layiAl75f5YeAQRzU55j41JBAS9_e1QL0tpq-l3DpE';
 
 // ── Module state ─────────────────────────────────────────────────────────────
-let _pendingItems = [];  // items returned from API, before user confirms
+let _pendingItems = [];     // items returned from API, before user confirms
+let _servingCounts = [];    // multiplier per pending item (default 1)
 let _micActive = false;
 let _calYear = null;   // null = use current month
 let _calMonth = null;  // 0-indexed
@@ -33,15 +34,43 @@ export function editPendingItem(idx, field, value) {
   if (_pendingItems[idx]) _pendingItems[idx][field] = parseFloat(value) || 0;
 }
 
+export function adjustServing(idx, delta) {
+  const current = _servingCounts[idx] ?? 1;
+  const next = Math.max(0.25, Math.round((current + delta) * 4) / 4); // snap to 0.25 steps, min 0.25
+  _servingCounts[idx] = next;
+  // Update the displayed macros for this item in-place — no full re-render
+  const item = _pendingItems[idx];
+  if (!item) return;
+  const macros = ['calories','protein','carbs','fat'];
+  macros.forEach(field => {
+    const el = document.getElementById(`pend-${field}-${idx}`);
+    if (el) el.textContent = Math.round((item[field] || 0) * next) + (field === 'calories' ? '' : 'g');
+  });
+  const countEl = document.getElementById(`pend-count-${idx}`);
+  if (countEl) countEl.textContent = next + 'x';
+}
+
 export function clearPendingItems() {
   _pendingItems = [];
+  _servingCounts = [];
   window.render?.();
 }
 
 export async function confirmNutritionLog() {
   if (!_pendingItems.length) return;
-  const items = _pendingItems.map(i => ({...i}));
+  // Apply serving multipliers before saving
+  const items = _pendingItems.map((item, i) => {
+    const count = _servingCounts[i] ?? 1;
+    return {
+      ...item,
+      calories: Math.round((item.calories || 0) * count),
+      protein:  Math.round((item.protein  || 0) * count),
+      carbs:    Math.round((item.carbs    || 0) * count),
+      fat:      Math.round((item.fat      || 0) * count),
+    };
+  });
   _pendingItems = [];
+  _servingCounts = [];
 
   // Save to local state
   const dateStr = window.today?.() || new Date().toISOString().slice(0, 10);
@@ -330,6 +359,7 @@ export async function processMealText(text) {
     const items = Array.isArray(result) ? result : (result.items || []);
     if (!items.length) { window.showToast?.('Could not parse — try again'); if (area) area.innerHTML = ''; return; }
     _pendingItems = items.map(i => ({...i}));
+    _servingCounts = items.map(() => 1);
     window.render?.();
   } catch(e) {
     console.error('[GAINZ nutrition]', e);
@@ -574,25 +604,40 @@ export function renderNutrition() {
     </div>
   ` : '';
 
-  // Pending items (AI parsed, before user confirms) — oninput so LOG MEAL captures mid-edit values
+  // Pending items (AI parsed, before user confirms)
   const pendingHtml = _pendingItems.length ? `
     <div style="margin-bottom:20px;">
       <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">REVIEW & CONFIRM</div>
-      ${_pendingItems.map((item, i) => `
+      ${_pendingItems.map((item, i) => {
+        const count = _servingCounts[i] ?? 1;
+        const cal  = Math.round((item.calories || 0) * count);
+        const pro  = Math.round((item.protein  || 0) * count);
+        const carb = Math.round((item.carbs    || 0) * count);
+        const fat  = Math.round((item.fat      || 0) * count);
+        return `
         <div class="card" style="margin-bottom:8px;">
-          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.name}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
-            ${[['calories','CAL','var(--accent)'],['protein','PRO','#52c87a'],['carbs','CARB','#7aacff'],['fat','FAT','#ffb347']].map(([field,lbl,color]) => `
-              <div style="text-align:center;">
-                <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">${lbl}</div>
-                <input type="number" inputmode="decimal" value="${Math.round(item[field]||0)}"
-                  oninput="window.editPendingItem(${i},'${field}',this.value)"
-                  style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:${color};font-family:'Bebas Neue',sans-serif;font-size:18px;padding:6px 2px;text-align:center;"/>
-              </div>
-            `).join('')}
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+            <div style="font-size:14px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;">${item.name}</div>
           </div>
-        </div>
-      `).join('')}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="font-size:11px;color:var(--dim);">${item.serving || '1 serving'}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button onclick="window.adjustServing(${i},-0.25)"
+                style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">−</button>
+              <span id="pend-count-${i}" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);min-width:28px;text-align:center;">${count}x</span>
+              <button onclick="window.adjustServing(${i},0.25)"
+                style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+            ${[['calories','CAL','var(--accent)',''],['protein','PRO','#52c87a','g'],['carbs','CARB','#7aacff','g'],['fat','FAT','#ffb347','g']].map(([field,lbl,color,unit]) => `
+              <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:8px 4px;">
+                <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">${lbl}</div>
+                <div id="pend-${field}-${i}" style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${color};">${field==='calories'?cal:field==='protein'?pro+'g':field==='carbs'?carb+'g':fat+'g'}</div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
       <div style="display:flex;gap:8px;margin-top:12px;">
         <button onclick="window.confirmNutritionLog()"
           style="flex:1;background:var(--accent);color:#080808;border:none;border-radius:12px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;">LOG MEAL</button>

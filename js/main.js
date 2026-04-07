@@ -99,7 +99,7 @@ import {
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
   openMacroTargetsModal, saveMacroTargets, deleteNutritionItem,
-  addWater, resetWater, addCustomWater,
+  addWater, resetWater, addCustomWater, adjustServing,
   openDayDetail, deleteDayItem, showDayTextInput, processMealForDate,
   calNavPrev, calNavNext
 } from './nutrition.js';
@@ -173,7 +173,7 @@ Object.assign(window, {
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
   openMacroTargetsModal, saveMacroTargets, deleteNutritionItem,
-  addWater, resetWater, addCustomWater,
+  addWater, resetWater, addCustomWater, adjustServing,
   openDayDetail, deleteDayItem, showDayTextInput, processMealForDate,
   calNavPrev, calNavNext,
 });
