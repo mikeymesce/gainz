@@ -34,20 +34,16 @@ export function editPendingItem(idx, field, value) {
   if (_pendingItems[idx]) _pendingItems[idx][field] = parseFloat(value) || 0;
 }
 
-export function adjustServing(idx, delta) {
-  const current = _servingCounts[idx] ?? 1;
-  const next = Math.max(0.25, Math.round((current + delta) * 4) / 4); // snap to 0.25 steps, min 0.25
-  _servingCounts[idx] = next;
+export function adjustServing(idx, rawValue) {
+  const count = Math.max(0.01, parseFloat(rawValue) || 1);
+  _servingCounts[idx] = count;
   // Update the displayed macros for this item in-place — no full re-render
   const item = _pendingItems[idx];
   if (!item) return;
-  const macros = ['calories','protein','carbs','fat'];
-  macros.forEach(field => {
+  [['calories',''],['protein','g'],['carbs','g'],['fat','g']].forEach(([field, unit]) => {
     const el = document.getElementById(`pend-${field}-${idx}`);
-    if (el) el.textContent = Math.round((item[field] || 0) * next) + (field === 'calories' ? '' : 'g');
+    if (el) el.textContent = Math.round((item[field] || 0) * count) + unit;
   });
-  const countEl = document.getElementById(`pend-count-${idx}`);
-  if (countEl) countEl.textContent = next + 'x';
 }
 
 export function clearPendingItems() {
@@ -619,14 +615,15 @@ export function renderNutrition() {
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
             <div style="font-size:14px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;">${item.name}</div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div style="font-size:11px;color:var(--dim);">${item.serving || '1 serving'}</div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <button onclick="window.adjustServing(${i},-0.25)"
-                style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">−</button>
-              <span id="pend-count-${i}" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);min-width:28px;text-align:center;">${count}x</span>
-              <button onclick="window.adjustServing(${i},0.25)"
-                style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;">
+            <div style="font-size:11px;color:var(--dim);flex:1;">${item.serving || '1 serving'}</div>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <input type="number" inputmode="decimal" min="0.01" step="0.25" value="${count}"
+                oninput="window.adjustServing(${i},this.value)"
+                style="width:64px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+                  color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:18px;
+                  padding:6px 4px;text-align:center;box-sizing:border-box;"/>
+              <span style="font-size:11px;color:var(--dim);">×</span>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">

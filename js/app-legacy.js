@@ -878,9 +878,8 @@ function openWeighIn(){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">WEIGH IN</div>
     <div style="font-size:10px;color:var(--dim);margin-bottom:14px;">${timeLabel} check-in</div>
-    <input id="bw-inp" type="number" class="input" placeholder="${last||'185'}" value="" step="0.1"
-      style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;margin-bottom:6px;"
-      inputmode="decimal"/>
+    <input id="bw-inp" type="number" inputmode="decimal" class="input" placeholder="${last||'185'}" value="" step="0.1"
+      style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;margin-bottom:6px;"/>
     <div style="font-size:10px;color:var(--dim);text-align:center;margin-bottom:16px;">lbs</div>
     <button class="btn primary" onclick="const v=document.getElementById('bw-inp').value;logBW(v);hideModal();">LOG WEIGHT</button>
     <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">CANCEL</button>
