@@ -11,6 +11,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // ── Module state ─────────────────────────────────────────────────────────────
 let _pendingItems = [];  // items returned from API, before user confirms
 let _micActive = false;
+let _calYear = null;   // null = use current month
+let _calMonth = null;  // 0-indexed
 
 // ── Edge Function call ────────────────────────────────────────────────────────
 async function analyzeMeal(mealText) {
@@ -336,6 +338,197 @@ export async function processMealText(text) {
   }
 }
 
+// ── Calorie calendar navigation ───────────────────────────────────────────────
+export function calNavPrev() {
+  const now = new Date();
+  let y = _calYear ?? now.getFullYear();
+  let m = _calMonth ?? now.getMonth();
+  m--; if (m < 0) { m = 11; y--; }
+  _calYear = y; _calMonth = m;
+  window.render?.();
+}
+export function calNavNext() {
+  const now = new Date();
+  let y = _calYear ?? now.getFullYear();
+  let m = _calMonth ?? now.getMonth();
+  m++; if (m > 11) { m = 0; y++; }
+  // Don't navigate past current month
+  const curY = now.getFullYear(), curM = now.getMonth();
+  if (y > curY || (y === curY && m > curM)) return;
+  _calYear = y; _calMonth = m;
+  window.render?.();
+}
+
+// ── Day detail modal — view & edit a specific day's log ───────────────────────
+export function openDayDetail(dateStr) {
+  const items = window.state?.nutritionLog?.[dateStr] || [];
+  const targets = getMacroTargets();
+  const totals = items.reduce((a, it) => ({
+    calories: a.calories + (it.calories || 0),
+    protein:  a.protein  + (it.protein  || 0),
+    carbs:    a.carbs    + (it.carbs    || 0),
+    fat:      a.fat      + (it.fat      || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+  const d = new Date(dateStr + 'T12:00:00');
+  const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+  const itemRows = items.length ? items.map((it, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;${i < items.length - 1 ? 'border-bottom:1px solid #1e1e24;' : ''}">
+      <div style="flex:1;padding-right:8px;">
+        <div style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.name}</div>
+        <div style="display:flex;gap:8px;margin-top:2px;">
+          <span style="font-size:10px;color:#52c87a;">${Math.round(it.protein || 0)}g P</span>
+          <span style="font-size:10px;color:#7aacff;">${Math.round(it.carbs || 0)}g C</span>
+          <span style="font-size:10px;color:#ffb347;">${Math.round(it.fat || 0)}g F</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);">${Math.round(it.calories || 0)}</span>
+        <button onclick="window.deleteDayItem('${dateStr}',${i});window.openDayDetail('${dateStr}');"
+          style="background:none;border:none;color:var(--dim);font-size:15px;cursor:pointer;padding:0;line-height:1;">✕</button>
+      </div>
+    </div>`).join('') : `<div style="padding:16px 0;text-align:center;font-size:12px;color:var(--dim);">Nothing logged</div>`;
+
+  const over = totals.calories > targets.calories && targets.calories > 0;
+  const calColor = over ? '#ff6b6b' : totals.calories > 0 ? 'var(--accent)' : 'var(--dim)';
+
+  window.showModal?.(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">CALORIES</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+      <div style="font-size:17px;color:var(--text);font-weight:600;">${label}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:${calColor};">${Math.round(totals.calories)}<span style="font-size:12px;color:var(--dim);"> / ${targets.calories}</span></div>
+    </div>
+    <div style="max-height:40vh;overflow-y:auto;margin-bottom:14px;">${itemRows}</div>
+    <button class="btn primary" onclick="window.showDayTextInput('${dateStr}')">+ LOG MEAL</button>
+    <button class="btn ghost" onclick="window.hideModal()" style="margin-top:8px;">CLOSE</button>
+  `);
+}
+
+export function deleteDayItem(dateStr, idx) {
+  if (!window.state?.nutritionLog?.[dateStr]) return;
+  window.state.nutritionLog[dateStr].splice(idx, 1);
+  if (!window.state.nutritionLog[dateStr].length) delete window.state.nutritionLog[dateStr];
+  window.saveAndSync?.();
+  window.render?.();
+}
+
+export function showDayTextInput(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  window.showModal?.(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">LOG MEAL</div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:12px;">${label}</div>
+    <input id="day-meal-inp" class="input" type="text" placeholder="e.g. chicken and rice" style="font-size:15px;margin-bottom:14px;" autofocus/>
+    <button class="btn primary" onclick="
+      const v=document.getElementById('day-meal-inp').value.trim();
+      if(!v){window.showToast('Describe the meal');return;}
+      window.hideModal();
+      window.processMealForDate('${dateStr}',v);
+    ">ANALYZE</button>
+    <button class="btn ghost" onclick="window.hideModal()" style="margin-top:8px;">CANCEL</button>
+  `);
+  setTimeout(() => document.getElementById('day-meal-inp')?.focus(), 100);
+}
+
+export async function processMealForDate(dateStr, text) {
+  window.showToast?.('Analyzing…');
+  try {
+    const res = await fetch(GROQ_NUTRITION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ meal: text })
+    });
+    if (!res.ok) throw new Error('Edge function error');
+    const result = await res.json();
+    const items = Array.isArray(result) ? result : (result.items || []);
+    if (!items.length) { window.showToast?.('Could not parse — try again'); return; }
+    if (!window.state.nutritionLog) window.state.nutritionLog = {};
+    if (!window.state.nutritionLog[dateStr]) window.state.nutritionLog[dateStr] = [];
+    window.state.nutritionLog[dateStr].push(...items.map(i => ({...i})));
+    window.saveAndSync?.();
+    window.render?.();
+    window.openDayDetail?.(dateStr);
+  } catch(e) {
+    console.error('[GAINZ nutrition]', e);
+    window.showToast?.('AI unavailable — try again');
+  }
+}
+
+// ── Calorie calendar renderer ─────────────────────────────────────────────────
+function renderCalorieCalendar() {
+  const now = new Date();
+  const viewYear  = _calYear  ?? now.getFullYear();
+  const viewMonth = _calMonth ?? now.getMonth();
+  const targets   = getMacroTargets();
+  const log       = window.state?.nutritionLog || {};
+  const todayStr  = now.toISOString().slice(0, 10);
+
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+
+  // Build day cells
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const cells = [];
+  // Empty leading cells
+  for (let i = 0; i < firstDay; i++) cells.push('<div></div>');
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const mm = String(viewMonth + 1).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    const dateStr = `${viewYear}-${mm}-${dd}`;
+    const items = log[dateStr] || [];
+    const cals = Math.round(items.reduce((s, it) => s + (it.calories || 0), 0));
+    const isToday = dateStr === todayStr;
+    const isFuture = dateStr > todayStr;
+    const hasData = cals > 0;
+
+    // Color the cell based on calories vs target
+    let dotColor = 'transparent';
+    let calText = '';
+    if (hasData && !isFuture) {
+      const pct = targets.calories > 0 ? cals / targets.calories : 0;
+      dotColor = pct > 1.05 ? '#ff6b6b' : pct >= 0.85 ? '#52c87a' : '#ffb347';
+      calText = cals >= 1000 ? (cals / 1000).toFixed(1) + 'k' : String(cals);
+    }
+
+    cells.push(`
+      <div onclick="window.openDayDetail('${dateStr}')"
+        style="cursor:${isFuture?'default':'pointer'};padding:4px 2px;border-radius:8px;text-align:center;
+          background:${isToday?'rgba(232,213,160,0.1)':'transparent'};
+          border:${isToday?'1px solid rgba(232,213,160,0.3)':'1px solid transparent'};
+          transition:background 0.15s;">
+        <div style="font-size:11px;color:${isToday?'var(--accent)':isFuture?'var(--dim)':'var(--muted)'};">${d}</div>
+        ${hasData && !isFuture ? `
+          <div style="width:6px;height:6px;border-radius:50%;background:${dotColor};margin:2px auto 1px;"></div>
+          <div style="font-size:8px;color:${dotColor};line-height:1;">${calText}</div>
+        ` : '<div style="height:15px;"></div>'}
+      </div>`);
+  }
+
+  return `
+    <div class="card" style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <button onclick="window.calNavPrev()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;">‹</button>
+        <div style="font-size:11px;letter-spacing:1px;color:var(--text);">${monthName.toUpperCase()}</div>
+        <button onclick="window.calNavNext()" style="background:none;border:none;color:${isCurrentMonth?'var(--dim)':'var(--muted)'};font-size:18px;cursor:pointer;padding:0 4px;">›</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px;">
+        ${['S','M','T','W','T','F','S'].map(d => `<div style="text-align:center;font-size:9px;color:var(--dim);padding-bottom:4px;">${d}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+        ${cells.join('')}
+      </div>
+      <div style="display:flex;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #1e1e24;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;border-radius:50%;background:#52c87a;"></div><span style="font-size:9px;color:var(--dim);">On target</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;border-radius:50%;background:#ffb347;"></div><span style="font-size:9px;color:var(--dim);">Under</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:6px;height:6px;border-radius:50%;background:#ff6b6b;"></div><span style="font-size:9px;color:var(--dim);">Over</span></div>
+      </div>
+    </div>`;
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
 export function renderNutrition() {
   const todayItems = getTodayNutrition();
@@ -597,6 +790,7 @@ export function renderNutrition() {
       ${waterCardHtml}
       ${chartHtml}
       ${projHtml}
+      ${renderCalorieCalendar()}
 
       ${typeof window.renderDailyCheckin === 'function' ? window.renderDailyCheckin() : ''}
     </div>

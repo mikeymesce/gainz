@@ -97,7 +97,9 @@ import {
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
   openMacroTargetsModal, saveMacroTargets, deleteNutritionItem,
-  addWater, resetWater, addCustomWater
+  addWater, resetWater, addCustomWater,
+  openDayDetail, deleteDayItem, showDayTextInput, processMealForDate,
+  calNavPrev, calNavNext
 } from './nutrition.js';
 
 // Expose all module exports to window so app-legacy.js can use them
@@ -169,6 +171,8 @@ Object.assign(window, {
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
   openMacroTargetsModal, saveMacroTargets, deleteNutritionItem,
   addWater, resetWater, addCustomWater,
+  openDayDetail, deleteDayItem, showDayTextInput, processMealForDate,
+  calNavPrev, calNavNext,
 });
 
 // ── Ambient particles (persistent floating embers) ──
