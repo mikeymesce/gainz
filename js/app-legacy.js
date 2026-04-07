@@ -4650,7 +4650,7 @@ checkOnline();
 runTests();
 initTestsAndDebug();
 render();
-// Cinematic shows first, then chains into onboarding carousel
-if (!maybeShowCinematic()) {
-  maybeShowSplash();
+// First open: setup flow → cinematic. All other opens: cinematic directly.
+if (!maybeShowSetup()) {
+  maybeShowCinematic();
 }

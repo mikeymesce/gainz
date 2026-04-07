@@ -1,6 +1,240 @@
 // ═══════════════════════════════════════════
-// ONBOARDING — Cinematic intro + Splash carousel + coach tips
+// ONBOARDING — Setup flow + Cinematic intro + Splash carousel + coach tips
 // ═══════════════════════════════════════════
+
+// ── First-run setup flow ─────────────────────────────────────────────────────
+
+let _setupStep = 1;           // 1, 2, or 3
+export let _setupData = {};  // { name, goal, bodyweight } — exported so main.js can put it on window
+
+function _calcTargets(goal, bw) {
+  // bw in lbs — if not provided, use common defaults per goal
+  const hasBW = bw && bw > 0;
+  const round50 = n => Math.round(n / 50) * 50;
+  const round5  = n => Math.round(n / 5) * 5;
+  const round10 = n => Math.round(n / 10) * 10;
+  if (goal === 'muscle') {
+    const cal  = hasBW ? round50(bw * 17) : 2800;
+    const pro  = hasBW ? Math.round(bw)   : 180;
+    const fat  = hasBW ? round5(bw * 0.4) : 80;
+    const carb = hasBW ? Math.max(round10((cal - pro*4 - fat*9) / 4), 50) : 280;
+    const water= hasBW ? round5(bw * 0.5) : 64;
+    return { calories: cal, protein: pro, carbs: carb, fat, waterGoal: water };
+  }
+  if (goal === 'fat') {
+    const cal  = hasBW ? round50(bw * 12) : 1800;
+    const pro  = hasBW ? Math.round(bw * 0.9) : 150;
+    const fat  = hasBW ? round5(bw * 0.35)    : 60;
+    const carb = hasBW ? Math.max(round10((cal - pro*4 - fat*9) / 4), 30) : 140;
+    const water= hasBW ? round5(bw * 0.5) : 64;
+    return { calories: cal, protein: pro, carbs: carb, fat, waterGoal: water };
+  }
+  // maintain
+  const cal  = hasBW ? round50(bw * 15) : 2200;
+  const pro  = hasBW ? Math.round(bw * 0.75) : 150;
+  const fat  = hasBW ? round5(bw * 0.45)     : 65;
+  const carb = hasBW ? Math.max(round10((cal - pro*4 - fat*9) / 4), 100) : 210;
+  const water= hasBW ? round5(bw * 0.5) : 64;
+  return { calories: cal, protein: pro, carbs: carb, fat, waterGoal: water };
+}
+
+function _stepDots(current) {
+  return [1,2,3].map(i =>
+    `<div style="width:${i===current?20:6}px;height:6px;border-radius:3px;
+      background:${i===current?'var(--accent)':'#333'};
+      transition:width 0.3s;"></div>`
+  ).join('');
+}
+
+export function _renderSetupStep() {
+  const el = document.getElementById('setup-content');
+  if (!el) return;
+
+  const GOAL_META = {
+    muscle: { label: 'BUILD MUSCLE', sub: 'Gain strength & size', icon: '💪' },
+    fat:    { label: 'LOSE FAT',     sub: 'Burn fat, keep muscle', icon: '🔥' },
+    fit:    { label: 'STAY FIT',     sub: 'Maintain & feel great', icon: '⚡' },
+  };
+
+  if (_setupStep === 1) {
+    el.innerHTML = `
+      <div style="flex:1;display:flex;flex-direction:column;padding:48px 24px 40px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--accent);margin-bottom:4px;">GAINZ</div>
+        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;">Let's set you up.</div>
+        <div style="font-size:13px;color:var(--dim);margin-bottom:32px;">Takes 30 seconds. You can change any of this later.</div>
+
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">YOUR NAME (OPTIONAL)</div>
+        <input id="setup-name" class="input" type="text" placeholder="e.g. Mike" value="${_setupData.name||''}"
+          style="margin-bottom:32px;font-size:16px;"
+          oninput="_setupData.name=this.value.trim()"/>
+
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">WHAT'S YOUR MAIN GOAL?</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:auto;">
+          ${Object.entries(GOAL_META).map(([key, g]) => `
+            <button onclick="_setupData.goal='${key}';_renderSetupStep();"
+              style="display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:14px;cursor:pointer;text-align:left;
+                background:${_setupData.goal===key?'rgba(232,213,160,0.1)':'var(--bg2)'};
+                border:2px solid ${_setupData.goal===key?'var(--accent)':'var(--border2)'};
+                transition:all 0.15s;">
+              <span style="font-size:24px;">${g.icon}</span>
+              <div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1.5px;color:${_setupData.goal===key?'var(--accent)':'var(--text)'};">${g.label}</div>
+                <div style="font-size:11px;color:var(--dim);margin-top:1px;">${g.sub}</div>
+              </div>
+              ${_setupData.goal===key?`<div style="margin-left:auto;color:var(--accent);font-size:18px;">✓</div>`:''}
+            </button>`).join('')}
+        </div>
+
+        <div style="margin-top:32px;">
+          <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px;">${_stepDots(1)}</div>
+          <button class="btn primary" onclick="_setupGoNext()"
+            style="${!_setupData.goal?'opacity:0.4;pointer-events:none;':''}">
+            NEXT →
+          </button>
+        </div>
+      </div>`;
+  }
+
+  if (_setupStep === 2) {
+    const suggested = _calcTargets(_setupData.goal, _setupData.bodyweight);
+    const preview = _setupData.bodyweight ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:14px;padding:14px;background:var(--bg2);border-radius:12px;border:1px solid var(--border2);">
+        ${[['CAL','calories','var(--accent)',''],['PRO','protein','#52c87a','g'],['CARBS','carbs','#7aacff','g'],['FAT','fat','#ffb347','g']].map(([lbl,key,color,unit])=>`
+          <div style="text-align:center;">
+            <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;">${lbl}</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${color};">${suggested[key]}${unit}</div>
+          </div>`).join('')}
+      </div>` : '';
+    el.innerHTML = `
+      <div style="flex:1;display:flex;flex-direction:column;padding:48px 24px 40px;">
+        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;">How much do you weigh?</div>
+        <div style="font-size:13px;color:var(--dim);margin-bottom:32px;">Used to calculate your calorie & water targets. Optional — you can skip.</div>
+
+        <div style="position:relative;margin-bottom:8px;">
+          <input id="setup-bw" class="input" type="number" inputmode="decimal" placeholder="185"
+            value="${_setupData.bodyweight||''}"
+            style="font-size:24px;text-align:center;padding-right:48px;"
+            oninput="_setupData.bodyweight=parseFloat(this.value)||0;_renderSetupStep();"/>
+          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none;">lb</span>
+        </div>
+        ${preview}
+
+        <div style="margin-top:auto;padding-top:32px;">
+          <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px;">${_stepDots(2)}</div>
+          <button class="btn primary" onclick="_setupGoNext()">
+            ${_setupData.bodyweight ? 'NEXT →' : 'SKIP →'}
+          </button>
+          <button class="btn ghost" onclick="_setupStep=1;_renderSetupStep();" style="margin-top:8px;">← BACK</button>
+        </div>
+      </div>`;
+    // Autofocus after render
+    setTimeout(() => document.getElementById('setup-bw')?.focus(), 80);
+  }
+
+  if (_setupStep === 3) {
+    const t = _calcTargets(_setupData.goal, _setupData.bodyweight);
+    const GOAL_META_LABEL = { muscle: 'BUILD MUSCLE', fat: 'LOSE FAT', fit: 'STAY FIT' };
+    el.innerHTML = `
+      <div style="flex:1;display:flex;flex-direction:column;padding:48px 24px 40px;">
+        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;">Your suggested targets</div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:6px;">Based on: <span style="color:var(--accent);">${GOAL_META_LABEL[_setupData.goal]||''}</span>${_setupData.bodyweight?` · <span style="color:var(--muted);">${_setupData.bodyweight} lb</span>`:''}</div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:24px;">Adjust anything before saving — you can always change these later.</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
+          ${[
+            ['CALORIES','calories','var(--accent)','kcal', 'Daily energy target'],
+            ['PROTEIN','protein','#52c87a','g', 'Aim for ~1g per lb bodyweight'],
+            ['CARBS','carbs','#7aacff','g', 'Fuel for training'],
+            ['FAT','fat','#ffb347','g', 'Hormones & recovery'],
+          ].map(([lbl, key, color, unit, hint]) => `
+            <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px;">
+              <div style="font-size:9px;color:${color};letter-spacing:1.5px;margin-bottom:2px;">${lbl}</div>
+              <div style="font-size:9px;color:var(--dim);margin-bottom:8px;">${hint}</div>
+              <div style="position:relative;">
+                <input id="st-${key}" type="number" inputmode="decimal" value="${t[key]}"
+                  style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+                    color:${color};font-family:'Bebas Neue',sans-serif;font-size:26px;
+                    padding:8px 28px 8px 8px;text-align:center;box-sizing:border-box;"
+                  oninput=""/>
+                <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--dim);pointer-events:none;">${unit}</span>
+              </div>
+            </div>`).join('')}
+        </div>
+
+        <div style="background:rgba(122,172,255,0.06);border:1px solid rgba(122,172,255,0.15);border-radius:10px;padding:12px 14px;margin-bottom:24px;">
+          <div style="font-size:9px;color:#7aacff;letter-spacing:1.5px;margin-bottom:4px;">WATER GOAL</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="st-water" type="number" inputmode="decimal" value="${t.waterGoal}"
+              style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+                color:#7aacff;font-family:'Bebas Neue',sans-serif;font-size:22px;
+                padding:8px;text-align:center;box-sizing:border-box;" oninput=""/>
+            <span style="font-size:12px;color:var(--dim);">oz / day</span>
+          </div>
+          ${_setupData.bodyweight ? `<div style="font-size:10px;color:var(--dim);margin-top:6px;">Based on ${_setupData.bodyweight} lb × 0.5 oz</div>` : ''}
+        </div>
+
+        <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px;">${_stepDots(3)}</div>
+        <button class="btn primary" onclick="_setupSave()">SAVE & START →</button>
+        <button class="btn ghost" onclick="_setupStep=2;_renderSetupStep();" style="margin-top:8px;">← BACK</button>
+      </div>`;
+  }
+}
+
+export function _setupGoNext() {
+  if (_setupStep === 1 && !_setupData.goal) return;
+  _setupStep++;
+  _renderSetupStep();
+}
+
+export function _setupSave() {
+  // Read final values from inputs (user may have adjusted them)
+  const cal  = parseInt(document.getElementById('st-calories')?.value) || 0;
+  const pro  = parseInt(document.getElementById('st-protein')?.value)  || 0;
+  const carb = parseInt(document.getElementById('st-carbs')?.value)    || 0;
+  const fat  = parseInt(document.getElementById('st-fat')?.value)      || 0;
+  const water= parseInt(document.getElementById('st-water')?.value)    || 64;
+
+  // Save name
+  if (_setupData.name) localStorage.setItem('gainz_user_name', _setupData.name);
+
+  // Save goal
+  if (_setupData.goal) localStorage.setItem('gainz_user_goal', _setupData.goal);
+
+  // Save bodyweight
+  if (_setupData.bodyweight && window.state) {
+    if (!window.state.bodyweight) window.state.bodyweight = [];
+    const hr = new Date().getHours();
+    const timeOfDay = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'night';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    window.state.bodyweight.unshift({ date: dateStr, timestamp: Date.now(), weight: _setupData.bodyweight, timeOfDay });
+  }
+
+  // Save macro targets
+  if (window.state) {
+    window.state.macroTargets = { calories: cal, protein: pro, carbs: carb, fat, waterGoal: water };
+    window.saveAndSync?.();
+  }
+
+  // Mark setup done
+  localStorage.setItem('gainz_setup_done', '1');
+
+  // Hide setup, show cinematic
+  const el = document.getElementById('setup-flow');
+  if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; setTimeout(() => { el.style.display = 'none'; el.style.opacity = ''; el.style.transition = ''; }, 400); }
+  setTimeout(() => { showCinematic(); }, 200);
+}
+
+export function maybeShowSetup() {
+  if (localStorage.getItem('gainz_setup_done')) return false;
+  _setupStep = 1;
+  // Mutate (don't reassign) so window._setupData reference stays valid
+  Object.assign(_setupData, { name: '', goal: '', bodyweight: 0 });
+  const el = document.getElementById('setup-flow');
+  if (!el) return false;
+  el.style.display = 'block';
+  _renderSetupStep();
+  return true;
+}
 
 // ── Cinematic power stats — one shown per app open ──
 const CIN_STATS = [
