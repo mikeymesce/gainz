@@ -417,9 +417,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 }
 
 /* ── EXERCISE PICKER MODAL ── */
-#ex-picker{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.8);display:none;align-items:flex-end;justify-content:center;}
-#ex-picker.open{display:flex;}
-#ex-picker-sheet{background:var(--bg2);border-top:1px solid var(--border);border-radius:22px 22px 0 0;width:100%;max-width:430px;max-height:75vh;display:flex;flex-direction:column;}
+#ex-picker{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0);display:none;align-items:flex-end;justify-content:center;transition:background 0.3s ease;}
+#ex-picker.open{display:flex;background:rgba(0,0,0,0.8);}
+#ex-picker-sheet{background:var(--bg2);border-top:1px solid var(--border);border-radius:22px 22px 0 0;width:100%;max-width:430px;max-height:75vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.25,1,0.5,1);will-change:transform;position:relative;}
+#ex-picker.open #ex-picker-sheet{transform:translateY(0);}
+#ex-picker-sheet::before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:4px;background:#333;border-radius:2px;}
 #ex-picker-header{padding:18px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
 #ex-picker-title{font-size:10px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;}
 #ex-picker-close{background:none;border:1px solid var(--border2);border-radius:8px;padding:6px 14px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;}

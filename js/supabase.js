@@ -103,9 +103,23 @@ export async function syncToCloud() {
 
     if (error) {
       console.warn('[GAINZ sync] Push failed:', error.message);
+      // Detect storage/quota errors and alert user
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('quota') || msg.includes('storage') || msg.includes('disk') || msg.includes('full') || msg.includes('limit')) {
+        window.showToast?.('⚠ Cloud storage full — contact support');
+      }
     } else {
       state._lastSyncedAt = Date.now();
       if (window.logDebug) window.logDebug('☁️ Synced to cloud');
+
+      // Per-user size warning: if state > 5MB, warn user
+      try {
+        const sizeBytes = new Blob([JSON.stringify(state)]).size;
+        if (sizeBytes > 5 * 1024 * 1024 && !state._sizeWarned) {
+          window.showToast?.(`⚠ Your data is ${(sizeBytes/1024/1024).toFixed(1)}MB — consider exporting old workouts`);
+          state._sizeWarned = true;
+        }
+      } catch(e) {}
     }
   } catch (e) {
     console.warn('[GAINZ sync] Push error:', e.message);
@@ -163,7 +177,10 @@ export async function syncFromCloud() {
   }
 }
 
-// ── Backup snapshot every 3 workouts ──
+// ── Backup snapshot on workout / weight / meal events ──
+// Rules:
+//   - Every 3 workouts (workout milestone)
+//   - OR every 3 days since last backup (time-based fallback for passive users)
 
 export async function maybeSaveBackup() {
   if (!FEATURES.cloudSync) return;
@@ -177,13 +194,16 @@ export async function maybeSaveBackup() {
 
     const state = window.state;
     const workoutCount = (state?.workouts || []).length;
-
-    // Only snapshot on every 3rd workout
-    if (workoutCount === 0 || workoutCount % 3 !== 0) return;
-
-    // Don't double-snapshot the same count
+    const now = Date.now();
+    const lastBackupAt = state._lastBackupAt || 0;
     const lastBackupCount = state._lastBackupCount || 0;
-    if (lastBackupCount === workoutCount) return;
+    const daysSince = (now - lastBackupAt) / (1000 * 60 * 60 * 24);
+
+    // Trigger conditions
+    const hitWorkoutMilestone = workoutCount > 0 && workoutCount % 3 === 0 && lastBackupCount !== workoutCount;
+    const hitTimeWindow = daysSince >= 3;
+
+    if (!hitWorkoutMilestone && !hitTimeWindow) return;
 
     await client.from('gainz_backups').insert({
       user_id: user.id,
@@ -191,20 +211,21 @@ export async function maybeSaveBackup() {
       workout_count: workoutCount,
     });
 
-    // Keep only the last 20 backups
+    // Keep only the last 75 backups
     const { data: all } = await client
       .from('gainz_backups')
       .select('id, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    if (all && all.length > 20) {
-      const toDelete = all.slice(20).map(r => r.id);
+    if (all && all.length > 75) {
+      const toDelete = all.slice(75).map(r => r.id);
       await client.from('gainz_backups').delete().in('id', toDelete);
     }
 
     state._lastBackupCount = workoutCount;
-    if (window.logDebug) window.logDebug(`☁️ Backup saved at ${workoutCount} workouts`);
+    state._lastBackupAt = now;
+    if (window.logDebug) window.logDebug(`☁️ Backup saved (${workoutCount} workouts)`);
   } catch (e) {
     console.warn('[GAINZ backup] Save error:', e.message);
   }

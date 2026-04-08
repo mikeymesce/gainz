@@ -63,6 +63,9 @@ export function saveAndSync() {
   if (window.syncToCloud) {
     window.syncToCloud();
   }
+  if (window.maybeSaveBackup) {
+    window.maybeSaveBackup();
+  }
 }
 
 window.addEventListener("offline", () => showToast("Gone offline — data saves locally"));

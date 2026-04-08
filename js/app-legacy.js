@@ -265,6 +265,43 @@ function closePicker(){
   document.getElementById("ex-picker").classList.remove("open");
 }
 
+// Drag-to-dismiss on the picker sheet
+(function initPickerDrag(){
+  const picker=document.getElementById('ex-picker');
+  const sheet=document.getElementById('ex-picker-sheet');
+  const header=document.getElementById('ex-picker-header');
+  if(!picker||!sheet||!header) return;
+  let startY=0, currentY=0, dragging=false;
+  const onStart=(e)=>{
+    const t=e.touches?e.touches[0]:e;
+    // Only start drag if touching the header area (not scrollable list)
+    const list=document.getElementById('ex-picker-list');
+    if(list&&list.contains(e.target)) return;
+    startY=t.clientY; currentY=0; dragging=true;
+    sheet.style.transition='none';
+  };
+  const onMove=(e)=>{
+    if(!dragging) return;
+    const t=e.touches?e.touches[0]:e;
+    const dy=t.clientY-startY;
+    if(dy<0) return; // no upward drag
+    currentY=dy;
+    sheet.style.transform='translateY('+dy+'px)';
+  };
+  const onEnd=()=>{
+    if(!dragging) return;
+    dragging=false;
+    sheet.style.transition='';
+    if(currentY>120){ closePicker(); }
+    sheet.style.transform='';
+  };
+  // Close on backdrop tap
+  picker.addEventListener('click',(e)=>{ if(e.target===picker) closePicker(); });
+  header.addEventListener('touchstart',onStart,{passive:true});
+  header.addEventListener('touchmove',onMove,{passive:true});
+  header.addEventListener('touchend',onEnd);
+})();
+
 // Single event listener on the persistent list — never removed
 document.getElementById("ex-picker-list").addEventListener("click", function(e){
   const btn = e.target.closest(".pick-btn");
