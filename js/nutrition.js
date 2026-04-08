@@ -14,6 +14,7 @@ let _servingCounts = [];    // multiplier per pending item (default 1)
 let _micActive = false;
 let _calYear = null;   // null = use current month
 let _calMonth = null;  // 0-indexed
+let _insightsOpen = false; // collapsed by default
 
 // ── Edge Function call ────────────────────────────────────────────────────────
 async function analyzeMeal(mealText) {
@@ -357,6 +358,10 @@ export async function processMealText(text) {
     _pendingItems = items.map(i => ({...i}));
     _servingCounts = items.map(() => 1);
     window.render?.();
+    // Scroll pending items into view after render
+    setTimeout(() => {
+      document.getElementById('nutrition-pending-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   } catch(e) {
     console.error('[GAINZ nutrition]', e);
     window.showToast?.('AI unavailable — try again');
@@ -365,6 +370,14 @@ export async function processMealText(text) {
 }
 
 // ── Calorie calendar navigation ───────────────────────────────────────────────
+export function toggleNutritionInsights() {
+  _insightsOpen = !_insightsOpen;
+  const body = document.getElementById('nutrition-insights-body');
+  const btn = document.getElementById('nutrition-insights-btn');
+  if (body) body.style.display = _insightsOpen ? 'block' : 'none';
+  if (btn) btn.textContent = _insightsOpen ? 'HIDE INSIGHTS ▲' : 'SEE INSIGHTS ▼';
+}
+
 export function calNavPrev() {
   const now = new Date();
   let y = _calYear ?? now.getFullYear();
@@ -830,9 +843,18 @@ export function renderNutrition() {
       ${logHtml}
       ${macroCard}
       ${waterCardHtml}
-      ${chartHtml}
-      ${projHtml}
-      ${renderCalorieCalendar()}
+      <div style="margin:16px 0 4px;">
+        <button id="nutrition-insights-btn"
+          onclick="window.toggleNutritionInsights()"
+          style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:2px;cursor:pointer;text-align:center;">
+          ${_insightsOpen ? 'HIDE INSIGHTS ▲' : 'SEE INSIGHTS ▼'}
+        </button>
+      </div>
+      <div id="nutrition-insights-body" style="display:${_insightsOpen ? 'block' : 'none'};">
+        ${chartHtml}
+        ${projHtml}
+        ${renderCalorieCalendar()}
+      </div>
 
       ${typeof window.renderDailyCheckin === 'function' ? window.renderDailyCheckin() : ''}
     </div>

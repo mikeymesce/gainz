@@ -217,10 +217,37 @@ function rebuildPickerList(){
     : (ALL_SPLITS[activeWorkout.split]||[]).filter(e=>!activeWorkout.exercises.find(x=>x.name===e));
   if(pickerFilter==="research") avail = avail.filter(e=>!!RESEARCH_TIPS[e]);
   if(pickerMuscle) avail = avail.filter(e=>(EX_MUSCLES[e]||[]).includes(pickerMuscle));
+
+  // Build recently-used list from workout history (last 20 workouts)
+  const recentlyUsed = [];
+  if(!pickerFilter || pickerFilter==="all" || pickerFilter==="research"){
+    const recentSet = new Set();
+    (state.workouts||[]).slice(0,20).forEach(w=>{
+      (w.exercises||[]).forEach(e=>{
+        if(!recentSet.has(e.name)) recentSet.add(e.name);
+      });
+    });
+    recentSet.forEach(name=>{
+      if(avail.includes(name)) recentlyUsed.push(name);
+    });
+  }
+  const recentSet2 = new Set(recentlyUsed);
+  const rest = avail.filter(e=>!recentSet2.has(e));
+
   const hasRes = ex => !!RESEARCH_TIPS[ex];
-  list.innerHTML = avail.map(ex=>
-    `<button class="pick-btn${hasRes(ex)?" has-research":""}" data-ex="${ex}">${ex}${hasRes(ex)?`<span class="pick-badge">📚</span>`:""}</button>`
-  ).join("") + (avail.length===0 ? `<div style="color:var(--dim);font-size:13px;padding:8px 0;">${pickerFilter==="research"?"No researched exercises left to add!":pickerMuscle?`No ${pickerMuscle} exercises left to add!`:"All exercises added!"}</div>` : "");
+  const mkBtn = ex => `<button class="pick-btn${hasRes(ex)?" has-research":""}" data-ex="${ex}">${ex}${hasRes(ex)?`<span class="pick-badge">📚</span>`:""}</button>`;
+
+  let html = "";
+  if(recentlyUsed.length && !pickerMuscle){
+    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--dim);padding:8px 4px 4px;">RECENTLY USED</div>`;
+    html += recentlyUsed.map(mkBtn).join("");
+    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--dim);padding:10px 4px 4px;">ALL EXERCISES</div>`;
+    html += rest.map(mkBtn).join("");
+  } else {
+    html += avail.map(mkBtn).join("");
+  }
+  if(!avail.length) html = `<div style="color:var(--dim);font-size:13px;padding:8px 0;">${pickerFilter==="research"?"No researched exercises left to add!":pickerMuscle?`No ${pickerMuscle} exercises left to add!`:"All exercises added!"}</div>`;
+  list.innerHTML = html;
 }
 
 function openPicker(){
@@ -1549,19 +1576,10 @@ function finishQuickWorkout(chosenSplit){
 }
 function finishWorkout(){
   if(!activeWorkout.exercises.length){ showModal(`<div style="font-size:13px;color:var(--accent);margin-bottom:14px;">Log at least one exercise first 💪</div><button class="btn ghost" onclick="hideModal()">OK</button>`); return; }
-  // Quick Start: ask user to categorize before saving
+  // Quick Start: auto-categorize silently using detectSplit
   if(activeWorkout.split==="Quick"){
     const detected=detectSplit(activeWorkout.exercises);
-    const splits=Object.keys(ALL_SPLITS);
-    showModal(`
-      <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">CATEGORIZE WORKOUT</div>
-      <div style="font-size:13px;color:var(--dim);margin-bottom:16px;">What type of session was this?</div>
-      ${splits.map(s=>`<button class="btn ghost" onclick="finishQuickWorkout('${s}')" style="width:100%;margin-bottom:8px;${s===detected?'border-color:var(--accent);color:var(--accent);':''}">
-        ${splitName(s)}${s===detected?' ← suggested':''}
-      </button>`).join('')}
-      <button class="btn ghost" onclick="finishQuickWorkout('Quick')" style="width:100%;margin-top:4px;color:var(--dim);">Keep as "Quick"</button>
-    `);
-    return;
+    activeWorkout.split = detected || 'General';
   }
   const yest=new Date(); yest.setDate(yest.getDate()-1);
   const streak=state.lastWorkoutDate===yest.toDateString()?state.streak+1:state.lastWorkoutDate===todayStr()?state.streak:1;
