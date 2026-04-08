@@ -1732,7 +1732,7 @@ function renderNav(){
   const tabs=[
     ["start","▲","START"],
     ["me","◎","ME"],
-    ["nutrition","◆","EAT"],
+    ["nutrition","◆","FUEL"],
     ["settings","⚙","MORE"]
   ];
   if(activeWorkout) tabs.splice(1,0,["log","●","LOG"]);
