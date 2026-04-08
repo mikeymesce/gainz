@@ -291,9 +291,18 @@ function closePicker(){
   const onEnd=()=>{
     if(!dragging) return;
     dragging=false;
-    sheet.style.transition='';
-    if(currentY>120){ closePicker(); }
-    sheet.style.transform='';
+    const threshold=sheet.offsetHeight*0.15;
+    if(currentY>threshold){
+      // Commit — slide all the way off-screen smoothly
+      sheet.style.transition='transform 0.32s cubic-bezier(0.33,1,0.68,1)';
+      sheet.style.transform='translateY(100vh)';
+      setTimeout(()=>{ closePicker(); sheet.style.transform=''; sheet.style.transition=''; },320);
+    } else {
+      // Snap back
+      sheet.style.transition='transform 0.25s cubic-bezier(0.33,1,0.68,1)';
+      sheet.style.transform='';
+      setTimeout(()=>{ sheet.style.transition=''; },260);
+    }
   };
   // Close on backdrop tap
   picker.addEventListener('click',(e)=>{ if(e.target===picker) closePicker(); });
@@ -485,13 +494,17 @@ function initModalDismiss(){
     if(!dragging) return;
     dragging=false;
     const dy=e.changedTouches[0].clientY-startY;
-    inner.style.transition="transform 0.28s ease";
-    if(dy>110){
-      inner.style.transform="translateY(100%)";
-      setTimeout(()=>{ hideModal(); inner.style.transform=""; inner.style.transition=""; },260);
+    const threshold=inner.offsetHeight*0.15;
+    if(dy>threshold){
+      // Commit — slide all the way off-screen smoothly
+      inner.style.transition="transform 0.32s cubic-bezier(0.33,1,0.68,1)";
+      inner.style.transform="translateY(100vh)";
+      setTimeout(()=>{ hideModal(); inner.style.transform=""; inner.style.transition=""; },320);
     } else {
+      // Snap back
+      inner.style.transition="transform 0.25s cubic-bezier(0.33,1,0.68,1)";
       inner.style.transform="";
-      setTimeout(()=>{ inner.style.transition=""; },300);
+      setTimeout(()=>{ inner.style.transition=""; },260);
     }
   },{passive:true});
 }
