@@ -4717,5 +4717,60 @@ runTests();
 initTestsAndDebug();
 initModalDismiss();
 render();
-// First open: show setup flow. All other opens: straight to app.
-maybeShowSetup();
+
+// ── Login Gate: show every open unless user is logged in ──
+async function showLoginGateIfNeeded(){
+  try{
+    const loggedIn = await isLoggedIn();
+    if(loggedIn){
+      // Logged in → pull cloud data and skip gate
+      maybeShowSetup();
+      return;
+    }
+  }catch(e){}
+  // Not logged in → show login gate
+  const gate = document.getElementById('login-gate');
+  if(gate) gate.style.display = 'block';
+}
+
+async function gateSignIn(){
+  const email=document.getElementById('gate-email')?.value?.trim();
+  const pass=document.getElementById('gate-pass')?.value;
+  const errEl=document.getElementById('gate-error');
+  if(!email||!pass){ if(errEl){errEl.textContent='Enter email and password';errEl.style.display='block';} return; }
+  const {error}=await signIn(email,pass);
+  if(error){ if(errEl){errEl.textContent=friendlyAuthError(error.message);errEl.style.display='block';} return; }
+  // Pull cloud data before dismissing gate
+  try{
+    const cloud=await syncFromCloud();
+    if(cloud){
+      Object.assign(state,migrateState(cloud));
+      localStorage.setItem('gainz_v5',JSON.stringify(state));
+    }
+  }catch(e){}
+  document.getElementById('login-gate').style.display='none';
+  render();
+  maybeShowSetup();
+}
+
+async function gateSignUp(){
+  const email=document.getElementById('gate-email')?.value?.trim();
+  const pass=document.getElementById('gate-pass')?.value;
+  const errEl=document.getElementById('gate-error');
+  if(!email){ if(errEl){errEl.textContent='Enter your email';errEl.style.display='block';} return; }
+  if(!pass||pass.length<6){ if(errEl){errEl.textContent='Password needs 6+ characters';errEl.style.display='block';} return; }
+  const {error}=await signUp(email,pass);
+  if(error){ if(errEl){errEl.textContent=friendlyAuthError(error.message);errEl.style.display='block';} return; }
+  if(errEl){errEl.textContent='✓ Check your email to confirm, then sign in.';errEl.style.display='block';errEl.style.color='var(--green)';}
+}
+
+function gateGuest(){
+  document.getElementById('login-gate').style.display='none';
+  maybeShowSetup();
+}
+
+window.gateSignIn=gateSignIn;
+window.gateSignUp=gateSignUp;
+window.gateGuest=gateGuest;
+
+showLoginGateIfNeeded();
