@@ -449,7 +449,14 @@ function showModal(h){
   const inner=document.getElementById("modal-inner");
   inner.style.transform=''; inner.style.transition='';
   inner.innerHTML=h;
+  // Auto-close any already-open sheet-style popup before showing new one
+  const picker=document.getElementById("ex-picker");
+  if(picker&&picker.classList.contains("open")) picker.classList.remove("open");
+  const lib=document.getElementById("res-library");
+  if(lib&&lib.classList.contains("open")) lib.classList.remove("open");
   document.getElementById("modal").classList.add("open");
+  // Subtle haptic feedback on open
+  try{ if(navigator.vibrate) navigator.vibrate(8); }catch(e){}
 }
 function hideModal(){ document.getElementById("modal").classList.remove("open"); }
 
