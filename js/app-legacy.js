@@ -4716,7 +4716,5 @@ runTests();
 initTestsAndDebug();
 initModalDismiss();
 render();
-// First open: setup flow → cinematic. All other opens: cinematic directly.
-if (!maybeShowSetup()) {
-  maybeShowCinematic();
-}
+// First open: show setup flow. All other opens: straight to app.
+maybeShowSetup();

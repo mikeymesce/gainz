@@ -21,22 +21,6 @@
 <div id="setup-flow" style="display:none;position:fixed;inset:0;z-index:200;background:#080808;overflow-y:auto;">
   <div id="setup-content" style="min-height:100%;display:flex;flex-direction:column;"></div>
 </div>
-<div id="cinematic-splash" style="display:flex;" onclick="dismissCinematic()">
-  <div class="cin-container" id="cin-container">
-    <div style="font-family:'Bebas Neue',system-ui,sans-serif;font-size:52px;letter-spacing:6px;color:#e8d5a0;line-height:1;">GAINZ</div>
-  </div>
-  <div class="cin-skip" onclick="event.stopPropagation();skipCinematic()">SKIP</div>
-</div>
-<div id="onboard-splash" style="display:none;" onclick="dismissSplash()">
-  <div class="ob-logo">GAINZ</div>
-  <div class="ob-tagline">Track. Progress. Dominate.</div>
-  <div class="ob-cards-wrap" id="ob-cards-wrap" onclick="event.stopPropagation()">
-    <div class="ob-cards-track" id="ob-cards-track"></div>
-  </div>
-  <div class="ob-dots" id="ob-dots"></div>
-  <div style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;opacity:0;animation:obSlideIn 0.8s ease 4.2s forwards;">SWIPE OR TAP TO SKIP</div>
-  <button class="ob-skip" onclick="dismissSplash()">SKIP →</button>
-</div>
 <div id="app">
   <div class="header">
     <button class="back-btn" id="back-btn" onclick="goBack()">‹ BACK</button>
