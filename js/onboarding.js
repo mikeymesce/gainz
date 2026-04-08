@@ -99,7 +99,10 @@ export function _renderSetupStep() {
   if (_setupStep === 1) {
     el.innerHTML = `
       <div style="flex:1;display:flex;flex-direction:column;padding:48px 24px 40px;">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--accent);margin-bottom:4px;">GAINZ</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--accent);">GAINZ</div>
+          <button onclick="window._skipSetup()" style="background:none;border:none;color:var(--dim);font-size:12px;letter-spacing:1px;cursor:pointer;padding:4px 0;">SKIP</button>
+        </div>
         <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;">Let's set you up.</div>
         <div style="font-size:13px;color:var(--dim);margin-bottom:32px;">Takes 30 seconds. You can change any of this later.</div>
 
@@ -299,6 +302,12 @@ export function _setupSave() {
   // Hide setup, go straight to app
   const el = document.getElementById('setup-flow');
   if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; setTimeout(() => { el.style.display = 'none'; el.style.opacity = ''; el.style.transition = ''; }, 400); }
+}
+
+export function _skipSetup() {
+  localStorage.setItem('gainz_setup_done', '1');
+  const el = document.getElementById('setup-flow');
+  if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => { el.style.display = 'none'; el.style.opacity = ''; el.style.transition = ''; }, 300); }
 }
 
 export function maybeShowSetup() {
