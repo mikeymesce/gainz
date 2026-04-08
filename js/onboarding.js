@@ -54,7 +54,7 @@ function _weeksToGoal(bw, goalWeight, weeklyRate) {
 }
 
 // Updates just the live preview card on step 2 — no full re-render so keyboard stays up
-function _updateStep2Preview() {
+export function _updateStep2Preview() {
   const preview = document.getElementById('setup-step2-preview');
   if (!preview) return;
   const { goal, bodyweight: bw, goalWeight, weeklyRate } = _setupData;
