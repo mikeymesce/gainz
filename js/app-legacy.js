@@ -1594,6 +1594,7 @@ function finishWorkout(){
   state.workouts.unshift(w); state.streak=streak; state.lastWorkoutDate=todayStr();
   if(state.workouts.length>500) state.workouts=state.workouts.slice(0,500);
   saveAndSync();
+  maybeSaveBackup?.();
   // Auto-save as template for this split (silent)
   if(!state.templates) state.templates=[];
   const existingIdx=state.templates.findIndex(t=>t.split===activeWorkout.split);

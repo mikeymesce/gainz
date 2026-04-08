@@ -75,6 +75,22 @@ export async function syncToCloud() {
     const state = window.state;
     if (!state) return;
 
+    // Safety guard: never push an empty state over real cloud data
+    const localWorkouts = (state.workouts || []).length;
+    if (localWorkouts === 0) {
+      // Check if cloud has real data before overwriting
+      const { data: existing } = await client
+        .from('user_state')
+        .select('state')
+        .eq('user_id', user.id)
+        .single();
+      const cloudWorkouts = (existing?.state?.workouts || []).length;
+      if (cloudWorkouts > 0) {
+        console.warn('[GAINZ sync] Blocked push: local has 0 workouts, cloud has', cloudWorkouts);
+        return;
+      }
+    }
+
     state._localUpdatedAt = Date.now();
 
     const { error } = await client
@@ -122,6 +138,15 @@ export async function syncFromCloud() {
 
     const cloudTime = new Date(data.updated_at).getTime();
     const localTime = window.state?._localUpdatedAt || 0;
+    const localWorkouts = (window.state?.workouts || []).length;
+    const cloudWorkouts = (data.state?.workouts || []).length;
+
+    // Safety: never pull cloud data that has fewer workouts than local
+    if (cloudWorkouts < localWorkouts) {
+      if (window.logDebug) window.logDebug('☁️ Local has more workouts, pushing up');
+      await syncToCloud();
+      return null;
+    }
 
     if (cloudTime > localTime) {
       // Cloud is newer — use it
@@ -135,6 +160,53 @@ export async function syncFromCloud() {
   } catch (e) {
     console.warn('[GAINZ sync] Pull error:', e.message);
     return null;
+  }
+}
+
+// ── Backup snapshot every 3 workouts ──
+
+export async function maybeSaveBackup() {
+  if (!FEATURES.cloudSync) return;
+  const client = getClient();
+  if (!client) return;
+  if (!navigator.onLine) return;
+
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    const state = window.state;
+    const workoutCount = (state?.workouts || []).length;
+
+    // Only snapshot on every 3rd workout
+    if (workoutCount === 0 || workoutCount % 3 !== 0) return;
+
+    // Don't double-snapshot the same count
+    const lastBackupCount = state._lastBackupCount || 0;
+    if (lastBackupCount === workoutCount) return;
+
+    await client.from('gainz_backups').insert({
+      user_id: user.id,
+      state: state,
+      workout_count: workoutCount,
+    });
+
+    // Keep only the last 20 backups
+    const { data: all } = await client
+      .from('gainz_backups')
+      .select('id, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (all && all.length > 20) {
+      const toDelete = all.slice(20).map(r => r.id);
+      await client.from('gainz_backups').delete().in('id', toDelete);
+    }
+
+    state._lastBackupCount = workoutCount;
+    if (window.logDebug) window.logDebug(`☁️ Backup saved at ${workoutCount} workouts`);
+  } catch (e) {
+    console.warn('[GAINZ backup] Save error:', e.message);
   }
 }
 

@@ -92,7 +92,7 @@ import {
 } from './tests.js';
 import {
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
-  syncToCloud, syncFromCloud,
+  syncToCloud, syncFromCloud, maybeSaveBackup,
   renderCloudSyncCard, renderSyncUI
 } from './supabase.js';
 import {
@@ -167,7 +167,7 @@ Object.assign(window, {
   runTests, logDebug, openDebug, closeDebug, initTestsAndDebug, TEST_RESULTS,
   // Cloud sync
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
-  syncToCloud, syncFromCloud,
+  syncToCloud, syncFromCloud, maybeSaveBackup,
   renderCloudSyncCard, renderSyncUI,
   // Nutrition
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
