@@ -44,14 +44,18 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activate — clean old caches, then force-refresh all open tabs
+// Activate — wipe ALL old caches (including any stale gainz-v* caches),
+// claim clients immediately, then force a full reload so fresh files load.
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME && k !== 'onesignal-sdk').map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-     .then(() => self.clients.matchAll({ type: 'window' }))
-     .then(clients => clients.forEach(c => c.navigate(c.url)))
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME && k !== 'onesignal-sdk')
+            .map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(c => c.navigate(c.url)))
   );
 });
 
@@ -79,19 +83,17 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // JS/CSS assets — serve from cache, update in background
+  // JS/CSS assets — network first, fall back to cache
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fetchPromise = fetch(e.request).then(response => {
+    fetch(e.request, { cache: 'reload' })
+      .then(response => {
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
         }
         return response;
-      }).catch(() => cached);
-
-      return cached || fetchPromise;
-    })
+      })
+      .catch(() => caches.match(e.request))
   );
 });
 
