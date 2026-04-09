@@ -748,6 +748,8 @@ function addExercise(name){
   if(!activeWorkout||activeWorkout.exercises.find(e=>e.name===name)) return;
   const isBW=BW_EXERCISES.has(name);
   activeWorkout.exercises.push({name,sets:[],superset:false,ssPair:null,bwMode:isBW,notes:"",warmupNext:false});
+  // Immediately save recovery state so exercises aren't lost on crash
+  try{ localStorage.setItem('gainz_recovery', JSON.stringify(activeWorkout)); }catch(e){}
   render();
   setTimeout(()=>{ const el=document.getElementById("ex-"+sid(name)); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); },80);
   maybeShowCoachTip(activeWorkout);
