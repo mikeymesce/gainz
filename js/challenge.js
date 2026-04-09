@@ -39,7 +39,17 @@ function _render() { window.render(); }
 export function getChallengeState(){
   const state = _state();
   if(!state.challenge) state.challenge={startDate:null,days:{},active:false};
-  if(!state.challenge.secondEx) state.challenge.secondEx='situps';
+  if(!state.challenge.secondEx){
+    // Auto-detect: check if user has logged squats more than sit-ups
+    const w=state.workouts||[];
+    let squatCount=0, sitCount=0;
+    w.forEach(wo=>(wo.exercises||[]).forEach(e=>{
+      const n=e.name.toLowerCase();
+      if(/squat/i.test(n)) squatCount++;
+      if(/sit[\s-]?up|crunch/i.test(n)) sitCount++;
+    }));
+    state.challenge.secondEx = squatCount >= sitCount ? 'squats' : 'situps';
+  }
   return state.challenge;
 }
 export function startChallenge(){

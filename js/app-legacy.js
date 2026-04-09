@@ -447,8 +447,33 @@ function addCustomExercise(){
   const name = (inp?.value||"").trim();
   if(!name || !activeWorkout) return;
   if(activeWorkout.exercises.find(e=>e.name===name)) return;
+  const box=document.getElementById("ex-suggest-list");
+  if(box){box.innerHTML="";box.style.display="none";}
   closePicker();
   addExercise(name);
+}
+
+// ── Auto-suggest for custom exercise input ──
+function showExSuggestions(val){
+  const box=document.getElementById("ex-suggest-list");
+  if(!box) return;
+  val=(val||"").trim().toLowerCase();
+  if(val.length<2||!activeWorkout){box.innerHTML="";box.style.display="none";return;}
+  const allNames=new Set();
+  Object.values(ALL_SPLITS).forEach(arr=>arr.forEach(n=>allNames.add(n)));
+  (state.workouts||[]).forEach(w=>(w.exercises||[]).forEach(e=>allNames.add(e.name)));
+  const current=new Set(activeWorkout.exercises.map(e=>e.name));
+  const matches=[...allNames].filter(n=>n.toLowerCase().includes(val)&&!current.has(n)).slice(0,6);
+  if(!matches.length){box.innerHTML="";box.style.display="none";return;}
+  box.style.display="block";
+  box.innerHTML=matches.map(n=>`<div class="ex-suggest-item" onmousedown="pickSuggestion('${n.replace(/'/g,"\\'")}')">${n}</div>`).join("");
+}
+function pickSuggestion(name){
+  const inp=document.getElementById("custom-ex-input");
+  if(inp) inp.value=name;
+  const box=document.getElementById("ex-suggest-list");
+  if(box){box.innerHTML="";box.style.display="none";}
+  addCustomExercise();
 }
 
 // ═══════════════════════════════════════════
@@ -747,12 +772,27 @@ function initSetSwipes(){
 function addExercise(name){
   if(!activeWorkout||activeWorkout.exercises.find(e=>e.name===name)) return;
   const isBW=BW_EXERCISES.has(name);
-  activeWorkout.exercises.push({name,sets:[],superset:false,ssPair:null,bwMode:isBW,notes:"",warmupNext:false});
+  // Auto-detect unilateral exercises
+  const nameLow=name.toLowerCase();
+  const isUni=/single|one[\s-]?arm|one[\s-]?leg|lunge|bulgarian|step[\s-]?up|pistol|split squat/i.test(nameLow);
+  activeWorkout.exercises.push({name,sets:[],superset:false,ssPair:null,bwMode:isBW,notes:"",warmupNext:false,mode:'bb',unilateral:isUni});
   // Immediately save recovery state so exercises aren't lost on crash
   try{ localStorage.setItem('gainz_recovery', JSON.stringify(activeWorkout)); }catch(e){}
   render();
   setTimeout(()=>{ const el=document.getElementById("ex-"+sid(name)); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); },80);
   maybeShowCoachTip(activeWorkout);
+}
+function toggleMode(name){
+  const ex=activeWorkout?.exercises.find(e=>e.name===name);
+  if(!ex) return;
+  ex.mode=ex.mode==='db'?'bb':'db';
+  render();
+}
+function toggleUnilateral(name){
+  const ex=activeWorkout?.exercises.find(e=>e.name===name);
+  if(!ex) return;
+  ex.unilateral=!ex.unilateral;
+  render();
 }
 function logSet(n){
   const id=sid(n);
@@ -775,7 +815,10 @@ function logSet(n){
   if(!r||((!bw)&&!w)){ showToast("Enter weight and reps first"); return; }
   const isWarmup=!!activeWorkout.exercises.find(e=>e.name===n)?.warmupNext;
   const wasPR=!bw&&isPR(n,w,isWarmup,activeWorkout);
-  const newSet={weight:bw?"BW":w,reps:r,time:Date.now(),bw:!!bw,pr:wasPR||undefined,warmup:isWarmup||undefined};
+  const exObj=activeWorkout.exercises.find(e=>e.name===n);
+  const isDB=exObj?.mode==='db';
+  const isUni=exObj?.unilateral;
+  const newSet={weight:bw?"BW":w,reps:r,time:Date.now(),bw:!!bw,pr:wasPR||undefined,warmup:isWarmup||undefined,db:isDB||undefined,unilateral:isUni||undefined};
   // reset warmupNext after consuming it
   const _ex=activeWorkout.exercises.find(e=>e.name===n);
   if(_ex) _ex.warmupNext=false;
@@ -3595,10 +3638,10 @@ function renderLog(){
           ${s.warmup?`<span style="font-size:9px;background:rgba(100,160,255,0.15);border:1px solid rgba(100,160,255,0.3);border-radius:4px;padding:1px 5px;color:#7aacff;font-weight:700;letter-spacing:1px;">W</span>`:""}
           ${s.pr?`<span class="pr-ticket">PR</span>`:""}
           ${s.drops?`<span style="font-size:9px;background:rgba(232,213,160,0.15);border:1px solid rgba(232,213,160,0.3);border-radius:4px;padding:1px 5px;color:var(--accent);font-weight:700;letter-spacing:1px;">DROP</span>`:""}
-          Set ${i+1}: ${s.bw?"BW":s.weight+"lb"} × ${s.reps}
+          Set ${i+1}: ${s.bw?"BW":s.db?`2×${s.weight} DB`:s.weight+"lb"} × ${s.reps}${s.unilateral?' EACH':''}
         </span>
         <span style="display:flex;align-items:center;gap:6px;">
-          ${(!s.bw&&!s.warmup&&setVol)?`<span class="set-vol">${setVol.toLocaleString()}lb</span>`:""}
+          ${(!s.bw&&!s.warmup&&setVol)?`<span class="set-vol">${((s.db?setVol*2:setVol)*(s.unilateral?2:1)).toLocaleString()}lb</span>`:""}
           <button style="background:none;border:none;color:var(--dim);font-size:9px;padding:2px 4px;cursor:pointer;letter-spacing:0.5px;" onclick="event.stopPropagation();openDropInput(${esc(e.name)},${i})">+DROP</button>
           <button class="set-del" onclick="event.stopPropagation();deleteSet(${esc(e.name)},${i})">✕</button>
         </span>
@@ -3647,9 +3690,21 @@ function renderLog(){
         : `<div style="font-size:11px;color:var(--green);margin-bottom:8px;">↑ +${suggestion.pct}% vs last session · ${suggestion.weight}lb suggested</div>`
     ) : "";
 
+    const isDB=e.mode==='db';
+    const isUni=e.unilateral;
+    const modePill=!bwOn?`<div style="display:flex;gap:4px;margin-top:4px;">
+      <button onclick="toggleMode(${esc(e.name)})" style="padding:3px 8px;border-radius:6px;font-size:9px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;
+        background:${isDB?'rgba(232,213,160,0.12)':'var(--bg3)'};border:1px solid ${isDB?'var(--accent)':'var(--border2)'};color:${isDB?'var(--accent)':'var(--dim)'};">
+        ${isDB?'DB':'BB'}
+      </button>
+      <button onclick="toggleUnilateral(${esc(e.name)})" style="padding:3px 8px;border-radius:6px;font-size:9px;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;
+        background:${isUni?'rgba(232,213,160,0.12)':'var(--bg3)'};border:1px solid ${isUni?'var(--accent)':'var(--border2)'};color:${isUni?'var(--accent)':'var(--dim)'};">
+        ${isUni?'EACH':'BOTH'}
+      </button>
+    </div>`:'';
     const weightInput=bwOn
       ?`<div class="col"><span class="label">WEIGHT</span><div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--dim);">BW</div></div>`
-      :`<div class="col"><span class="label" style="display:flex;justify-content:space-between;align-items:center;">WEIGHT (lb)<button onclick="openPlateCalc(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;" title="Plate calculator">🔧</button></span><input class="input" type="number" id="w-${id}" value="" placeholder="${prefillW}" onfocus="if(!this.value){this.value=this.placeholder;}this.select();" inputmode="decimal"/></div>`;
+      :`<div class="col"><span class="label" style="display:flex;justify-content:space-between;align-items:center;">WEIGHT ${isDB?'(each)':'(lb)'}<button onclick="openPlateCalc(${esc(e.name)})" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;padding:0;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;" title="Plate calculator">🔧</button></span><input class="input" type="number" id="w-${id}" value="" placeholder="${prefillW}" onfocus="if(!this.value){this.value=this.placeholder;}this.select();" inputmode="decimal"/>${modePill}</div>`;
 
     const tipPanel=buildTipPanel(e.name);
     const reopenBtn=getTips(e.name)&&!hasTipShown(e.name)?`<button class="tip-reopen" onclick="openTip(${esc(e.name)});render();" title="Research tips" style="font-size:11px;letter-spacing:1px;color:var(--dim);opacity:0.5;">📚</button>`:"";

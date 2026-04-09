@@ -97,7 +97,10 @@
     </div>
     <div id="ex-picker-list"></div>
     <div id="ex-picker-custom">
-      <input class="input" id="custom-ex-input" placeholder="custom exercise..." style="font-size:14px;flex:1;"/>
+      <div style="position:relative;flex:1;">
+        <input class="input" id="custom-ex-input" placeholder="custom exercise..." style="font-size:14px;width:100%;" oninput="showExSuggestions(this.value)" autocomplete="off"/>
+        <div id="ex-suggest-list"></div>
+      </div>
       <button class="btn primary small" onclick="addCustomExercise()">ADD</button>
     </div>
   </div>
