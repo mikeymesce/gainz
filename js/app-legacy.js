@@ -782,6 +782,57 @@ function addExercise(name){
   setTimeout(()=>{ const el=document.getElementById("ex-"+sid(name)); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); },80);
   maybeShowCoachTip(activeWorkout);
 }
+// Strong-style: confirm a pre-filled set row
+function confirmSet(name,rowIdx){
+  const ex=activeWorkout?.exercises.find(e=>e.name===name);
+  if(!ex) return;
+  const id=sid(name);
+  const bw=ex.bwMode;
+  const wEl=document.getElementById('sw-'+id+'-'+rowIdx);
+  const rEl=document.getElementById('sr-'+id+'-'+rowIdx);
+  let w=bw?'BW':(wEl?.value||wEl?.placeholder||'').trim();
+  let r=(rEl?.value||rEl?.placeholder||'').trim();
+  if(!r||(!bw&&!w)){showToast('Enter weight and reps');return;}
+  const isWarmup=!!ex.warmupNext;
+  const wasPR=!bw&&isPR(name,w,isWarmup,activeWorkout);
+  const isDB=ex.mode==='db';
+  const isUni=ex.unilateral;
+  const newSet={weight:bw?'BW':w,reps:r,time:Date.now(),bw:!!bw,pr:wasPR||undefined,warmup:isWarmup||undefined,db:isDB||undefined,unilateral:isUni||undefined};
+  if(isWarmup) ex.warmupNext=false;
+  ex.sets.push(newSet);
+  try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){}
+  if(wasPR){haptic('heavy');confetti();}else{haptic('medium');}
+  // Start rest timer
+  const rest=state.exerciseRests[name]??GLOBAL_DEFAULT;
+  if(!isWarmup){
+    startTimer(name,rest);
+    // Superset prompt
+    if(ex.superset&&ex.ssPair){
+      activeSSPrompt=ex.ssPair;
+      setTimeout(()=>{const el=document.getElementById('ex-'+sid(ex.ssPair));if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},100);
+    }
+  }
+  // Auto-credit challenge
+  if(typeof addChallengeQuickSilent==='function'){
+    const nameLower=name.toLowerCase();
+    const repsNum=parseInt(r)||0;
+    if(/push[\s-]?up/i.test(nameLower)) addChallengeQuickSilent('push',repsNum);
+    if(/squat/i.test(nameLower)) addChallengeQuickSilent('sit',repsNum);
+    else if(/sit[\s-]?up|crunch/i.test(nameLower)) addChallengeQuickSilent('sit',repsNum);
+  }
+  render();
+}
+
+function addSetRow(name){
+  // Adds a blank row beyond the default 3. Just re-render — the template count increases
+  // We track this with a temp property on the exercise
+  const ex=activeWorkout?.exercises.find(e=>e.name===name);
+  if(!ex) return;
+  if(!ex._extraRows) ex._extraRows=0;
+  ex._extraRows++;
+  render();
+}
+
 function toggleMode(name){
   const ex=activeWorkout?.exercises.find(e=>e.name===name);
   if(!ex) return;
@@ -3535,6 +3586,84 @@ function renderPRHistory(){
   `;
 }
 
+// ── Strong-style set grid builder ──
+function buildSetGrid(e, id, bwOn, lastSess){
+  const isDB=e.mode==='db';
+  const isUni=e.unilateral;
+  const done=e.sets.length;
+  const lastSetsArr=lastSess?.sets||[];
+  const defW=(EX_DEFAULTS[e.name]||EX_DEFAULT_FALLBACK).w;
+  const defR=(EX_DEFAULTS[e.name]||EX_DEFAULT_FALLBACK).r;
+  const totalRows=Math.max(done+1, lastSetsArr.length, 3)+(e._extraRows||0);
+  const eName=esc(e.name);
+
+  let h='<div style="display:flex;gap:4px;padding:4px 0;margin-top:4px;">';
+  h+='<span style="width:36px;font-size:9px;letter-spacing:1px;color:var(--dim);text-align:center;">SET</span>';
+  h+='<span style="flex:1;font-size:9px;letter-spacing:1px;color:var(--dim);text-align:center;">'+(bwOn?'':'WEIGHT')+'</span>';
+  h+='<span style="flex:1;font-size:9px;letter-spacing:1px;color:var(--dim);text-align:center;">REPS</span>';
+  h+='<span style="width:40px;"></span></div>';
+
+  for(let i=0;i<totalRows;i++){
+    const confirmed=i<done;
+    const s=confirmed?e.sets[i]:null;
+    const prev=lastSetsArr[i]||lastSetsArr[lastSetsArr.length-1];
+    const pw=s?s.weight: prev&&!prev.bw?prev.weight: String(defW);
+    const pr=s?s.reps: prev?prev.reps: String(defR);
+
+    if(confirmed){
+      const wLabel=s.bw?'BW':s.db?'2x'+s.weight:s.weight;
+      const rLabel=s.reps+(s.unilateral?' ea':'');
+      h+='<div style="display:flex;gap:4px;align-items:center;padding:6px 0;opacity:0.5;">';
+      h+='<span style="width:36px;text-align:center;font-size:12px;color:var(--dim);">'+(i+1)+'</span>';
+      h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+wLabel+'</span>';
+      h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+rLabel+'</span>';
+      h+='<span style="width:40px;text-align:center;color:var(--green);font-size:16px;">✓</span>';
+      h+='</div>';
+    } else {
+      h+='<div style="display:flex;gap:4px;align-items:center;padding:4px 0;">';
+      h+='<span style="width:36px;text-align:center;font-size:12px;color:var(--muted);">'+(i+1)+'</span>';
+      if(bwOn){
+        h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--dim);">BW</span>';
+      } else {
+        h+='<input id="sw-'+id+'-'+i+'" class="input" type="number" inputmode="decimal" placeholder="'+pw+'" style="flex:1;font-size:13px;padding:8px 4px;text-align:center;" onfocus="if(!this.value){this.value=this.placeholder;}this.select();"/>';
+      }
+      h+='<input id="sr-'+id+'-'+i+'" class="input" type="number" inputmode="numeric" placeholder="'+pr+'" style="flex:1;font-size:13px;padding:8px 4px;text-align:center;" onfocus="if(!this.value){this.value=this.placeholder;}this.select();" onkeydown="if(event.key===\'Enter\'){confirmSet('+eName+','+i+');event.preventDefault();}"/>';
+      h+='<button onclick="confirmSet('+eName+','+i+')" style="width:40px;height:36px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--accent);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✓</button>';
+      h+='</div>';
+    }
+  }
+  h+='<button onclick="addSetRow('+eName+')" style="width:100%;background:none;border:none;color:var(--dim);font-size:11px;letter-spacing:1px;cursor:pointer;padding:8px 0;font-family:\'DM Sans\',sans-serif;">+ ADD SET</button>';
+
+  if(!bwOn){
+    const dbBg=isDB?'rgba(232,213,160,0.12)':'var(--bg3)';
+    const dbBorder=isDB?'var(--accent)':'var(--border2)';
+    const dbColor=isDB?'var(--accent)':'var(--dim)';
+    const uniBg=isUni?'rgba(232,213,160,0.12)':'var(--bg3)';
+    const uniBorder=isUni?'var(--accent)':'var(--border2)';
+    const uniColor=isUni?'var(--accent)':'var(--dim)';
+    h+='<div style="display:flex;gap:4px;margin-top:4px;">';
+    h+='<button onclick="toggleMode('+eName+')" style="padding:3px 8px;border-radius:6px;font-size:9px;letter-spacing:1px;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:'+dbBg+';border:1px solid '+dbBorder+';color:'+dbColor+';">'+(isDB?'DB':'BB')+'</button>';
+    h+='<button onclick="toggleUnilateral('+eName+')" style="padding:3px 8px;border-radius:6px;font-size:9px;letter-spacing:1px;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:'+uniBg+';border:1px solid '+uniBorder+';color:'+uniColor+';">'+(isUni?'EACH':'BOTH')+'</button>';
+    h+='</div>';
+  }
+  return h;
+}
+
+// Default weights for exercises with no history (realistic starting points)
+const EX_DEFAULTS={
+  'Squat':{w:135,r:10},'Bench Press':{w:135,r:10},'Deadlift':{w:135,r:10},
+  'Overhead Press':{w:65,r:10},'Barbell Row':{w:95,r:10},'Romanian Deadlift':{w:95,r:10},
+  'Incline Dumbbell Press':{w:40,r:10},'Leg Press':{w:180,r:10},'Hip Thrust':{w:135,r:10},
+  'Lat Pulldown':{w:100,r:10},'Cable Row':{w:80,r:10},'Cable Crossover':{w:25,r:12},
+  'Chest Fly':{w:30,r:12},'Tricep Pushdown':{w:40,r:12},'Bicep Curls':{w:25,r:12},
+  'Hammer Curls':{w:25,r:12},'Lateral Raises':{w:15,r:12},'Face Pulls':{w:30,r:15},
+  'Rear Delt Fly':{w:15,r:12},'Cable Crunch':{w:60,r:15},'Leg Curl':{w:80,r:12},
+  'Leg Extension':{w:80,r:12},'Calf Raises':{w:100,r:15},'Skull Crushers':{w:40,r:10},
+  'Arnold Press':{w:30,r:10},'Cable Curl':{w:30,r:12},'Decline Press':{w:115,r:10},
+  'Lunges':{w:0,r:12},'Pallof Press':{w:25,r:12},
+};
+const EX_DEFAULT_FALLBACK={w:45,r:10};
+
 // inlineChallengeAdd + renderInlineChallenge — Moved to js/challenge.js
 function renderLog(){
   if(!activeWorkout) return "";
@@ -3726,14 +3855,8 @@ function renderLog(){
       ${ssPromptBanner}
       ${inlinePicker}
       ${tipPanel}
-      ${setRows}
-      ${lastHint}
       ${overloadBadge}
-      <div class="row" style="margin-top:10px;">
-        ${weightInput}
-        <div class="col"><span class="label">REPS</span><input class="input" type="number" id="r-${id}" value="" placeholder="${prefillR}" onfocus="if(!this.value){this.value=this.placeholder;}this.select();" inputmode="numeric"/></div>
-      </div>
-      <button class="btn ghost" onclick="logSet(${esc(e.name)})" style="${isSSPrompt?'border-color:var(--superset)44;color:var(--superset);':''}">+ LOG SET${ssOn&&ssPairName?' ⚡':ssOn?' (no rest)':''}</button>
+      ${buildSetGrid(e, id, bwOn, lastSess)}
       ${(()=>{
         const isLast=activeWorkout.exercises.findIndex(e2=>e2.name===e.name)===activeWorkout.exercises.length-1;
         const nextEx=!isLast?activeWorkout.exercises[activeWorkout.exercises.findIndex(e2=>e2.name===e.name)+1]:null;
