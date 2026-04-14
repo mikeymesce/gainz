@@ -424,6 +424,8 @@ export function openDayDetail(dateStr) {
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
         <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);">${Math.round(it.calories || 0)}</span>
+        <button onclick="window.editDayItem('${dateStr}',${i});"
+          style="background:none;border:none;color:var(--dim);font-size:14px;cursor:pointer;padding:0;line-height:1;" title="Edit">✎</button>
         <button onclick="window.deleteDayItem('${dateStr}',${i});window.openDayDetail('${dateStr}');"
           style="background:none;border:none;color:var(--dim);font-size:15px;cursor:pointer;padding:0;line-height:1;">✕</button>
       </div>
@@ -450,6 +452,63 @@ export function deleteDayItem(dateStr, idx) {
   if (!window.state.nutritionLog[dateStr].length) delete window.state.nutritionLog[dateStr];
   window.saveAndSync?.();
   window.render?.();
+}
+
+// ── Edit an already-logged item (opens modal prefilled with current values) ──
+// Matches the visual style of openMacroTargetsModal — same input styling,
+// same color coding, Bebas Neue font for numbers.
+export function editDayItem(dateStr, idx) {
+  const item = window.state?.nutritionLog?.[dateStr]?.[idx];
+  if (!item) return;
+
+  // Escape the name so quotes/HTML in the item name don't break the input
+  const safeName = (item.name || '').replace(/"/g, '&quot;');
+
+  window.showModal?.(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">EDIT ITEM</div>
+    <div style="font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:8px;">NAME</div>
+    <input id="edit-item-name" type="text" value="${safeName}"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:10px 12px;margin-bottom:16px;box-sizing:border-box;"/>
+    <div style="font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:8px;">MACROS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      ${[
+        ['calories','CALORIES','var(--accent)','kcal'],
+        ['protein','PROTEIN','#52c87a','g'],
+        ['carbs','CARBS','#7aacff','g'],
+        ['fat','FAT','#ffb347','g']
+      ].map(([field, lbl, color, unit]) => `
+        <div>
+          <div style="font-size:9px;color:${color};letter-spacing:1px;margin-bottom:6px;">${lbl} (${unit})</div>
+          <input id="edit-item-${field}" type="number" inputmode="decimal" value="${Math.round(item[field] || 0)}"
+            style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;padding:10px 8px;text-align:center;box-sizing:border-box;"/>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn primary" onclick="window.saveDayItemEdit('${dateStr}',${idx})">SAVE</button>
+    <button class="btn ghost" onclick="window.openDayDetail('${dateStr}')" style="margin-top:8px;">CANCEL</button>
+  `);
+}
+
+// Read the inputs, update state, re-open the day detail modal.
+export function saveDayItemEdit(dateStr, idx) {
+  const item = window.state?.nutritionLog?.[dateStr]?.[idx];
+  if (!item) return;
+
+  const nameEl = document.getElementById('edit-item-name');
+  const name = nameEl ? nameEl.value.trim() : item.name;
+
+  // Read each macro field and fall back to the existing value if blank
+  ['calories','protein','carbs','fat'].forEach(field => {
+    const el = document.getElementById(`edit-item-${field}`);
+    if (el) item[field] = parseFloat(el.value) || 0;
+  });
+  item.name = name || item.name;
+
+  window.saveAndSync?.();
+  window.hideModal?.();
+  // Re-open so the user immediately sees the update
+  window.openDayDetail?.(dateStr);
+  window.showToast?.('Updated ✓');
 }
 
 export function showDayTextInput(dateStr) {

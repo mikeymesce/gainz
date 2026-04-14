@@ -13,6 +13,18 @@ function parseDateKey(ds){
 // Get toDateString() for a Date object (no parsing ambiguity)
 function dateKey(d){ return d.toDateString(); }
 
+// ── Exercise label helpers (for the 3 second-exercise options) ──
+const EX_LABELS = { situps:'SIT-UPS', squats:'BW SQUATS', deadbugs:'DEAD BUGS' };
+const EX_LABELS_SHORT = { situps:'sit', squats:'squat', deadbugs:'dead bug' };
+const EX_LABELS_TITLE = { situps:'Sit-ups', squats:'BW Squats', deadbugs:'Dead Bugs' };
+function exLabel(ch){ return EX_LABELS[ch.secondEx]||'SIT-UPS'; }
+function exShort(ch){ return EX_LABELS_SHORT[ch.secondEx]||'sit'; }
+function exNext(ch){
+  const order=['situps','squats','deadbugs'];
+  const next=order[(order.indexOf(ch.secondEx)+1)%order.length];
+  return EX_LABELS_TITLE[next]||'Sit-ups';
+}
+
 // ── Module-level state ──
 let challengeLogDate = null;
 
@@ -60,7 +72,10 @@ export function startChallenge(){
 }
 export function toggleChallengeEx(){
   const ch=getChallengeState();
-  ch.secondEx=ch.secondEx==='situps'?'squats':'situps';
+  // Cycle: situps → squats → deadbugs → situps
+  const order=['situps','squats','deadbugs'];
+  const cur=order.indexOf(ch.secondEx);
+  ch.secondEx=order[(cur+1)%order.length];
   _save(); logChallengeDay();
 }
 export function challengeNavDay(offset){
@@ -82,9 +97,9 @@ export function logChallengeDay(){
   if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
   if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
   const day=ch.days[d];
-  const exLabel=ch.secondEx==='squats'?'BW SQUATS':'SIT-UPS';
-  const exLabelShort=ch.secondEx==='squats'?'squat':'sit';
-  const otherLabel=ch.secondEx==='squats'?'Sit-ups':'BW Squats';
+  const _exLabel=exLabel(ch);
+  const exLabelShort=exShort(ch);
+  const otherLabel=exNext(ch);
   const dateObj=parseDateKey(d);
   const dateLabel=isToday?'TODAY':dateObj.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   const canGoNext=parseDateKey(d)<parseDateKey(todayStr());
@@ -124,7 +139,7 @@ export function logChallengeDay(){
       </div>
       <div style="flex:1;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <div style="font-size:9px;color:var(--dim);">${exLabel} · ${day.situps}/100</div>
+          <div style="font-size:9px;color:var(--dim);">${_exLabel} · ${day.situps}/100</div>
           <button onclick="toggleChallengeEx()" style="background:none;border:none;color:var(--accent);font-size:8px;cursor:pointer;padding:0;">↔ ${otherLabel}</button>
         </div>
         <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:6px;">
@@ -307,7 +322,7 @@ export function renderChallenge(){
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:11px;color:var(--muted);">${daysCompleted}/${target} days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
-      <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' '+(ch.secondEx==='squats'?'squat':'sit'):'Not yet today'}</div>
+      <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' '+exShort(ch):'Not yet today'}</div>
     </div>
     <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG SOME WORK'}</button>
   </div>`;
@@ -327,7 +342,7 @@ export function inlineChallengeAdd(type,reps){
     if(pLabel) pLabel.textContent='PUSH-UPS '+day.pushups+'/100';
     if(pBar) pBar.style.width=Math.min(100,day.pushups)+'%';
     if(pBar) pBar.style.background=day.pushups>=100?'var(--green)':'var(--accent)';
-    if(sLabel) sLabel.textContent=(ch.secondEx==='squats'?'SQUATS':'SIT-UPS')+' '+day.situps+'/100';
+    if(sLabel) sLabel.textContent=exLabel(ch)+' '+day.situps+'/100';
     if(sBar) sBar.style.width=Math.min(100,day.situps)+'%';
     if(sBar) sBar.style.background=day.situps>=100?'var(--green)':'var(--accent)';
     const done=day.pushups>=100&&day.situps>=100;
@@ -343,12 +358,16 @@ export function renderInlineChallenge(){
   const d=todayStr();
   if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
   const day=ch.days[d];
-  const exLabel=ch.secondEx==='squats'?'SQUATS':'SIT-UPS';
+  const _exLabel2=exLabel(ch);
+  const otherExLabel=exNext(ch);
   const done=day.pushups>=100&&day.situps>=100;
   return `<div id="inline-challenge" style="margin-bottom:12px;background:var(--bg2);border:1px solid ${done?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:12px;padding:10px 12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:8px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">DAILY CHALLENGE</div>
-      <span id="ic-done" style="font-size:9px;color:var(--green);display:${done?'inline':'none'};">✓ DONE</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="toggleChallengeEx();render();" style="background:none;border:none;color:var(--accent);font-size:8px;letter-spacing:1px;cursor:pointer;padding:0;text-transform:uppercase;">↔ ${otherExLabel}</button>
+        <span id="ic-done" style="font-size:9px;color:var(--green);display:${done?'inline':'none'};">✓ DONE</span>
+      </div>
     </div>
     <div style="display:flex;gap:8px;">
       <div style="flex:1;">
@@ -364,7 +383,7 @@ export function renderInlineChallenge(){
         </div>
       </div>
       <div style="flex:1;">
-        <div id="ic-sit-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">${exLabel} ${day.situps}/100</div>
+        <div id="ic-sit-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">${_exLabel2} ${day.situps}/100</div>
         <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:4px;">
           <div id="ic-sit-bar" style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:2px;transition:width 0.2s;"></div>
         </div>

@@ -54,6 +54,7 @@ Browser loads index.html
 | `research-tips.js` | 123 | Tip panel UI, library modal, category filtering | `openTip`, `openLibrary`, `buildTipPanel`, etc. |
 | `progress-chart.js` | 102 | SVG line chart, 1RM/volume toggle | `buildProgChart`, `setProgChartMode` |
 | `supabase.js` | ~160 | Cloud sync via Supabase — auth, push/pull state | `syncToCloud`, `syncFromCloud`, `signIn`, `signUp`, etc. |
+| `nutrition.js` | ~921 | AI meal logging (Groq edge fn), macro parsing, pending cards, water, day detail + edit, calorie calendar, insights | `renderNutrition`, `startMicCapture`, `openMacroTargetsModal`, `openDayDetail`, `editDayItem`, `saveDayItemEdit`, etc. |
 
 ### docs/
 
@@ -71,9 +72,11 @@ All app state lives in one object, persisted to localStorage under key `gainz_v5
 ```
 state (localStorage)          activeWorkout (in-memory only)
 ├── workouts[]                ├── split
-├── exerciseRests{}           ├── exercises[]
-├── streak                    ├── startTime
-├── lastWorkoutDate           └── notes
+│   └── { ..., split,         ├── exercises[]
+│         tags: string[] }    ├── startTime
+├── exerciseRests{}           └── notes
+├── streak
+├── lastWorkoutDate
 ├── splitNames{}
 ├── stacks[]
 ├── program
@@ -84,6 +87,8 @@ state (localStorage)          activeWorkout (in-memory only)
 │   └── { date, timestamp, creatine (g), creatineDose, vitamins (bool) }
 └── schemaVersion: 7
 ```
+
+**Workout record fields (`state.workouts[]`):** `split` (string, primary category), `tags` (string[], multi-category — populated by the Categorize Workout modal after Quick Start; e.g. `['Chest','Back']`), `exercises[]`, `date`, `timestamp`, `duration`, `totalVolume`, `notes`, `sauna`.
 
 **Save flow:** `save()` -> `debouncedSave()` -> writes to localStorage. Use `saveImmediate()` after modals.
 
@@ -144,4 +149,4 @@ Extracting these further requires decoupling the shared mutable state, which is 
 
 ---
 
-*Last updated: March 30, 2026*
+*Last updated: April 10, 2026* — Added `editDayItem` / `saveDayItemEdit` to `nutrition.js` so users can edit already-logged items from the day detail modal (pencil button next to delete). Doc update is non-negotiable per CLAUDE.md.

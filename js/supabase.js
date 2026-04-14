@@ -177,6 +177,84 @@ export async function syncFromCloud() {
   }
 }
 
+// ── Active Workout Cloud Sync ──
+// Saves in-progress workout to cloud after each completed exercise
+// so if the app crashes, you can recover from Supabase, not just localStorage
+
+export async function syncActiveWorkoutToCloud(activeWorkout) {
+  if (!FEATURES.cloudSync) return;
+  if (!activeWorkout) return;
+  const client = getClient();
+  if (!client) return;
+  if (!navigator.onLine) return;
+
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    const { error } = await client
+      .from('user_state')
+      .update({
+        active_workout: activeWorkout,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.warn('[GAINZ sync] Active workout push failed:', error.message);
+    } else {
+      if (window.logDebug) window.logDebug('☁️ Active workout synced to cloud');
+    }
+  } catch (e) {
+    console.warn('[GAINZ sync] Active workout push error:', e.message);
+  }
+}
+
+export async function clearActiveWorkoutFromCloud() {
+  if (!FEATURES.cloudSync) return;
+  const client = getClient();
+  if (!client) return;
+  if (!navigator.onLine) return;
+
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    await client
+      .from('user_state')
+      .update({ active_workout: null })
+      .eq('user_id', user.id);
+
+    if (window.logDebug) window.logDebug('☁️ Active workout cleared from cloud');
+  } catch (e) {
+    console.warn('[GAINZ sync] Clear active workout error:', e.message);
+  }
+}
+
+export async function getActiveWorkoutFromCloud() {
+  if (!FEATURES.cloudSync) return null;
+  const client = getClient();
+  if (!client) return null;
+  if (!navigator.onLine) return null;
+
+  try {
+    const user = await getUser();
+    if (!user) return null;
+
+    const { data, error } = await client
+      .from('user_state')
+      .select('active_workout')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error || !data?.active_workout) return null;
+    return data.active_workout;
+  } catch (e) {
+    console.warn('[GAINZ sync] Get active workout error:', e.message);
+    return null;
+  }
+}
+
 // ── Backup snapshot on workout / weight / meal events ──
 // Rules:
 //   - Every 3 workouts (workout milestone)

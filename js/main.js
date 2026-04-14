@@ -93,6 +93,7 @@ import {
 import {
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud, maybeSaveBackup,
+  syncActiveWorkoutToCloud, clearActiveWorkoutFromCloud, getActiveWorkoutFromCloud,
   renderCloudSyncCard, renderSyncUI
 } from './supabase.js';
 import {
@@ -100,7 +101,7 @@ import {
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
   openMacroTargetsModal, saveMacroTargets, deleteNutritionItem,
   addWater, resetWater, addCustomWater, adjustServing,
-  openDayDetail, deleteDayItem, showDayTextInput, processMealForDate,
+  openDayDetail, deleteDayItem, editDayItem, saveDayItemEdit, showDayTextInput, processMealForDate,
   calNavPrev, calNavNext, toggleNutritionInsights
 } from './nutrition.js';
 
@@ -168,13 +169,14 @@ Object.assign(window, {
   // Cloud sync
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud, maybeSaveBackup,
+  syncActiveWorkoutToCloud, clearActiveWorkoutFromCloud, getActiveWorkoutFromCloud,
   renderCloudSyncCard, renderSyncUI,
   // Nutrition
   renderNutrition, startMicCapture, showMealTextInput, processMealText,
   editPendingItem, clearPendingItems, confirmNutritionLog, getTodayNutrition,
   openMacroTargetsModal, saveMacroTargets, deleteNutritionItem,
   addWater, resetWater, addCustomWater, adjustServing,
-  openDayDetail, deleteDayItem, showDayTextInput, processMealForDate,
+  openDayDetail, deleteDayItem, editDayItem, saveDayItemEdit, showDayTextInput, processMealForDate,
   calNavPrev, calNavNext, toggleNutritionInsights,
 });
 

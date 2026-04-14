@@ -1164,6 +1164,10 @@ function nextExercise(name){
   doneExSet.add(name);
   collapsedEx.add(name);
   haptic('medium');
+  // Sync active workout to cloud after each completed exercise
+  if(activeWorkout && window.syncActiveWorkoutToCloud){
+    window.syncActiveWorkoutToCloud(activeWorkout);
+  }
   const exercises = activeWorkout?.exercises || [];
   const idx = exercises.findIndex(e=>e.name===name);
   const next = exercises[idx+1];
@@ -1727,12 +1731,66 @@ function finishQuickWorkout(chosenSplit){
   activeWorkout.split=chosenSplit;
   finishWorkout();
 }
+// Categorize Workout modal state (Quick Start only)
+let selectedCategories = [];
+const CATEGORIZE_OPTIONS = ['Push','Pull','Legs','Arms','Chest','Back','Shoulders','Core'];
+function _defaultCategoryFromDetected(detected){
+  // Map detectSplit() output to our category list. Upper/Lower/Full don't
+  // fit cleanly, so we leave those unselected and let the user pick.
+  if(!detected) return [];
+  if(CATEGORIZE_OPTIONS.includes(detected)) return [detected];
+  if(detected==='Lower') return ['Legs'];
+  return [];
+}
+function showCategorizeModal(){
+  const detected=detectSplit(activeWorkout.exercises);
+  selectedCategories=_defaultCategoryFromDetected(detected);
+  activeWorkout._detectedSplit=detected||null;
+  renderCategorizeModal();
+}
+function renderCategorizeModal(){
+  const chips=CATEGORIZE_OPTIONS.map(name=>{
+    const on=selectedCategories.includes(name);
+    const style=on
+      ? "border:2px solid var(--accent);color:var(--accent);font-weight:700;background:var(--bg2);"
+      : "border:1px solid var(--border2);color:var(--muted);font-weight:500;background:transparent;";
+    return `<button onclick="toggleCategory('${name}')" style="${style}padding:14px 8px;border-radius:10px;font-size:13px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all 0.1s;">${name}</button>`;
+  }).join('');
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">CATEGORIZE WORKOUT</div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:16px;">Select one or more</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">${chips}</div>
+    <button class="btn primary" style="width:100%;" onclick="saveCategorizedWorkout()">SAVE WORKOUT</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="skipCategorizeWorkout()">SKIP</button>
+  `);
+}
+function toggleCategory(name){
+  if(selectedCategories.includes(name)) selectedCategories=selectedCategories.filter(c=>c!==name);
+  else selectedCategories=[...selectedCategories,name];
+  renderCategorizeModal();
+}
+function saveCategorizedWorkout(){
+  if(!activeWorkout) return;
+  activeWorkout.tags=[...selectedCategories];
+  activeWorkout.split=selectedCategories[0] || activeWorkout._detectedSplit || 'General';
+  activeWorkout._catShown=true;
+  hideModal();
+  finishWorkout();
+}
+function skipCategorizeWorkout(){
+  if(!activeWorkout) return;
+  activeWorkout.tags=[];
+  activeWorkout.split=activeWorkout._detectedSplit || 'General';
+  activeWorkout._catShown=true;
+  hideModal();
+  finishWorkout();
+}
 function finishWorkout(){
   if(!activeWorkout.exercises.length){ showModal(`<div style="font-size:13px;color:var(--accent);margin-bottom:14px;">Log at least one exercise first 💪</div><button class="btn ghost" onclick="hideModal()">OK</button>`); return; }
-  // Quick Start: auto-categorize silently using detectSplit
-  if(activeWorkout.split==="Quick"){
-    const detected=detectSplit(activeWorkout.exercises);
-    activeWorkout.split = detected || 'General';
+  // Quick Start: prompt the user to categorize before saving
+  if(activeWorkout.split==="Quick" && !activeWorkout._catShown){
+    showCategorizeModal();
+    return;
   }
   const yest=new Date(); yest.setDate(yest.getDate()-1);
   const streak=state.lastWorkoutDate===yest.toDateString()?state.streak+1:state.lastWorkoutDate===todayStr()?state.streak:1;
@@ -1743,7 +1801,8 @@ function finishWorkout(){
     const sTemp=document.getElementById('sauna-temp'); if(sTemp) activeWorkout.sauna.tempF=parseInt(sTemp.value)||0;
     if(!activeWorkout.sauna.minutes&&!activeWorkout.sauna.tempF) activeWorkout.sauna=null;
   }
-  const w={...activeWorkout,date:today(),timestamp:Date.now(),duration:Date.now()-activeWorkout.startTime,totalVolume:activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0),sauna:activeWorkout.sauna||null};
+  const {_catShown:_cs,_detectedSplit:_ds,...cleanActive}=activeWorkout;
+  const w={...cleanActive,date:today(),timestamp:Date.now(),duration:Date.now()-activeWorkout.startTime,totalVolume:activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0),sauna:activeWorkout.sauna||null};
   state.workouts.unshift(w); state.streak=streak; state.lastWorkoutDate=todayStr();
   if(state.workouts.length>500) state.workouts=state.workouts.slice(0,500);
   saveAndSync();
@@ -1764,6 +1823,8 @@ function finishWorkout(){
   saveImmediate();
   clearInterval(autoSaveInterval);
   try{ localStorage.removeItem("gainz_recovery"); }catch(e){}
+  // Clear active workout from cloud since it's now saved as a finished workout
+  if(window.clearActiveWorkoutFromCloud) window.clearActiveWorkoutFromCloud();
   releaseWakeLock();
   haptic("medium");
   logDebug("🏁 Workout finished: " + w.split + " · " + w.exercises.length + " exercises");
@@ -1878,6 +1939,8 @@ function render(){
     if(stale) stale.remove();
   }
   if(screen==="start"){ setTimeout(initCarouselFade,0); setTimeout(maybeShowHomeTour,300); }
+  // Auto-save active workout to recovery on every render
+  if(activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
   if(FEATURES.devMode){const t=performance.now()-renderStart;if(t>16)console.warn(`[GAINZ] render() took ${t.toFixed(1)}ms`);}
 }
 
@@ -3607,18 +3670,39 @@ function buildSetGrid(e, id, bwOn, lastSess){
     const confirmed=i<done;
     const s=confirmed?e.sets[i]:null;
     const prev=lastSetsArr[i]||lastSetsArr[lastSetsArr.length-1];
-    const pw=s?s.weight: prev&&!prev.bw?prev.weight: String(defW);
-    const pr=s?s.reps: prev?prev.reps: String(defR);
+    // Auto-fill: once you confirm set 1, sets 2/3 prefill with set 1's weight/reps
+    // (instead of last session's values). Only applies to unconfirmed rows.
+    const lastDoneW = done>0 && !e.sets[done-1].bw ? e.sets[done-1].weight : null;
+    const lastDoneR = done>0 ? e.sets[done-1].reps : null;
+    const pw=s?s.weight: (lastDoneW || (prev&&!prev.bw?prev.weight: String(defW)));
+    const pr=s?s.reps: (lastDoneR || (prev?prev.reps: String(defR)));
 
     if(confirmed){
-      const wLabel=s.bw?'BW':s.db?'2x'+s.weight:s.weight;
-      const rLabel=s.reps+(s.unilateral?' ea':'');
-      h+='<div style="display:flex;gap:4px;align-items:center;padding:6px 0;opacity:0.5;">';
-      h+='<span style="width:36px;text-align:center;font-size:12px;color:var(--dim);">'+(i+1)+'</span>';
-      h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+wLabel+'</span>';
-      h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+rLabel+'</span>';
-      h+='<span style="width:40px;text-align:center;color:var(--green);font-size:16px;">✓</span>';
-      h+='</div>';
+      // Check if this confirmed set is being edited
+      const isEditingThis=editSetFor&&editSetFor.exName===e.name&&editSetFor.setIdx===i;
+      if(isEditingThis){
+        h+='<div style="display:flex;gap:4px;align-items:center;padding:6px 0;flex-wrap:wrap;">';
+        h+='<span style="width:36px;text-align:center;font-size:12px;color:var(--dim);">'+(i+1)+'</span>';
+        if(!s.bw){
+          h+='<input id="edit-w-'+i+'" class="input" type="number" inputmode="decimal" value="'+s.weight+'" style="flex:1;font-size:13px;padding:6px 4px;text-align:center;" onkeydown="if(event.key===\'Enter\'){document.getElementById(\'edit-r-'+i+'\').focus();event.preventDefault();}"/>';
+        } else {
+          h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">BW</span>';
+        }
+        h+='<input id="edit-r-'+i+'" class="input" type="number" inputmode="numeric" value="'+s.reps+'" style="flex:1;font-size:13px;padding:6px 4px;text-align:center;" onkeydown="if(event.key===\'Enter\'){saveEditSet('+eName+','+i+');event.preventDefault();}"/>';
+        h+='<button onclick="saveEditSet('+eName+','+i+')" style="width:32px;height:32px;border-radius:6px;border:1px solid var(--accent);background:rgba(232,213,160,0.1);color:var(--accent);font-size:12px;cursor:pointer;">✓</button>';
+        h+='<button onclick="deleteSet('+eName+','+i+')" style="width:32px;height:32px;border-radius:6px;border:1px solid var(--danger);background:rgba(255,80,80,0.1);color:var(--danger);font-size:12px;cursor:pointer;">✕</button>';
+        h+='<button onclick="closeEditSet()" style="width:32px;height:32px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--dim);font-size:10px;cursor:pointer;">ESC</button>';
+        h+='</div>';
+      } else {
+        const wLabel=s.bw?'BW':s.db?'2x'+s.weight:s.weight;
+        const rLabel=s.reps+(s.unilateral?' ea':'');
+        h+='<div onclick="openEditSet('+eName+','+i+')" style="display:flex;gap:4px;align-items:center;padding:6px 0;opacity:0.5;cursor:pointer;">';
+        h+='<span style="width:36px;text-align:center;font-size:12px;color:var(--dim);">'+(i+1)+'</span>';
+        h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+wLabel+'</span>';
+        h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+rLabel+'</span>';
+        h+='<span style="width:40px;text-align:center;color:var(--green);font-size:16px;">✓</span>';
+        h+='</div>';
+      }
     } else {
       h+='<div style="display:flex;gap:4px;align-items:center;padding:4px 0;">';
       h+='<span style="width:36px;text-align:center;font-size:12px;color:var(--muted);">'+(i+1)+'</span>';
@@ -3716,15 +3800,16 @@ function renderLog(){
     const delExBtn=""; // moved to overflow menu
     // Overflow "⋮" menu — reorder, rename, delete tucked away
     const overflowMenuOpen=exMenuOpen===e.name;
+    const eName2=esc(e.name);
     const overflowMenu=`<div style="position:relative;display:inline-block;">
-      <button class="icon-btn" onclick="exMenuOpen=exMenuOpen===${JSON.stringify(e.name)}?null:${JSON.stringify(e.name)};render();" style="font-size:16px;padding:2px 6px;">⋮</button>
+      <button class="icon-btn" onclick="exMenuOpen=exMenuOpen===${eName2}?null:${eName2};render();" style="font-size:16px;padding:2px 6px;">⋮</button>
       ${overflowMenuOpen?`<div style="position:absolute;right:0;top:100%;z-index:50;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
-        ${exIdx>0?`<button onclick="moveExercise(${esc(e.name)},-1);exMenuOpen=null;render();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↑ Move up</button>`:''}
-        ${exIdx<activeWorkout.exercises.length-1?`<button onclick="moveExercise(${esc(e.name)},1);exMenuOpen=null;render();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↓ Move down</button>`:''}
-        <button onclick="startRename(${esc(e.name)});exMenuOpen=null;" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">✎ Rename</button>
-        <button onclick="swappingEx=${JSON.stringify(e.name)};exMenuOpen=null;openPicker();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↔ Swap exercise</button>
+        ${exIdx>0?`<button onclick="moveExercise(${eName2},-1);exMenuOpen=null;render();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↑ Move up</button>`:''}
+        ${exIdx<activeWorkout.exercises.length-1?`<button onclick="moveExercise(${eName2},1);exMenuOpen=null;render();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↓ Move down</button>`:''}
+        <button onclick="startRename(${eName2});exMenuOpen=null;" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">✎ Rename</button>
+        <button onclick="swappingEx=${eName2};exMenuOpen=null;openPicker();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↔ Swap exercise</button>
         <div style="height:1px;background:var(--border);margin:4px 0;"></div>
-        <button onclick="deleteExerciseConfirm(${esc(e.name)});exMenuOpen=null;" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--danger);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">🗑 Remove</button>
+        <button onclick="deleteExerciseConfirm(${eName2});exMenuOpen=null;" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--danger);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">🗑 Remove</button>
       </div>`:''}
     </div>`;
 
@@ -4920,22 +5005,48 @@ function recoverWorkout(recovered){
   startWoTimer();
   render();
 }
+// Save workout to recovery when browser is closing/navigating away
+window.addEventListener('beforeunload',()=>{
+  if(activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
+});
+// Also save on visibility change (switching tabs, locking phone, etc.)
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
+});
+
+function showRecoveryBanner(recovered, source){
+  window._pendingRecovery=recovered;
+  const lastSetTime=recovered.exercises?.reduce((t,ex)=>Math.max(t,...(ex.sets||[]).map(s=>s.time||0)),recovered.startTime)||recovered.startTime;
+  const idleMin=Math.round((Date.now()-lastSetTime)/60000);
+  const idleLabel=idleMin>60?Math.round(idleMin/60)+'h ago':idleMin+'m ago';
+  const sourceLabel=source==='cloud'?' (from cloud)':'';
+  const banner=document.createElement("div");
+  banner.id="recovery-banner";
+  banner.style.cssText="position:fixed;top:0;left:0;right:0;background:#1e1815;border-bottom:1px solid var(--accent);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;z-index:9998;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);";
+  banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover workout?${sourceLabel} <span style="color:var(--dim);font-size:10px;">(last set ${idleLabel})</span></span><div style="display:flex;gap:8px;"><button onclick="recoverWorkout(window._pendingRecovery)" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="localStorage.removeItem('gainz_recovery');if(window.clearActiveWorkoutFromCloud)window.clearActiveWorkoutFromCloud();document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
+  document.body.appendChild(banner);
+  logDebug("⚠ Crash recovery available"+sourceLabel+" (last set "+idleLabel+")");
+}
+
 (function checkCrashRecovery(){
   try{
+    // First check localStorage (faster, more recent)
     const rec=localStorage.getItem("gainz_recovery");
     if(rec&&!activeWorkout){
       const recovered=JSON.parse(rec);
-      // Store for recoverWorkout to use
-      window._pendingRecovery=recovered;
-      const lastSetTime=recovered.exercises?.reduce((t,ex)=>Math.max(t,...(ex.sets||[]).map(s=>s.time||0)),recovered.startTime)||recovered.startTime;
-      const idleMin=Math.round((Date.now()-lastSetTime)/60000);
-      const idleLabel=idleMin>60?Math.round(idleMin/60)+'h ago':idleMin+'m ago';
-      const banner=document.createElement("div");
-      banner.id="recovery-banner";
-      banner.style.cssText="position:fixed;top:0;left:0;right:0;background:#1e1815;border-bottom:1px solid var(--accent);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;z-index:9998;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);";
-      banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover workout? <span style="color:var(--dim);font-size:10px;">(last set ${idleLabel})</span></span><div style="display:flex;gap:8px;"><button onclick="recoverWorkout(window._pendingRecovery)" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="localStorage.removeItem('gainz_recovery');document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
-      document.body.appendChild(banner);
-      logDebug("⚠ Crash recovery available (last set "+idleLabel+")");
+      showRecoveryBanner(recovered, 'local');
+      return;
+    }
+    // If no local recovery, check cloud after a short delay
+    if(!activeWorkout && window.getActiveWorkoutFromCloud){
+      setTimeout(async ()=>{
+        try{
+          const cloudWorkout=await window.getActiveWorkoutFromCloud();
+          if(cloudWorkout && !activeWorkout && !document.getElementById('recovery-banner')){
+            showRecoveryBanner(cloudWorkout, 'cloud');
+          }
+        }catch(e){ console.warn('[GAINZ] Cloud recovery check failed:', e); }
+      }, 2000);
     }
   }catch(e){}
 })();

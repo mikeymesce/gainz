@@ -11,6 +11,9 @@ export function fmtMs(ms){ const s=Math.floor(ms/1000),m=Math.floor(s/60); retur
 export function vol(sets){ return sets.reduce((a,s)=>{
   let v=(s.bw||s.warmup?0:(parseFloat(s.weight)||0))*(parseInt(s.reps)||0);
   if(s.drops) v+=s.drops.reduce((da,d)=>da+(parseFloat(d.weight)||0)*(parseInt(d.reps)||0),0);
+  // Dumbbells = 2 dumbbells, unilateral = 2 sides — multiply volume accordingly
+  if(s.db) v*=2;
+  if(s.unilateral) v*=2;
   return a+v;
 },0); }
 export function est1RM(w,r){ const wn=parseFloat(w)||0,rn=parseInt(r)||1; return rn===1?Math.round(wn):Math.round(wn*(1+rn/30)); }
