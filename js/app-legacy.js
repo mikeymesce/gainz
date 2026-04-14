@@ -3696,11 +3696,11 @@ function buildSetGrid(e, id, bwOn, lastSess){
       } else {
         const wLabel=s.bw?'BW':s.db?'2x'+s.weight:s.weight;
         const rLabel=s.reps+(s.unilateral?' ea':'');
-        h+='<div onclick="openEditSet('+eName+','+i+')" style="display:flex;gap:4px;align-items:center;padding:6px 0;opacity:0.5;cursor:pointer;">';
+        h+='<div onclick="openEditSet('+eName+','+i+')" style="display:flex;gap:4px;align-items:center;padding:8px 4px;opacity:0.6;cursor:pointer;border-radius:8px;border:1px solid transparent;" ontouchstart="this.style.borderColor=\'var(--border2)\';this.style.opacity=\'0.9\';" ontouchend="this.style.borderColor=\'transparent\';this.style.opacity=\'0.6\';">';
         h+='<span style="width:36px;text-align:center;font-size:12px;color:var(--dim);">'+(i+1)+'</span>';
         h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+wLabel+'</span>';
         h+='<span style="flex:1;text-align:center;font-size:13px;color:var(--muted);">'+rLabel+'</span>';
-        h+='<span style="width:40px;text-align:center;color:var(--green);font-size:16px;">✓</span>';
+        h+='<span style="width:40px;display:flex;align-items:center;justify-content:center;gap:2px;"><span style="color:var(--green);font-size:14px;">✓</span><span style="color:var(--dim);font-size:9px;">✎</span></span>';
         h+='</div>';
       }
     } else {
@@ -3802,7 +3802,7 @@ function renderLog(){
     const overflowMenuOpen=exMenuOpen===e.name;
     const eName2=esc(e.name);
     const overflowMenu=`<div style="position:relative;display:inline-block;">
-      <button class="icon-btn" onclick="exMenuOpen=exMenuOpen===${eName2}?null:${eName2};render();" style="font-size:16px;padding:2px 6px;">⋮</button>
+      <button class="icon-btn" onclick="exMenuOpen=exMenuOpen===${eName2}?null:${eName2};render();" style="font-size:20px;padding:6px 10px;min-width:40px;min-height:40px;border:1px solid var(--border2);border-radius:8px;">⋮</button>
       ${overflowMenuOpen?`<div style="position:absolute;right:0;top:100%;z-index:50;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
         ${exIdx>0?`<button onclick="moveExercise(${eName2},-1);exMenuOpen=null;render();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↑ Move up</button>`:''}
         ${exIdx<activeWorkout.exercises.length-1?`<button onclick="moveExercise(${eName2},1);exMenuOpen=null;render();" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;cursor:pointer;">↓ Move down</button>`:''}
