@@ -3,6 +3,8 @@
 // Constants & utils loaded via js/main.js (ES module)
 // which sets them on window before this script runs.
 // ═══════════════════════════════════════════
+const GAINZ_VERSION = '2026-04-14a';
+console.log('[GAINZ] version ' + GAINZ_VERSION);
 
 // ── Action Dispatcher ──
 function dispatch(action, payload = {}) {
@@ -2823,6 +2825,9 @@ function loadTemplate(id){
 // showAddMore: if true, shows "+ Add More" button to open picker after loading.
 function showExercisePickerModal(exerciseNames, title, showAddMore){
   if(!exerciseNames||!exerciseNames.length) { openPicker(); return; }
+  // Store exercise names on window so onclick can access without embedding in HTML
+  window._pickerExNames = exerciseNames;
+  window._pickerShowToast = !!showAddMore;
   const checkboxes=exerciseNames.map((n,i)=>`
     <label style="display:flex;align-items:center;gap:10px;padding:10px 0;${i<exerciseNames.length-1?'border-bottom:1px solid #1e1e24;':''}cursor:pointer;">
       <input type="checkbox" id="ex-pick-${i}" checked style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;"/>
@@ -2832,17 +2837,20 @@ function showExercisePickerModal(exerciseNames, title, showAddMore){
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;">LOAD WORKOUT</div>
     <div style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:14px;">${title}</div>
     <div style="margin-bottom:16px;max-height:50vh;overflow-y:auto;">${checkboxes}</div>
-    <button class="btn primary" onclick="
-      const selected=Array.from(document.querySelectorAll('[id^=ex-pick-]')).filter(c=>c.checked).map(c=>parseInt(c.id.replace('ex-pick-','')));
-      const names=${JSON.stringify(exerciseNames)};
-      selected.forEach(i=>addExercise(names[i]));
-      hideModal();
-      render();
-      ${showAddMore?'if(selected.length>0)showToast(selected.length+\' exercise\'+(selected.length===1?\'\':\' s\')+\' loaded\');':''}
-    ">LOAD SELECTED</button>
+    <button class="btn primary" onclick="confirmLoadPickedExercises()">LOAD SELECTED</button>
     <button class="btn ghost" onclick="hideModal()${showAddMore?';openPicker()':''}" style="margin-top:8px;">${showAddMore?'+ ADD DIFFERENT':'START EMPTY'}</button>
     <button class="btn ghost" onclick="abandonWorkout()" style="margin-top:8px;color:var(--dim);font-size:11px;">CANCEL</button>
   `);
+}
+function confirmLoadPickedExercises(){
+  const names=window._pickerExNames||[];
+  const selected=Array.from(document.querySelectorAll('[id^=ex-pick-]')).filter(c=>c.checked).map(c=>parseInt(c.id.replace('ex-pick-','')));
+  selected.forEach(i=>addExercise(names[i]));
+  hideModal();
+  render();
+  if(window._pickerShowToast && selected.length>0){
+    showToast(selected.length+' exercise'+(selected.length===1?'':'s')+' loaded');
+  }
 }
 function startWorkoutSilent(split){
   activeWorkout={split,exercises:[],startTime:Date.now(),notes:''};
@@ -4984,20 +4992,8 @@ function openExerciseHistory(name){
 
 // ── Crash Recovery Check ──
 function recoverWorkout(recovered){
-  // Find the last set timestamp to cap idle time
-  let lastSetTime=recovered.startTime;
-  for(const ex of (recovered.exercises||[])){
-    for(const s of (ex.sets||[])){
-      if(s.time&&s.time>lastSetTime) lastSetTime=s.time;
-    }
-  }
-  const idleMs=Date.now()-lastSetTime;
-  const MAX_IDLE=15*60*1000; // 15 minutes — anything beyond this is "app was closed"
-  if(idleMs>MAX_IDLE){
-    // Shift startTime forward so elapsed time = (lastSetTime - original startTime) + 15min buffer
-    const activeTime=lastSetTime-recovered.startTime+MAX_IDLE;
-    recovered.startTime=Date.now()-activeTime;
-  }
+  // Never adjust startTime — duration = finishTime - startTime, period.
+  // If the workout is really stale (>8 hours), user can just abandon it.
   activeWorkout=recovered;
   screen='log';
   document.getElementById('recovery-banner').remove();
