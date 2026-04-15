@@ -827,17 +827,22 @@ function confirmSet(name,rowIdx){
   render();
 }
 
-// Two milestones per muscle group per rolling 7-day window:
-//   - 12 sets → congrats toast + confetti (the hypertrophy "goal" threshold)
-//   - 14 sets → hard warning modal (diminishing returns territory)
-// Abs/core are already excluded because EX_MUSCLES maps them to [].
-// Dedupe keys use today's date so the milestones can re-fire next week.
+// Per-muscle weekly volume milestones (rolling 7-day window):
+//   - Congrats at MEV+2 (solidly in the growth zone)
+//   - Hard warning at MRV-2 (approaching junk-volume territory)
+// Each muscle has its own threshold based on research-backed volume landmarks.
+// Abs/core excluded via empty EX_MUSCLES mapping.
 function checkWeeklyMuscleMilestone(exerciseName){
   try{
     const muscles = (window.EX_MUSCLES||{})[exerciseName] || [];
     if(!muscles.length) return;
     const primary = muscles[0];
     if(!primary) return;
+
+    const mrvData = (window.MRV||{})[primary];
+    if(!mrvData) return;
+    const congratsAt = mrvData.mev + 2;
+    const warnAt = mrvData.mrv - 2;
 
     // Combined counts: finished workouts (rolling 7d) + current active workout
     const counts = typeof getWeeklyMuscleSets==='function' ? getWeeklyMuscleSets() : {};
@@ -852,52 +857,69 @@ function checkWeeklyMuscleMilestone(exerciseName){
     }
 
     const total = counts[primary] || 0;
-    const label = (window.MRV||{})[primary]?.label || primary;
-    const icon = (window.MRV||{})[primary]?.icon || '💪';
+    const label = mrvData.label || primary;
+    const icon = mrvData.icon || '💪';
 
-    // Dedupe: key is today's date + muscle + threshold. Milestones naturally
-    // re-fire in future weeks since the rolling window drops old sets.
     const todayKey = new Date().toISOString().slice(0,10);
     state._weeklyMilestones = state._weeklyMilestones || {};
     const hit = state._weeklyMilestones;
 
-    // 12 sets — congrats (only fire once per muscle per day)
+    // Congrats — fires once per muscle per day, only in the "sweet spot" range
     const goalKey = `goal:${todayKey}:${primary}`;
-    if(total >= 12 && total < 14 && !hit[goalKey]){
+    if(total >= congratsAt && total < warnAt && !hit[goalKey]){
       hit[goalKey] = true;
       haptic('success');
       confetti();
-      showToast(`${icon} ${total} ${label} sets this week! You hit the weekly goal.`, 4500);
+      showMuscleGoalCongrats(label, icon, total, mrvData);
       save();
     }
 
-    // 14 sets — hard warning modal
+    // Warning — fires once per muscle per day when approaching MRV
     const warnKey = `warn:${todayKey}:${primary}`;
-    if(total >= 14 && !hit[warnKey]){
+    if(total >= warnAt && !hit[warnKey]){
       hit[warnKey] = true;
       haptic('heavy');
-      showMuscleVolumeWarning(label, icon, total);
+      showMuscleVolumeWarning(label, icon, total, mrvData);
       save();
     }
   }catch(e){ console.warn('[GAINZ] milestone check failed:', e); }
 }
 
-function showMuscleVolumeWarning(muscleLabel, icon, total){
+function showMuscleGoalCongrats(muscleLabel, icon, total, mrvData){
   showModal(`
-    <div style="font-size:11px;letter-spacing:2px;color:var(--danger);margin-bottom:8px;">⚠ VOLUME WARNING</div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;margin-bottom:4px;">${icon} ${total} ${muscleLabel} sets this week</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">
-      You've crossed 14 sets for <b>${muscleLabel.toLowerCase()}</b> in the last 7 days. Research suggests this is diminishing-returns territory for most lifters.
+    <div style="text-align:center;padding:8px 0 4px;">
+      <div style="font-size:48px;margin-bottom:4px;">${icon}</div>
+      <div style="font-size:10px;letter-spacing:3px;color:var(--green);margin-bottom:6px;">WEEKLY GOAL HIT</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px;line-height:1;margin-bottom:4px;">${total} ${muscleLabel.toUpperCase()} SETS</div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:16px;">in the last 7 days</div>
     </div>
     <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text);line-height:1.6;">
       <div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;">THE SCIENCE</div>
-      Hypertrophy gains plateau around 10–14 sets/muscle/week for natural lifters (Schoenfeld 2017 meta-analysis). Beyond that, extra volume mostly adds fatigue and recovery demand without proportional muscle growth — so-called <b>junk volume</b>.
+      You've passed the minimum effective volume (MEV ${mrvData.mev}) for <b>${muscleLabel.toLowerCase()}</b> and you're solidly in the growth zone. Research shows hypertrophy is optimized between ${mrvData.mev} and ${mrvData.mrv} sets per muscle per week.
+      <div style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic;">Schoenfeld et al. meta-analysis, J Sports Sci 2017 · Israetel volume landmarks (RP Strength)</div>
     </div>
-    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--text);line-height:1.6;">
+    <button class="btn primary" onclick="hideModal()">LET'S GO</button>
+  `);
+}
+
+function showMuscleVolumeWarning(muscleLabel, icon, total, mrvData){
+  showModal(`
+    <div style="text-align:center;padding:8px 0 4px;">
+      <div style="font-size:40px;margin-bottom:4px;">⚠</div>
+      <div style="font-size:10px;letter-spacing:3px;color:var(--danger);margin-bottom:6px;">VOLUME WARNING</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:1px;line-height:1;margin-bottom:4px;">${total} ${muscleLabel.toUpperCase()} SETS</div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:16px;">in the last 7 days · MRV is ${mrvData.mrv}</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:var(--text);line-height:1.6;">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;">THE SCIENCE</div>
+      You're approaching MRV (${mrvData.mrv}) — the most volume your body can recover from for <b>${muscleLabel.toLowerCase()}</b>. Past this, extra sets add fatigue without extra growth — <b>junk volume</b>.
+      <div style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic;">Israetel volume landmarks · Schoenfeld 2019 dose-response review</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text);line-height:1.6;">
       <div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;">BETTER SPENT ELSEWHERE</div>
-      That extra energy is better invested in: a lagging muscle group, sleep/recovery, or technique work on your compounds. More sets ≠ more gains past this point.
+      Use that energy on a lagging muscle, sleep/recovery, or technique work on your compounds.
     </div>
-    <button class="btn primary" onclick="hideModal()">GOT IT — I'LL STOP</button>
+    <button class="btn primary" onclick="hideModal()">GOT IT</button>
     <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;color:var(--dim);font-size:11px;">CONTINUE ANYWAY</button>
   `);
 }
@@ -2119,12 +2141,18 @@ function renderBodyHeatmap(){
         <ellipse cx="160" cy="148" rx="7" ry="18" fill="rgba(255,255,255,0.04)"/>
         <!-- Core/waist -->
         <rect x="76" y="140" width="48" height="30" rx="6" fill="rgba(255,255,255,0.04)"/>
-        <!-- Legs (glutes + quads + hamstrings combined) -->
-        <ellipse cx="88" cy="182" rx="18" ry="14" fill="${fill('legs')}" ${glow('legs')}/>
-        <ellipse cx="112" cy="182" rx="18" ry="14" fill="${fill('legs')}" ${glow('legs')}/>
-        <ellipse cx="85" cy="230" rx="16" ry="35" fill="${fill('legs')}" ${glow('legs')}/>
-        <ellipse cx="115" cy="230" rx="16" ry="35" fill="${fill('legs')}" ${glow('legs')}/>
-        ${label('legs',100,225)}
+        <!-- Glutes -->
+        <ellipse cx="88" cy="182" rx="18" ry="14" fill="${fill('glutes')}" ${glow('glutes')}/>
+        <ellipse cx="112" cy="182" rx="18" ry="14" fill="${fill('glutes')}" ${glow('glutes')}/>
+        ${label('glutes',100,186)}
+        <!-- Quads -->
+        <ellipse cx="85" cy="230" rx="16" ry="35" fill="${fill('quads')}" ${glow('quads')}/>
+        <ellipse cx="115" cy="230" rx="16" ry="35" fill="${fill('quads')}" ${glow('quads')}/>
+        ${label('quads',100,225)}
+        <!-- Hamstrings (behind quads, shown offset) -->
+        <ellipse cx="85" cy="240" rx="12" ry="28" fill="${fill('hamstrings')}" opacity="0.6" ${glow('hamstrings')}/>
+        <ellipse cx="115" cy="240" rx="12" ry="28" fill="${fill('hamstrings')}" opacity="0.6" ${glow('hamstrings')}/>
+        ${label('hamstrings',100,255)}
         <!-- Calves -->
         <ellipse cx="85" cy="295" rx="10" ry="22" fill="rgba(255,255,255,0.04)"/>
         <ellipse cx="115" cy="295" rx="10" ry="22" fill="rgba(255,255,255,0.04)"/>
