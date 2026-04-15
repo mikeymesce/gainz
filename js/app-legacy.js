@@ -822,7 +822,84 @@ function confirmSet(name,rowIdx){
     if(/squat/i.test(nameLower)) addChallengeQuickSilent('sit',repsNum);
     else if(/sit[\s-]?up|crunch/i.test(nameLower)) addChallengeQuickSilent('sit',repsNum);
   }
+  // Check if this set just pushed any muscle group to 12 sets for the week → congrats
+  checkWeeklyMuscleMilestone(name);
   render();
+}
+
+// Two milestones per muscle group per rolling 7-day window:
+//   - 12 sets → congrats toast + confetti (the hypertrophy "goal" threshold)
+//   - 14 sets → hard warning modal (diminishing returns territory)
+// Abs/core are already excluded because EX_MUSCLES maps them to [].
+// Dedupe keys use today's date so the milestones can re-fire next week.
+function checkWeeklyMuscleMilestone(exerciseName){
+  try{
+    const muscles = (window.EX_MUSCLES||{})[exerciseName] || [];
+    if(!muscles.length) return;
+    const primary = muscles[0];
+    if(!primary) return;
+
+    // Combined counts: finished workouts (rolling 7d) + current active workout
+    const counts = typeof getWeeklyMuscleSets==='function' ? getWeeklyMuscleSets() : {};
+    if(activeWorkout){
+      activeWorkout.exercises.forEach(e=>{
+        const ms = (window.EX_MUSCLES||{})[e.name] || [];
+        const workSets = e.sets.filter(s=>!s.warmup).length;
+        ms.forEach((m,mi)=>{
+          counts[m] = (counts[m]||0) + (mi===0 ? workSets : Math.ceil(workSets*0.5));
+        });
+      });
+    }
+
+    const total = counts[primary] || 0;
+    const label = (window.MRV||{})[primary]?.label || primary;
+    const icon = (window.MRV||{})[primary]?.icon || '💪';
+
+    // Dedupe: key is today's date + muscle + threshold. Milestones naturally
+    // re-fire in future weeks since the rolling window drops old sets.
+    const todayKey = new Date().toISOString().slice(0,10);
+    state._weeklyMilestones = state._weeklyMilestones || {};
+    const hit = state._weeklyMilestones;
+
+    // 12 sets — congrats (only fire once per muscle per day)
+    const goalKey = `goal:${todayKey}:${primary}`;
+    if(total >= 12 && total < 14 && !hit[goalKey]){
+      hit[goalKey] = true;
+      haptic('success');
+      confetti();
+      showToast(`${icon} ${total} ${label} sets this week! You hit the weekly goal.`, 4500);
+      save();
+    }
+
+    // 14 sets — hard warning modal
+    const warnKey = `warn:${todayKey}:${primary}`;
+    if(total >= 14 && !hit[warnKey]){
+      hit[warnKey] = true;
+      haptic('heavy');
+      showMuscleVolumeWarning(label, icon, total);
+      save();
+    }
+  }catch(e){ console.warn('[GAINZ] milestone check failed:', e); }
+}
+
+function showMuscleVolumeWarning(muscleLabel, icon, total){
+  showModal(`
+    <div style="font-size:11px;letter-spacing:2px;color:var(--danger);margin-bottom:8px;">⚠ VOLUME WARNING</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;margin-bottom:4px;">${icon} ${total} ${muscleLabel} sets this week</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">
+      You've crossed 14 sets for <b>${muscleLabel.toLowerCase()}</b> in the last 7 days. Research suggests this is diminishing-returns territory for most lifters.
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text);line-height:1.6;">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;">THE SCIENCE</div>
+      Hypertrophy gains plateau around 10–14 sets/muscle/week for natural lifters (Schoenfeld 2017 meta-analysis). Beyond that, extra volume mostly adds fatigue and recovery demand without proportional muscle growth — so-called <b>junk volume</b>.
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--text);line-height:1.6;">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;">BETTER SPENT ELSEWHERE</div>
+      That extra energy is better invested in: a lagging muscle group, sleep/recovery, or technique work on your compounds. More sets ≠ more gains past this point.
+    </div>
+    <button class="btn primary" onclick="hideModal()">GOT IT — I'LL STOP</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;color:var(--dim);font-size:11px;">CONTINUE ANYWAY</button>
+  `);
 }
 
 function addSetRow(name){

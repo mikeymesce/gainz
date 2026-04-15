@@ -41,12 +41,11 @@ export function isPR(name, weight, isWarmup, currentWorkout){
 }
 
 export function getWeeklyMuscleSets(){
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  weekStart.setHours(0,0,0,0);
+  // Rolling 7-day window ending now (not Sunday-anchored calendar week)
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const counts = {};
   Object.keys(MRV).forEach(m => counts[m] = 0);
-  window.state.workouts.filter(w => new Date(w.timestamp) >= weekStart).forEach(w => {
+  window.state.workouts.filter(w => (w.timestamp || 0) >= cutoff).forEach(w => {
     w.exercises.forEach(e => {
       const muscles = EX_MUSCLES[e.name] || [];
       const workSets = e.sets.filter(s => !s.warmup).length;
