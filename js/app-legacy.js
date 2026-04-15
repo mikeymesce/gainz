@@ -2119,18 +2119,12 @@ function renderBodyHeatmap(){
         <ellipse cx="160" cy="148" rx="7" ry="18" fill="rgba(255,255,255,0.04)"/>
         <!-- Core/waist -->
         <rect x="76" y="140" width="48" height="30" rx="6" fill="rgba(255,255,255,0.04)"/>
-        <!-- Glutes -->
-        <ellipse cx="88" cy="182" rx="18" ry="14" fill="${fill('glutes')}" ${glow('glutes')}/>
-        <ellipse cx="112" cy="182" rx="18" ry="14" fill="${fill('glutes')}" ${glow('glutes')}/>
-        ${label('glutes',100,186)}
-        <!-- Quads -->
-        <ellipse cx="85" cy="230" rx="16" ry="35" fill="${fill('quads')}" ${glow('quads')}/>
-        <ellipse cx="115" cy="230" rx="16" ry="35" fill="${fill('quads')}" ${glow('quads')}/>
-        ${label('quads',100,225)}
-        <!-- Hamstrings (behind quads, shown offset) -->
-        <ellipse cx="85" cy="240" rx="12" ry="28" fill="${fill('hamstrings')}" opacity="0.6" ${glow('hamstrings')}/>
-        <ellipse cx="115" cy="240" rx="12" ry="28" fill="${fill('hamstrings')}" opacity="0.6" ${glow('hamstrings')}/>
-        ${label('hamstrings',100,255)}
+        <!-- Legs (glutes + quads + hamstrings combined) -->
+        <ellipse cx="88" cy="182" rx="18" ry="14" fill="${fill('legs')}" ${glow('legs')}/>
+        <ellipse cx="112" cy="182" rx="18" ry="14" fill="${fill('legs')}" ${glow('legs')}/>
+        <ellipse cx="85" cy="230" rx="16" ry="35" fill="${fill('legs')}" ${glow('legs')}/>
+        <ellipse cx="115" cy="230" rx="16" ry="35" fill="${fill('legs')}" ${glow('legs')}/>
+        ${label('legs',100,225)}
         <!-- Calves -->
         <ellipse cx="85" cy="295" rx="10" ry="22" fill="rgba(255,255,255,0.04)"/>
         <ellipse cx="115" cy="295" rx="10" ry="22" fill="rgba(255,255,255,0.04)"/>
