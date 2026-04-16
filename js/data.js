@@ -111,6 +111,49 @@ export const EX_MUSCLES = {
   "Arnold Press":          ["shoulders","triceps"],
 };
 
+// Auto-detect muscle groups from exercise name keywords.
+// Returns {muscles: [...], confidence: 'high'|'low'|'none'}
+// High confidence: strong keyword match (e.g. "curl" → biceps)
+// Low confidence: weak/ambiguous match (e.g. "press" could be chest or shoulders)
+// None: no match at all
+export function detectMusclesFromName(name){
+  const n = (name||'').toLowerCase();
+  // High confidence patterns — specific keywords
+  const highPatterns = [
+    { re: /bench|chest\s*press|pec\s*fly|pec\s*deck|chest\s*fly|cable\s*cross|incline\s*press|decline\s*press|push[\s-]?up|dip/i, muscles: ['chest','triceps'] },
+    { re: /bicep|biceps|curl(?!.*tri)|preacher|concentration|ez[\s-]?bar\s*curl|hammer\s*curl/i, muscles: ['biceps'] },
+    { re: /tricep|triceps|skull\s*crush|pushdown|press[\s-]?down|overhead\s*ext|french\s*press|close[\s-]?grip\s*bench/i, muscles: ['triceps'] },
+    { re: /lat\s*pull|pull[\s-]?up|chin[\s-]?up|pull[\s-]?down/i, muscles: ['back','biceps'] },
+    { re: /row(?!.*upright)|seated\s*row|cable\s*row|barbell\s*row|dumbbell\s*row|t[\s-]?bar|pendlay/i, muscles: ['back','biceps'] },
+    { re: /deadlift|rack\s*pull/i, muscles: ['back','hamstrings','glutes'] },
+    { re: /squat|leg\s*press|hack\s*squat|goblet/i, muscles: ['quads','glutes'] },
+    { re: /leg\s*ext|quad/i, muscles: ['quads'] },
+    { re: /leg\s*curl|hamstring|rdl|romanian|good\s*morning|nordic/i, muscles: ['hamstrings','glutes'] },
+    { re: /hip\s*thrust|glute\s*bridge|glute\s*kick|glute/i, muscles: ['glutes','hamstrings'] },
+    { re: /lunge|bulgarian|split\s*squat|step[\s-]?up/i, muscles: ['quads','glutes'] },
+    { re: /lateral\s*raise|side\s*raise|rear\s*delt|face\s*pull|upright\s*row|shrug/i, muscles: ['shoulders'] },
+    { re: /shoulder\s*press|overhead\s*press|ohp|military\s*press|arnold\s*press/i, muscles: ['shoulders','triceps'] },
+    { re: /fly|flye|pec/i, muscles: ['chest'] },
+    { re: /calf|calves|calf\s*raise/i, muscles: [] },
+    { re: /ab\s|abs|crunch|sit[\s-]?up|plank|leg\s*raise|dead\s*bug|pallof|russian\s*twist|ab\s*wheel|core/i, muscles: [] },
+  ];
+  for(const p of highPatterns){
+    if(p.re.test(n)) return { muscles: p.muscles, confidence: 'high' };
+  }
+  // Low confidence — broad keywords
+  const lowPatterns = [
+    { re: /press/i, muscles: ['chest','triceps','shoulders'] },
+    { re: /pull/i, muscles: ['back','biceps'] },
+    { re: /raise/i, muscles: ['shoulders'] },
+    { re: /extension|ext/i, muscles: ['triceps'] },
+    { re: /curl/i, muscles: ['biceps'] },
+  ];
+  for(const p of lowPatterns){
+    if(p.re.test(n)) return { muscles: p.muscles, confidence: 'low' };
+  }
+  return { muscles: [], confidence: 'none' };
+}
+
 export const REST_RECS = {
   strength:  { label:"Strength Sets",  rest:"3–5 min", why:"CNS & phosphocreatine full recovery (Willardson 2006)", icon:"🏋️" },
   hypertrophy:{ label:"Hypertrophy Sets",rest:"1–2 min", why:"Metabolic stress + GH response optimised (Schoenfeld 2010)", icon:"💪" },

@@ -147,6 +147,13 @@ async function cloudSyncNow(){
   }
 }
 
+// ── Load custom muscle mappings from saved state ──
+if(state._customMuscles){
+  Object.entries(state._customMuscles).forEach(([name, muscles])=>{
+    if(!EX_MUSCLES[name]) EX_MUSCLES[name] = muscles;
+  });
+}
+
 // ── Sync on App Load ──
 setTimeout(async ()=>{
   if(!syncFromCloud) return;
@@ -774,15 +781,80 @@ function initSetSwipes(){
 function addExercise(name){
   if(!activeWorkout||activeWorkout.exercises.find(e=>e.name===name)) return;
   const isBW=BW_EXERCISES.has(name);
-  // Auto-detect unilateral exercises
   const nameLow=name.toLowerCase();
   const isUni=/single|one[\s-]?arm|one[\s-]?leg|lunge|bulgarian|step[\s-]?up|pistol|split squat/i.test(nameLow);
   activeWorkout.exercises.push({name,sets:[],superset:false,ssPair:null,bwMode:isBW,notes:"",warmupNext:false,mode:'bb',unilateral:isUni});
-  // Immediately save recovery state so exercises aren't lost on crash
   try{ localStorage.setItem('gainz_recovery', JSON.stringify(activeWorkout)); }catch(e){}
+
+  // Auto-detect muscles for unknown exercises so weekly volume tracking works
+  if(!EX_MUSCLES[name] && typeof detectMusclesFromName==='function'){
+    const det = detectMusclesFromName(name);
+    if(det.confidence==='high' && det.muscles.length){
+      EX_MUSCLES[name] = det.muscles;
+      if(!state._customMuscles) state._customMuscles = {};
+      state._customMuscles[name] = det.muscles;
+      save();
+    } else if(det.confidence==='low' || det.confidence==='none'){
+      // Ask user to pick muscle groups
+      setTimeout(()=>showMusclePicker(name, det.muscles), 200);
+    }
+  }
+
   render();
   setTimeout(()=>{ const el=document.getElementById("ex-"+sid(name)); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); },80);
   maybeShowCoachTip(activeWorkout);
+}
+
+function showMusclePicker(exName, suggested){
+  const allMuscles = Object.keys(MRV||{});
+  const selectedSet = new Set(suggested);
+  window._musclePickerName = exName;
+  window._musclePickerSelected = selectedSet;
+
+  const renderChips = ()=> allMuscles.map(m=>{
+    const sel = window._musclePickerSelected.has(m);
+    const lbl = (MRV[m]?.label||m);
+    const icon = (MRV[m]?.icon||'');
+    return `<button onclick="toggleMusclePick('${m}')" style="padding:10px 14px;border-radius:10px;font-size:13px;cursor:pointer;border:1px solid ${sel?'var(--accent)':'var(--border2)'};background:${sel?'rgba(232,213,160,0.12)':'var(--bg3)'};color:${sel?'var(--accent)':'var(--muted)'};font-family:'DM Sans',sans-serif;">${icon} ${lbl}</button>`;
+  }).join('');
+
+  showModal(`
+    <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">MUSCLE GROUPS</div>
+    <div style="font-size:15px;color:var(--text);margin-bottom:4px;">${exName}</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px;">Which muscles does this exercise work? Tap all that apply.</div>
+    <div id="muscle-pick-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">
+      ${renderChips()}
+    </div>
+    <button class="btn primary" onclick="saveMusclePick()">SAVE</button>
+    <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;color:var(--dim);font-size:11px;">SKIP</button>
+  `);
+}
+
+function toggleMusclePick(muscle){
+  const s = window._musclePickerSelected;
+  if(s.has(muscle)) s.delete(muscle); else s.add(muscle);
+  const grid = document.getElementById('muscle-pick-grid');
+  if(!grid) return;
+  const allMuscles = Object.keys(MRV||{});
+  grid.innerHTML = allMuscles.map(m=>{
+    const sel = s.has(m);
+    const lbl = (MRV[m]?.label||m);
+    const icon = (MRV[m]?.icon||'');
+    return `<button onclick="toggleMusclePick('${m}')" style="padding:10px 14px;border-radius:10px;font-size:13px;cursor:pointer;border:1px solid ${sel?'var(--accent)':'var(--border2)'};background:${sel?'rgba(232,213,160,0.12)':'var(--bg3)'};color:${sel?'var(--accent)':'var(--muted)'};font-family:'DM Sans',sans-serif;">${icon} ${lbl}</button>`;
+  }).join('');
+}
+
+function saveMusclePick(){
+  const name = window._musclePickerName;
+  const muscles = Array.from(window._musclePickerSelected||[]);
+  if(name && muscles.length){
+    EX_MUSCLES[name] = muscles;
+    if(!state._customMuscles) state._customMuscles = {};
+    state._customMuscles[name] = muscles;
+    save();
+    showToast(name+' → '+muscles.map(m=>MRV[m]?.label||m).join(', '));
+  }
+  hideModal();
 }
 // Strong-style: confirm a pre-filled set row
 function confirmSet(name,rowIdx){
