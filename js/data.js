@@ -120,20 +120,22 @@ export function detectMusclesFromName(name){
   const n = (name||'').toLowerCase();
   // High confidence patterns — specific keywords
   const highPatterns = [
-    { re: /bench|chest\s*press|pec\s*fly|pec\s*deck|chest\s*fly|cable\s*cross|incline\s*press|decline\s*press|push[\s-]?up|dip/i, muscles: ['chest','triceps'] },
-    { re: /bicep|biceps|curl(?!.*tri)|preacher|concentration|ez[\s-]?bar\s*curl|hammer\s*curl/i, muscles: ['biceps'] },
-    { re: /tricep|triceps|skull\s*crush|pushdown|press[\s-]?down|overhead\s*ext|french\s*press|close[\s-]?grip\s*bench/i, muscles: ['triceps'] },
+    // Specific patterns first (before generic "curl", "press", etc.)
+    { re: /fly|flye|pec\s*deck/i, muscles: ['chest'] },
+    { re: /pull[\s-]?apart|rear\s*delt|face\s*pull|upright\s*row/i, muscles: ['shoulders'] },
+    { re: /lateral\s*raise|side\s*raise|shrug/i, muscles: ['shoulders'] },
+    { re: /nordic|leg\s*curl|hamstring|rdl|romanian|good\s*morning/i, muscles: ['hamstrings','glutes'] },
+    { re: /hip\s*thrust|glute\s*bridge|glute\s*kick|glute/i, muscles: ['glutes','hamstrings'] },
+    { re: /tricep|triceps|skull\s*crush|pushdown|press[\s-]?down|overhead\s*ext|french\s*press|close[\s-]?grip/i, muscles: ['triceps'] },
+    { re: /bench|chest\s*press|cable\s*cross|incline\s*press|decline\s*press|push[\s-]?up|dip/i, muscles: ['chest','triceps'] },
+    { re: /bicep|biceps|curl|preacher|concentration|ez[\s-]?bar|hammer/i, muscles: ['biceps'] },
     { re: /lat\s*pull|pull[\s-]?up|chin[\s-]?up|pull[\s-]?down/i, muscles: ['back','biceps'] },
-    { re: /row(?!.*upright)|seated\s*row|cable\s*row|barbell\s*row|dumbbell\s*row|t[\s-]?bar|pendlay/i, muscles: ['back','biceps'] },
+    { re: /row|seated\s*row|cable\s*row|barbell\s*row|dumbbell\s*row|t[\s-]?bar|pendlay/i, muscles: ['back','biceps'] },
     { re: /deadlift|rack\s*pull/i, muscles: ['back','hamstrings','glutes'] },
     { re: /squat|leg\s*press|hack\s*squat|goblet/i, muscles: ['quads','glutes'] },
     { re: /leg\s*ext|quad/i, muscles: ['quads'] },
-    { re: /leg\s*curl|hamstring|rdl|romanian|good\s*morning|nordic/i, muscles: ['hamstrings','glutes'] },
-    { re: /hip\s*thrust|glute\s*bridge|glute\s*kick|glute/i, muscles: ['glutes','hamstrings'] },
     { re: /lunge|bulgarian|split\s*squat|step[\s-]?up/i, muscles: ['quads','glutes'] },
-    { re: /lateral\s*raise|side\s*raise|rear\s*delt|face\s*pull|upright\s*row|shrug/i, muscles: ['shoulders'] },
     { re: /shoulder\s*press|overhead\s*press|ohp|military\s*press|arnold\s*press/i, muscles: ['shoulders','triceps'] },
-    { re: /fly|flye|pec/i, muscles: ['chest'] },
     { re: /calf|calves|calf\s*raise/i, muscles: [] },
     { re: /ab\s|abs|crunch|sit[\s-]?up|plank|leg\s*raise|dead\s*bug|pallof|russian\s*twist|ab\s*wheel|core/i, muscles: [] },
   ];
