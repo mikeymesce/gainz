@@ -1,26 +1,33 @@
 # Gainz — Progress Tracker
 
 ## Last Session
-- **Date:** 2026-04-11
+- **Date:** 2026-04-19 (work done across Apr 12–16)
 - **What we did:**
-  - **Edit logged nutrition macros** — pencil ✎ button on each food item in day detail modal; edit name, calories, protein, carbs, fat
-  - **Workout categorization on finish** — Quick Start workouts now show a multi-select chip modal (Push/Pull/Legs/Arms/Chest/Back/Shoulders/Core) before saving; pre-selects based on auto-detect; saves as `tags` array on workout record
-  - **Challenge exercise toggle** — ↔ button added to home screen inline card; now cycles SIT-UPS → BW SQUATS → DEAD BUGS (was only situps/squats, and toggle was hidden inside modal)
-  - **Auto-fill sets from set 1** — after confirming set 1, remaining unfilled rows prefill with set 1's weight/reps instead of last session's values
-  - **Dumbbell volume fix** — `vol()` in utils.js now correctly doubles volume for DB sets and unilateral sets (was only doubled in per-set display, not totals)
-  - **Confirmed already built:** delete exercise (⋮ → Remove), edit exercise name (⋮ → Rename), edit sets during workout (tap any confirmed set), dumbbell display (2×45 DB)
+  - **⋮ overflow menu fix** — was completely broken (raw JSON.stringify in onclick broke HTML attributes). Fixed with esc(). Made button bigger (40×40px with border) for easier tapping on mobile.
+  - **Tappable confirmed sets** — tap any confirmed ✓ row in buildSetGrid to edit weight/reps or delete. Shows ✎ pencil icon next to ✓ so it's obvious.
+  - **Syntax error fix** — Load Workout modal had JSON.stringify inside onclick, causing SyntaxError. Refactored to helper function.
+  - **Timer/duration bug fix** — crash recovery had a 15-min idle cap that was truncating workout duration (40 min → 16 min). Removed. Duration is now just finish − start, no adjustments.
+  - **Bulletproof crash recovery** — auto-saves to localStorage on every render(), beforeunload, visibilitychange (phone lock/app switch), plus existing 20s interval.
+  - **Mid-workout cloud sync** — active workout syncs to Supabase `active_workout` column after each completed exercise (nextExercise). Cloud recovery fallback if localStorage is empty. Clears on finish.
+  - **Per-muscle weekly volume milestones** — congrats modal at MEV+2 sets/week (growth zone), hard warning modal at MRV−2 (approaching junk volume). Both cite Schoenfeld 2017 + Israetel volume landmarks. Rolling 7-day window (not calendar week).
+  - **MEV/MRV values updated** — triceps MEV 6→8, hamstrings MEV 6→8, glutes MEV 4→6. Quads/hamstrings/glutes kept separate (briefly merged into "legs" then reverted — hamstring neglect is a real training problem).
+  - **Auto-detect muscle groups for custom exercises** — keyword pattern matching (high confidence = auto-assign, low/no confidence = muscle picker modal). Saved to state._customMuscles, restored on load.
+  - **Version tag** — `GAINZ_VERSION = '2026-04-14a'` logs to console for cache debugging.
 
-- **Status:** All coded, needs browser testing
+- **Status:** All coded and pushed. Needs browser testing on phone (hard refresh required — check for version tag in debug panel).
 
 ## Next Steps
-- **Test tonight's changes** in browser — especially: macro edit modal, categorize-on-finish flow, challenge toggle cycling, auto-fill sets, volume totals with DB mode
-- Test on iOS Safari
+- **Verify on phone:** ⋮ menu works, confirmed sets tappable, congrats/warning modals fire correctly
+- **Verify cloud sync:** check Supabase `user_state.active_workout` column populates during workout
+- Test on iOS Safari — all features from Apr 11 session too
 - Verify supplements tracker works end-to-end
 - Bodyweight logging screen — polish and verify
 - Onboarding — what does a brand new user see on first open?
 
 ## Notes
-- Workout categorization: stored as `tags: ['Push', 'Chest', ...]` on workout records; `.split` set to first tag for backwards compat
-- Challenge exercise: `state.challenge.secondEx` cycles through `situps`, `squats`, `deadbugs`; data always stored under `situps`/`sitSets` keys regardless of display label
-- Auto-fill: in `buildSetGrid()`, unconfirmed rows now check last confirmed set before falling back to last session
-- Volume fix: `vol()` multiplies by 2 for `s.db` and by 2 for `s.unilateral`
+- ⋮ menu: uses `eName2=esc(e.name)` for all onclick handlers (not JSON.stringify)
+- Crash recovery: `recoverWorkout()` no longer adjusts startTime — duration is pure timestamp diff
+- Cloud sync: `syncActiveWorkoutToCloud()` fires in `nextExercise()`, `clearActiveWorkoutFromCloud()` fires in `finishWorkout()`, `getActiveWorkoutFromCloud()` checked on load if no local recovery
+- Muscle milestones: `congratsAt = mrvData.mev + 2`, `warnAt = mrvData.mrv - 2`, dedupe keyed by `goal:YYYY-MM-DD:muscle` / `warn:YYYY-MM-DD:muscle`
+- Auto-detect muscles: `detectMusclesFromName()` in data.js, pattern order matters (specific before generic: "nordic curl" → hamstrings before generic "curl" → biceps)
+- Custom muscle mappings: stored in `state._customMuscles`, merged into `EX_MUSCLES` on app load
