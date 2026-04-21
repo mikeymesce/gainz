@@ -560,11 +560,15 @@ function saveRest(ex){
   hideModal(); render();
 }
 function confirmFinish(){
+  try{
+  if(!activeWorkout){ showToast('No active workout'); return; }
+  // Defensive: some recovered workouts have exercises without sets arrays
+  activeWorkout.exercises = (activeWorkout.exercises||[]).map(e=>({...e, sets: Array.isArray(e&&e.sets)?e.sets:[]}));
   const exCount=activeWorkout.exercises.length;
   const setCount=activeWorkout.exercises.reduce((a,e)=>a+e.sets.length,0);
   const totalVol=activeWorkout.exercises.reduce((a,e)=>a+vol(e.sets),0);
   const prCount=activeWorkout.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.pr).length,0);
-  const durMs=Date.now()-activeWorkout.startTime;
+  const durMs=Date.now()-(activeWorkout.startTime||Date.now());
   const durMins=Math.round(durMs/60000);
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">FINISH WORKOUT?</div>
@@ -589,6 +593,10 @@ function confirmFinish(){
     <button class="btn primary" onclick="hideModal();finishWorkout()">FINISH ✓</button>
     <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">KEEP GOING</button>
   `);
+  }catch(err){
+    console.error('[GAINZ] confirmFinish error:', err);
+    showToast('Couldn’t open finish screen: ' + (err.message||err));
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1959,6 +1967,12 @@ function skipCategorizeWorkout(){
   finishWorkout();
 }
 function finishWorkout(){
+  try{
+  if(!activeWorkout){ showToast('No active workout to finish'); return; }
+  // Defensive: normalize shape so a malformed recovered workout can't crash the save
+  activeWorkout.exercises = (activeWorkout.exercises||[]).map(e=>({...e, sets: Array.isArray(e&&e.sets)?e.sets:[]}));
+  if(!activeWorkout.startTime) activeWorkout.startTime = Date.now();
+  if(!activeWorkout.split) activeWorkout.split = 'Quick';
   if(!activeWorkout.exercises.length){ showModal(`<div style="font-size:13px;color:var(--accent);margin-bottom:14px;">Log at least one exercise first 💪</div><button class="btn ghost" onclick="hideModal()">OK</button>`); return; }
   // Quick Start: prompt the user to categorize before saving
   if(activeWorkout.split==="Quick" && !activeWorkout._catShown){
@@ -2004,6 +2018,10 @@ function finishWorkout(){
   const finishedW=w;
   activeWorkout=null; setHistory=[]; skipTimer(); stopWoTimer(); collapsedEx.clear(); doneExSet.clear(); noteActiveFor.clear(); editSetFor=null; dropInputOpen=null;
   workoutSummary=finishedW; screen="start"; render();
+  }catch(err){
+    console.error('[GAINZ] finishWorkout error:', err);
+    showToast('Finish failed: ' + (err.message||err));
+  }
 }
 
 function editWorkoutTime(){
@@ -5165,9 +5183,20 @@ function openExerciseHistory(name){
 function recoverWorkout(recovered){
   // Never adjust startTime — duration = finishTime - startTime, period.
   // If the workout is really stale (>8 hours), user can just abandon it.
+  // Defensive: normalize shape so finishWorkout/confirmFinish can't throw
+  // on missing fields (exercises without sets arrays have been seen in the wild).
+  if(!recovered || typeof recovered !== 'object') recovered = {split:'Quick', exercises:[], startTime:Date.now()};
+  if(!Array.isArray(recovered.exercises)) recovered.exercises = [];
+  recovered.exercises = recovered.exercises.map(e => ({
+    ...e,
+    sets: Array.isArray(e && e.sets) ? e.sets : []
+  }));
+  if(!recovered.startTime) recovered.startTime = Date.now();
+  if(!recovered.split) recovered.split = 'Quick';
   activeWorkout=recovered;
   screen='log';
-  document.getElementById('recovery-banner').remove();
+  const banner=document.getElementById('recovery-banner');
+  if(banner) banner.remove();
   localStorage.removeItem('gainz_recovery');
   startWoTimer();
   render();
