@@ -308,10 +308,10 @@ export function renderChallenge(){
   const isChained = start.getMonth() !== now.getMonth() || start.getFullYear() !== now.getFullYear();
   const label = isChained ? `${dayNum}-DAY STREAK · ${monthNames[now.getMonth()]}` : `${monthNames[now.getMonth()]} ${meta.title.toUpperCase()} · DAY ${dayNum}/${endOfMonth.getDate()}`;
 
-  return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
+  return `<div onclick="logChallengeDay()" style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">${label}</div>
-      <button onclick="resetChallenge()" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
+      <button onclick="event.stopPropagation();resetChallenge()" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${meta.title} · ${meta.target} ${meta.unit}</div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
@@ -319,7 +319,7 @@ export function renderChallenge(){
       <div style="font-size:11px;color:var(--muted);">${daysCompleted}/${targetDays} days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
       <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayStatus(ch)}</div>
     </div>
-    <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG TODAY'}</button>
+    <button onclick="event.stopPropagation();logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG TODAY'}</button>
   </div>`;
 }
 
