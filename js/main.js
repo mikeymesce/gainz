@@ -4,6 +4,22 @@
 // for the legacy script (onclick handlers need globals)
 // ═══════════════════════════════════════════
 
+// Keep the bottom nav visually anchored to the iPhone safe area without
+// making the tabs float too high inside the bar.
+{
+  const runtimeStyle = document.createElement('style');
+  runtimeStyle.textContent = `
+    .nav{
+      align-items:flex-end;
+      padding:8px 0 max(2px, env(safe-area-inset-bottom));
+    }
+    .nav-btn{
+      padding:2px 14px 0;
+    }
+  `;
+  document.head.appendChild(runtimeStyle);
+}
+
 // Register service worker after first paint so startup stays stable on mobile.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
