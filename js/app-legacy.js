@@ -5277,7 +5277,20 @@ initModalDismiss();
 render();
 
 // ── Login Gate: show every open unless user is logged in ──
+function ensureGateResetPwButton(){
+  const signInBtn = document.querySelector('#login-gate .btn.primary');
+  if(!signInBtn) return;
+  if(document.getElementById('gate-reset-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'gate-reset-btn';
+  btn.textContent = 'FORGOT PASSWORD?';
+  btn.onclick = gateResetPw;
+  btn.style.cssText = "width:100%;background:none;border:none;color:#a89a72;font-size:12px;letter-spacing:1px;cursor:pointer;padding:8px 12px 12px;font-family:'DM Sans',sans-serif;";
+  signInBtn.insertAdjacentElement('afterend', btn);
+}
+
 async function showLoginGateIfNeeded(){
+  ensureGateResetPwButton();
   try{
     const loggedIn = await isLoggedIn();
     if(loggedIn){
@@ -5295,6 +5308,7 @@ async function gateSignIn(){
   const email=document.getElementById('gate-email')?.value?.trim();
   const pass=document.getElementById('gate-pass')?.value;
   const errEl=document.getElementById('gate-error');
+  if(errEl) errEl.style.color='var(--danger)';
   if(!email||!pass){ if(errEl){errEl.textContent='Enter email and password';errEl.style.display='block';} return; }
   const {error}=await signIn(email,pass);
   if(error){ if(errEl){errEl.textContent=friendlyAuthError(error.message);errEl.style.display='block';} return; }
@@ -5315,11 +5329,32 @@ async function gateSignUp(){
   const email=document.getElementById('gate-email')?.value?.trim();
   const pass=document.getElementById('gate-pass')?.value;
   const errEl=document.getElementById('gate-error');
+  if(errEl) errEl.style.color='var(--danger)';
   if(!email){ if(errEl){errEl.textContent='Enter your email';errEl.style.display='block';} return; }
   if(!pass||pass.length<6){ if(errEl){errEl.textContent='Password needs 6+ characters';errEl.style.display='block';} return; }
   const {error}=await signUp(email,pass);
   if(error){ if(errEl){errEl.textContent=friendlyAuthError(error.message);errEl.style.display='block';} return; }
   if(errEl){errEl.textContent='✓ Check your email to confirm, then sign in.';errEl.style.display='block';errEl.style.color='var(--green)';}
+}
+
+async function gateResetPw(){
+  const email=document.getElementById('gate-email')?.value?.trim();
+  const errEl=document.getElementById('gate-error');
+  if(errEl) errEl.style.color='var(--danger)';
+  if(!email){
+    if(errEl){errEl.textContent='Enter your email above first';errEl.style.display='block';}
+    return;
+  }
+  const {error}=await resetPassword(email);
+  if(error){
+    if(errEl){errEl.textContent=friendlyAuthError(error.message);errEl.style.display='block';}
+    return;
+  }
+  if(errEl){
+    errEl.textContent='✓ Reset link sent. Check your email, then come back and sign in.';
+    errEl.style.display='block';
+    errEl.style.color='var(--green)';
+  }
 }
 
 function gateGuest(){
@@ -5329,6 +5364,7 @@ function gateGuest(){
 
 window.gateSignIn=gateSignIn;
 window.gateSignUp=gateSignUp;
+window.gateResetPw=gateResetPw;
 window.gateGuest=gateGuest;
 
 window.showLoginGateIfNeeded = showLoginGateIfNeeded;
