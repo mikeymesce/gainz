@@ -263,7 +263,6 @@ export function renderChallenge(){
       ch.startDate = dateKey(firstOfMonth);
       ch.days = {};
       _save();
-      showToast('New month, new challenge! 💪');
       start = firstOfMonth;
       dayNum = now.getDate();
     }
