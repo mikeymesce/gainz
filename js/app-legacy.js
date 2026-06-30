@@ -5194,11 +5194,39 @@ function recoverWorkout(recovered){
   if(banner) banner.remove();
   try{ localStorage.removeItem('gainz_recovery'); }catch(e){}
   try{ localStorage.removeItem('gainz_recovery_backup'); }catch(e){}
+  try{ localStorage.removeItem('gainz_recovery_dismissed'); }catch(e){}
   startWoTimer();
   render();
 }
 
+function recoverySignature(recovered){
+  try{
+    if(!recovered || typeof recovered !== 'object') return '';
+    const lastSetTime = recovered.exercises?.reduce((t,ex)=>Math.max(t,...(ex.sets||[]).map(s=>s.time||0)),recovered.startTime)||recovered.startTime||0;
+    return [recovered.split||'', recovered.startTime||0, lastSetTime].join('|');
+  }catch(e){
+    return '';
+  }
+}
+
+function markRecoveryDismissed(recovered){
+  try{
+    const sig = recoverySignature(recovered);
+    if(sig) localStorage.setItem('gainz_recovery_dismissed', sig);
+  }catch(e){}
+}
+
+function isRecoveryDismissed(recovered){
+  try{
+    const sig = recoverySignature(recovered);
+    return !!sig && localStorage.getItem('gainz_recovery_dismissed') === sig;
+  }catch(e){
+    return false;
+  }
+}
+
 async function discardRecoveryPrompt(){
+  markRecoveryDismissed(window._pendingRecovery);
   try{ localStorage.removeItem('gainz_recovery'); }catch(e){}
   try{ localStorage.removeItem('gainz_recovery_backup'); }catch(e){}
   window._pendingRecovery = null;
@@ -5224,6 +5252,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 function showRecoveryBanner(recovered, source){
+  if(isRecoveryDismissed(recovered)) return;
   window._pendingRecovery=recovered;
   const lastSetTime=recovered.exercises?.reduce((t,ex)=>Math.max(t,...(ex.sets||[]).map(s=>s.time||0)),recovered.startTime)||recovered.startTime;
   const idleMin=Math.round((Date.now()-lastSetTime)/60000);
@@ -5243,6 +5272,7 @@ function showRecoveryBanner(recovered, source){
     const rec=localStorage.getItem("gainz_recovery");
     if(rec&&!activeWorkout){
       const recovered=JSON.parse(rec);
+      if(isRecoveryDismissed(recovered)) return;
       showRecoveryBanner(recovered, 'local');
       return;
     }
@@ -5251,7 +5281,7 @@ function showRecoveryBanner(recovered, source){
       setTimeout(async ()=>{
         try{
           const cloudWorkout=await window.getActiveWorkoutFromCloud();
-          if(cloudWorkout && !activeWorkout && !document.getElementById('recovery-banner')){
+          if(cloudWorkout && !activeWorkout && !document.getElementById('recovery-banner') && !isRecoveryDismissed(cloudWorkout)){
             showRecoveryBanner(cloudWorkout, 'cloud');
           }
         }catch(e){ console.warn('[GAINZ] Cloud recovery check failed:', e); }
