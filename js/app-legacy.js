@@ -5197,10 +5197,24 @@ function recoverWorkout(recovered){
   screen='log';
   const banner=document.getElementById('recovery-banner');
   if(banner) banner.remove();
-  localStorage.removeItem('gainz_recovery');
+  try{ localStorage.removeItem('gainz_recovery'); }catch(e){}
+  try{ localStorage.removeItem('gainz_recovery_backup'); }catch(e){}
   startWoTimer();
   render();
 }
+
+async function discardRecoveryPrompt(){
+  try{ localStorage.removeItem('gainz_recovery'); }catch(e){}
+  try{ localStorage.removeItem('gainz_recovery_backup'); }catch(e){}
+  window._pendingRecovery = null;
+  const banner = document.getElementById('recovery-banner');
+  if(banner) banner.remove();
+  if(window.clearActiveWorkoutFromCloud){
+    try{ await window.clearActiveWorkoutFromCloud(); }catch(e){}
+  }
+}
+
+window.discardRecoveryPrompt = discardRecoveryPrompt;
 // Save workout to recovery when browser is closing/navigating away
 window.addEventListener('beforeunload',()=>{
   if(activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
@@ -5219,7 +5233,7 @@ function showRecoveryBanner(recovered, source){
   const banner=document.createElement("div");
   banner.id="recovery-banner";
   banner.style.cssText="position:fixed;top:0;left:0;right:0;background:#1e1815;border-bottom:1px solid var(--accent);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;z-index:9998;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);";
-  banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover workout?${sourceLabel} <span style="color:var(--dim);font-size:10px;">(last set ${idleLabel})</span></span><div style="display:flex;gap:8px;"><button onclick="recoverWorkout(window._pendingRecovery)" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="localStorage.removeItem('gainz_recovery');if(window.clearActiveWorkoutFromCloud)window.clearActiveWorkoutFromCloud();document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
+  banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover workout?${sourceLabel} <span style="color:var(--dim);font-size:10px;">(last set ${idleLabel})</span></span><div style="display:flex;gap:8px;"><button onclick="recoverWorkout(window._pendingRecovery)" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="discardRecoveryPrompt()" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
   document.body.appendChild(banner);
   logDebug("⚠ Crash recovery available"+sourceLabel+" (last set "+idleLabel+")");
 }
