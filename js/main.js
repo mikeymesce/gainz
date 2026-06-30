@@ -4,21 +4,15 @@
 // for the legacy script (onclick handlers need globals)
 // ═══════════════════════════════════════════
 
-// Register service worker for auto-updates + offline support
+// Register service worker after first paint so startup stays stable on mobile.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/gainz/sw.js').then(reg => {
-    // Check for updates every time the app loads
-    reg.update();
-    reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-      newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'activated') {
-          // New version available — reload to get it
-          window.location.reload();
-        }
-      });
-    });
-  }).catch(err => console.warn('[SW] Registration failed:', err));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/gainz/sw.js').then(reg => {
+      setTimeout(() => {
+        reg.update().catch(() => {});
+      }, 3000);
+    }).catch(err => console.warn('[SW] Registration failed:', err));
+  }, { once: true });
 }
 import { FEATURES, SCHEMA_VERSION, VERSION, GLOBAL_DEFAULT, SPLIT_COLORS, TAG_COLORS } from './config.js';
 import {
@@ -35,7 +29,7 @@ import { playBeep } from './audio.js';
 import {
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
-  maybeShowCinematic, dismissCinematic, skipCinematic,
+  maybeShowCinematic, maybeShowLaunchCinematic, dismissCinematic, skipCinematic,
   maybeShowSetup, _skipSetup, _setupData, _setupGoNext, _setupSave,
   _renderSetupStep, _renderStep2Pace, _updateStep2Preview
 } from './onboarding.js';
@@ -123,7 +117,7 @@ Object.assign(window, {
   // Onboarding
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
-  maybeShowCinematic, dismissCinematic, skipCinematic,
+  maybeShowCinematic, maybeShowLaunchCinematic, dismissCinematic, skipCinematic,
   maybeShowSetup, _skipSetup, _setupData, _setupGoNext, _setupSave, _renderSetupStep, _renderStep2Pace, _updateStep2Preview,
   // Import
   openImportModal, closeImportModal, renderImportStep,

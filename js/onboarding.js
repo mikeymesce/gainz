@@ -322,12 +322,146 @@ export function maybeShowSetup() {
   return true;
 }
 
-// ── Cinematic + splash carousel archived in opening-sequence-trash.js ──
+// ── Practical cinematic intro ───────────────────────────────────────────────
+const CINEMATIC_QUOTES = [
+  {
+    quote: 'Discipline makes the day feel clean.',
+    body: 'Track what matters. Start training.',
+  },
+  {
+    quote: 'Quiet work. Heavy focus.',
+    body: 'Check in fast, then get after it.',
+  },
+  {
+    quote: 'Calm system. Clear target.',
+    body: 'Sleep, food, stress, water, workout.',
+  },
+];
 
-// Stub exports so nothing breaks if called from old cached code
-export function maybeShowCinematic() { return false; }
-export function dismissCinematic() {}
-export function skipCinematic() {}
+const SUNDAY_CINEMATIC = {
+  quote: 'Sunday resets the standard.',
+  body: 'Start the week right. Train with intent and lock in your rhythm.',
+};
+
+let cinematicTimer = null;
+let cinematicFinishCallback = null;
+
+function _localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function _cinematicLastShownAt() {
+  return parseInt(localStorage.getItem('gainz_cinematic_last_shown_at') || '0', 10);
+}
+
+function _currentSundayKey(date = new Date()) {
+  const sunday = new Date(date);
+  sunday.setHours(0, 0, 0, 0);
+  sunday.setDate(sunday.getDate() - sunday.getDay());
+  return _localDateKey(sunday);
+}
+
+function _isSunday(date = new Date()) {
+  return date.getDay() === 0;
+}
+
+function _shouldShowCinematic(force = false) {
+  if (force) return true;
+  const lastAt = _cinematicLastShownAt();
+  if (!lastAt) return true;
+  if (!_isSunday()) return false;
+  const lastSundayKey = localStorage.getItem('gainz_cinematic_last_sunday') || '';
+  return lastSundayKey !== _currentSundayKey();
+}
+
+function _getCinematicItem() {
+  if (_isSunday()) return SUNDAY_CINEMATIC;
+  const views = parseInt(localStorage.getItem('gainz_cinematic_views') || '0', 10);
+  return CINEMATIC_QUOTES[views % CINEMATIC_QUOTES.length];
+}
+
+function _renderCinematic() {
+  const container = document.getElementById('cin-container');
+  if (!container) return;
+  const item = _getCinematicItem();
+  container.innerHTML = `
+    <div class="cin-practical">
+      <div class="cin-practical-mark">GAINZ</div>
+      <div class="cin-practical-quote">${item.quote}</div>
+      <div class="cin-practical-body">${item.body}</div>
+      <div class="cin-practical-hint">Tap to enter</div>
+    </div>
+  `;
+}
+
+function _finishCinematic(markSeen = true) {
+  if (cinematicTimer) {
+    clearTimeout(cinematicTimer);
+    cinematicTimer = null;
+  }
+  const el = document.getElementById('cinematic-splash');
+  if (!el) return;
+  el.classList.add('cin-fade-out');
+  const cb = cinematicFinishCallback;
+  cinematicFinishCallback = null;
+  setTimeout(() => {
+    el.style.display = 'none';
+    el.classList.remove('cin-fade-out');
+    if (typeof cb === 'function') cb();
+  }, 180);
+  if (markSeen) {
+    localStorage.setItem('gainz_cinematic_seen', _localDateKey());
+    localStorage.setItem('gainz_cinematic_last_shown_at', String(Date.now()));
+    if (_isSunday()) {
+      localStorage.setItem('gainz_cinematic_last_sunday', _currentSundayKey());
+    }
+    const views = parseInt(localStorage.getItem('gainz_cinematic_views') || '0', 10);
+    localStorage.setItem('gainz_cinematic_views', String(views + 1));
+  }
+}
+
+export function maybeShowCinematic(force = false, onFinish = null, ignoreGuards = false) {
+  const gate = document.getElementById('login-gate');
+  const setup = document.getElementById('setup-flow');
+  const el = document.getElementById('cinematic-splash');
+  if (!el) return false;
+  if (!ignoreGuards) {
+    if (gate && gate.style.display !== 'none') return false;
+    if (setup && setup.style.display !== 'none') return false;
+  }
+  if (!_shouldShowCinematic(force)) return false;
+
+  _renderCinematic();
+  cinematicFinishCallback = typeof onFinish === 'function' ? onFinish : null;
+  el.style.display = 'flex';
+  el.style.opacity = '1';
+  el.classList.remove('cin-fade-out');
+
+  cinematicTimer = setTimeout(() => {
+    _finishCinematic(true);
+  }, 1100);
+
+  return true;
+}
+
+export function maybeShowLaunchCinematic() {
+  return maybeShowCinematic(false, () => {
+    if (typeof window.showLoginGateIfNeeded === 'function') {
+      window.showLoginGateIfNeeded();
+    }
+  }, true);
+}
+
+export function dismissCinematic() {
+  _finishCinematic(true);
+}
+
+export function skipCinematic() {
+  _finishCinematic(true);
+}
 export function showSplash() {}
 export function dismissSplash() {}
 export function maybeShowSplash() {}

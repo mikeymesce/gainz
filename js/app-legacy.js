@@ -5317,4 +5317,16 @@ window.gateSignIn=gateSignIn;
 window.gateSignUp=gateSignUp;
 window.gateGuest=gateGuest;
 
-showLoginGateIfNeeded();
+window.showLoginGateIfNeeded = showLoginGateIfNeeded;
+
+function startLaunchFlow(){
+  if(typeof maybeShowLaunchCinematic === 'function'){
+    if(!maybeShowLaunchCinematic()) showLoginGateIfNeeded();
+  }else{
+    showLoginGateIfNeeded();
+  }
+}
+
+requestAnimationFrame(() => {
+  setTimeout(startLaunchFlow, 180);
+});

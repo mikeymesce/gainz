@@ -44,8 +44,7 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activate — wipe ALL old caches (including any stale gainz-v* caches),
-// claim clients immediately, then force a full reload so fresh files load.
+// Activate — wipe old caches and claim clients.
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -54,8 +53,6 @@ self.addEventListener('activate', e => {
             .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }))
-      .then(clients => clients.forEach(c => c.navigate(c.url)))
   );
 });
 
