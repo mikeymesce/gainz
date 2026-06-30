@@ -898,9 +898,10 @@ function confirmSet(name,rowIdx){
   if(typeof addChallengeQuickSilent==='function'){
     const nameLower=name.toLowerCase();
     const repsNum=parseInt(r)||0;
-    if(/push[\s-]?up/i.test(nameLower)) addChallengeQuickSilent('push',repsNum);
-    if(/squat/i.test(nameLower)) addChallengeQuickSilent('sit',repsNum);
-    else if(/sit[\s-]?up|crunch/i.test(nameLower)) addChallengeQuickSilent('sit',repsNum);
+    if(state.challenge && state.challenge.active && repsNum > 0){
+      if(state.challenge.type==='pushups' && /push[\s-]?up/i.test(nameLower)) addChallengeQuickSilent('main',repsNum);
+      if(state.challenge.type==='abs' && /sit[\s-]?up|crunch|ab\s?wheel|dead\s?bug|leg\s?raise/i.test(nameLower)) addChallengeQuickSilent('main',repsNum);
+    }
   }
   // Check if this set just pushed any muscle group to 12 sets for the week → congrats
   checkWeeklyMuscleMilestone(name);
@@ -1084,15 +1085,12 @@ function logSet(n){
     const nameLower=n.toLowerCase();
     const repsNum=parseInt(r)||0;
     if(repsNum>0){
-      if(/push[\s-]?up/.test(nameLower)){
-        addChallengeQuickSilent('push', repsNum);
+      if(state.challenge.type==='pushups' && /push[\s-]?up/.test(nameLower)){
+        addChallengeQuickSilent('main', repsNum);
         logDebug("🎯 Challenge: +" + repsNum + " push-ups from workout");
-      } else if(/squat/i.test(nameLower)){
-        addChallengeQuickSilent('sit', repsNum);
-        logDebug("🎯 Challenge: +" + repsNum + " squats from workout");
-      } else if(state.challenge.secondEx!=='squats' && /sit[\s-]?up|crunch|ab\s?wheel/.test(nameLower)){
-        addChallengeQuickSilent('sit', repsNum);
-        logDebug("🎯 Challenge: +" + repsNum + " sit-ups from workout");
+      } else if(state.challenge.type==='abs' && /sit[\s-]?up|crunch|ab\s?wheel|dead\s?bug|leg\s?raise/.test(nameLower)){
+        addChallengeQuickSilent('main', repsNum);
+        logDebug("🎯 Challenge: +" + repsNum + " abs from workout");
       }
     }
   }

@@ -61,7 +61,7 @@ import {
   buildProgChart, setProgChartMode
 } from './progress-chart.js';
 import {
-  getChallengeState, startChallenge, toggleChallengeEx, challengeNavDay,
+  getChallengeState, setChallengeType, startChallenge, toggleChallengeEx, challengeNavDay,
   logChallengeDay, addChallengeQuick, addChallengeQuickSilent, addChallengeSet,
   deleteChallengeSet, resetChallenge, renderChallenge, renderInlineChallenge,
   inlineChallengeAdd
@@ -141,7 +141,7 @@ Object.assign(window, {
   // Progress chart
   buildProgChart, setProgChartMode,
   // Challenge
-  getChallengeState, startChallenge, toggleChallengeEx, challengeNavDay,
+  getChallengeState, setChallengeType, startChallenge, toggleChallengeEx, challengeNavDay,
   logChallengeDay, addChallengeQuick, addChallengeQuickSilent, addChallengeSet,
   deleteChallengeSet, resetChallenge, renderChallenge, renderInlineChallenge,
   inlineChallengeAdd,

@@ -137,73 +137,71 @@ test("funStats rotates by day of year",()=>{
 test("getChallengeState() initializes defaults",()=>{
   const s=_state().challenge;_state().challenge=undefined;
   const ch=window.getChallengeState();
-  assert(ch.active===false);assert(ch.secondEx==='situps');assert(ch.days!==undefined);
+  assert(ch.active===false);assert(ch.type==='pushups');assert(ch.days!==undefined);
   _state().challenge=s;
 });
 test("getChallengeState() preserves existing state",()=>{
   const s=_state().challenge;
-  _state().challenge={startDate:'Mon Mar 30 2026',days:{'Mon Mar 30 2026':{pushups:50,situps:30,pushSets:[25,25],sitSets:[15,15]}},active:true,secondEx:'squats'};
+  _state().challenge={startDate:'Mon Mar 30 2026',days:{'Mon Mar 30 2026':{count:50,entries:[25,25]}},active:true,type:'pushups'};
   const ch=window.getChallengeState();
-  assertEqual(ch.active,true);assertEqual(ch.secondEx,'squats');assertEqual(ch.days['Mon Mar 30 2026'].pushups,50);
+  assertEqual(ch.active,true);assertEqual(ch.type,'pushups');assertEqual(ch.days['Mon Mar 30 2026'].count,50);
   _state().challenge=s;
 });
-test("toggleChallengeEx() switches situps to squats",()=>{
-  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,secondEx:'situps'};
-  const origModal=window.showModal;window.showModal=function(){};
-  window.toggleChallengeEx();assertEqual(_state().challenge.secondEx,'squats');
-  window.toggleChallengeEx();assertEqual(_state().challenge.secondEx,'situps');
-  window.showModal=origModal;_state().challenge=s;
+test("toggleChallengeEx() rotates challenge type",()=>{
+  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,type:'pushups'};
+  window.toggleChallengeEx();assertEqual(_state().challenge.type,'abs');
+  window.toggleChallengeEx();assertEqual(_state().challenge.type,'prayer');
+  _state().challenge=s;
 });
 test("addChallengeQuickSilent() adds push reps",()=>{
-  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,secondEx:'situps'};
+  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,type:'pushups'};
   window.addChallengeQuickSilent('push',20);
   const day=_state().challenge.days[window.todayStr()];
-  assertEqual(day.pushups,20);assertEqual(day.pushSets.length,1);assertEqual(day.pushSets[0],20);
-  window.addChallengeQuickSilent('push',10);assertEqual(day.pushups,30);assertEqual(day.pushSets.length,2);
+  assertEqual(day.count,20);assertEqual(day.entries.length,1);assertEqual(day.entries[0],20);
+  window.addChallengeQuickSilent('push',10);assertEqual(day.count,30);assertEqual(day.entries.length,2);
   _state().challenge=s;
 });
-test("addChallengeQuickSilent() adds sit reps",()=>{
-  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,secondEx:'situps'};
-  window.addChallengeQuickSilent('sit',25);
-  assertEqual(_state().challenge.days[window.todayStr()].situps,25);
+test("addChallengeQuickSilent() adds simple habit completion",()=>{
+  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,type:'prayer'};
+  window.addChallengeQuickSilent('main',1);
+  assertEqual(_state().challenge.days[window.todayStr()].count,1);
   _state().challenge=s;
 });
 test("deleteChallengeSet() removes correct set",()=>{
-  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,secondEx:'situps'};
-  window.addChallengeQuickSilent('push',10);window.addChallengeQuickSilent('push',20);window.addChallengeQuickSilent('push',15);
-  const origModal=window.showModal;window.showModal=function(){};
-  window.deleteChallengeSet('push',1);
+  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,type:'pushups'};
+  window.addChallengeQuickSilent('main',10);window.addChallengeQuickSilent('main',20);window.addChallengeQuickSilent('main',15);
+  window.deleteChallengeSet('main',1);
   const day=_state().challenge.days[window.todayStr()];
-  assertEqual(day.pushSets.length,2);assertEqual(day.pushSets[0],10);assertEqual(day.pushSets[1],15);assertEqual(day.pushups,25);
-  window.showModal=origModal;_state().challenge=s;
+  assertEqual(day.entries.length,2);assertEqual(day.entries[0],10);assertEqual(day.entries[1],15);assertEqual(day.count,25);
+  _state().challenge=s;
 });
 test("renderChallenge() returns start button when inactive",()=>{
-  const s=_state().challenge;_state().challenge={startDate:null,days:{},active:false};
+  const s=_state().challenge;_state().challenge={startDate:null,days:{},active:false,type:'pushups'};
   const html=window.renderChallenge();
-  assert(html.includes('startChallenge'),'should have start button');assert(html.includes('30-DAY CHALLENGE'),'should have title');
+  assert(html.includes('startChallenge'),'should have start button');assert(html.includes('MONTHLY CHALLENGE'),'should have title');
   _state().challenge=s;
 });
 test("renderChallenge() shows progress when active",()=>{
-  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,secondEx:'situps'};
+  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,type:'pushups'};
   const html=window.renderChallenge();
-  assert(html.includes('DAY 1'),'should show day number');assert(html.includes('0/30 days'),'should show completion');
+  assert(html.includes('DAY 1'),'should show day number');assert(html.includes('0/'),'should show completion');
   _state().challenge=s;
 });
 test("renderChallenge() shows streak when 2+ days",()=>{
   const s=_state().challenge;
   const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
   const twoDaysAgo=new Date();twoDaysAgo.setDate(twoDaysAgo.getDate()-2);
-  _state().challenge={startDate:twoDaysAgo.toDateString(),days:{},active:true,secondEx:'situps'};
-  _state().challenge.days[twoDaysAgo.toDateString()]={pushups:100,situps:100,pushSets:[100],sitSets:[100]};
-  _state().challenge.days[yesterday.toDateString()]={pushups:100,situps:100,pushSets:[100],sitSets:[100]};
+  _state().challenge={startDate:twoDaysAgo.toDateString(),days:{},active:true,type:'pushups'};
+  _state().challenge.days[twoDaysAgo.toDateString()]={count:100,entries:[100]};
+  _state().challenge.days[yesterday.toDateString()]={count:100,entries:[100]};
   assert(window.renderChallenge().includes('2 day streak'),'should show 2 day streak');
   _state().challenge=s;
 });
 test("renderChallenge() no streak for 1 day",()=>{
   const s=_state().challenge;
   const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
-  _state().challenge={startDate:yesterday.toDateString(),days:{},active:true,secondEx:'situps'};
-  _state().challenge.days[yesterday.toDateString()]={pushups:100,situps:100,pushSets:[100],sitSets:[100]};
+  _state().challenge={startDate:yesterday.toDateString(),days:{},active:true,type:'pushups'};
+  _state().challenge.days[yesterday.toDateString()]={count:100,entries:[100]};
   assert(!window.renderChallenge().includes('day streak'),'should not show streak for 1 day');
   _state().challenge=s;
 });
@@ -212,20 +210,19 @@ test("renderInlineChallenge() empty when no challenge",()=>{
   assertEqual(window.renderInlineChallenge(),'');_state().challenge=s;
 });
 test("renderInlineChallenge() empty when inactive",()=>{
-  const s=_state().challenge;_state().challenge={startDate:null,days:{},active:false};
+  const s=_state().challenge;_state().challenge={startDate:null,days:{},active:false,type:'pushups'};
   assertEqual(window.renderInlineChallenge(),'');_state().challenge=s;
 });
 test("renderInlineChallenge() shows tracker when active",()=>{
-  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,secondEx:'squats'};
+  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,type:'prayer'};
   const html=window.renderInlineChallenge();
-  assert(html.includes('inline-challenge'),'should have container');assert(html.includes('SQUATS'),'should show squats label');
+  assert(html.includes('inline-challenge'),'should have container');assert(html.includes('PRAYER'),'should show challenge label');
   _state().challenge=s;
 });
-test("challenge secondEx data stored under situps key",()=>{
-  const s=_state().challenge;_state().challenge={startDate:window.todayStr(),days:{},active:true,secondEx:'squats'};
-  window.addChallengeQuickSilent('sit',30);
-  const day=_state().challenge.days[window.todayStr()];
-  assertEqual(day.situps,30,'squats reps stored under situps key');
+test("setChallengeType() updates selected challenge",()=>{
+  const s=_state().challenge;_state().challenge={startDate:null,days:{},active:false,type:'pushups'};
+  window.setChallengeType('journaling');
+  assertEqual(_state().challenge.type,'journaling');
   _state().challenge=s;
 });
 

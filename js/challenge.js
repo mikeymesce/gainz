@@ -1,119 +1,164 @@
 // ═══════════════════════════════════════════
-// CHALLENGE — 30-Day Push-up & Sit-up Challenge
+// CHALLENGE — Simple monthly focus tracker
 // ═══════════════════════════════════════════
 import { todayStr, showToast } from './utils.js';
 
-// Convert a toDateString() key to a Date reliably (avoids spec-ambiguous parsing)
 function parseDateKey(ds){
-  // toDateString() format: "Mon Mar 31 2026"
-  const parts=ds.split(' '); // ['Mon','Mar','31','2026']
-  const months={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  const parts = ds.split(' ');
+  const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
   return new Date(+parts[3], months[parts[1]], +parts[2]);
 }
-// Get toDateString() for a Date object (no parsing ambiguity)
 function dateKey(d){ return d.toDateString(); }
 
-// ── Exercise label helpers (for the 3 second-exercise options) ──
-const EX_LABELS = { situps:'SIT-UPS', squats:'BW SQUATS', deadbugs:'DEAD BUGS' };
-const EX_LABELS_SHORT = { situps:'sit', squats:'squat', deadbugs:'dead bug' };
-const EX_LABELS_TITLE = { situps:'Sit-ups', squats:'BW Squats', deadbugs:'Dead Bugs' };
-function exLabel(ch){ return EX_LABELS[ch.secondEx]||'SIT-UPS'; }
-function exShort(ch){ return EX_LABELS_SHORT[ch.secondEx]||'sit'; }
-function exNext(ch){
-  const order=['situps','squats','deadbugs'];
-  const next=order[(order.indexOf(ch.secondEx)+1)%order.length];
-  return EX_LABELS_TITLE[next]||'Sit-ups';
-}
+const CHALLENGE_TYPES = {
+  pushups: { label:'PUSH-UPS', short:'push-ups', title:'Push-ups', target:100, unit:'reps', quick:[10,20,25,50] },
+  abs: { label:'ABS', short:'abs', title:'Abs', target:100, unit:'reps', quick:[10,20,25,50] },
+  prayer: { label:'PRAYER', short:'prayer', title:'Prayer', target:1, unit:'session', quick:[1] },
+  breathing: { label:'BREATHING', short:'breathing', title:'Breathing', target:1, unit:'session', quick:[1] },
+  journaling: { label:'JOURNALING', short:'journal', title:'Journaling', target:1, unit:'session', quick:[1] },
+};
+const CHALLENGE_TYPE_ORDER = Object.keys(CHALLENGE_TYPES);
 
-// ── Module-level state ──
 let challengeLogDate = null;
 
-// Expose challengeLogDate on window so inline onclick handlers can set it
 Object.defineProperty(window, 'challengeLogDate', {
   get() { return challengeLogDate; },
   set(v) { challengeLogDate = v; },
   configurable: true
 });
 
-// Helper accessors — these read from window at call time,
-// after app-legacy.js has loaded and defined them.
 function _state() { return window.state; }
 function _save() { window.save(); }
 function _showModal(h) { window.showModal(h); }
 function _hideModal() { window.hideModal(); }
 function _render() { window.render(); }
 
-// ── Challenge Functions ──
-// NOTE: The second exercise data is always stored under `situps`/`sitSets` keys,
-// regardless of whether the user chose sit-ups or BW squats. This avoids
-// data migration when toggling. The `secondEx` field controls display labels only.
+function getChallengeMeta(ch){
+  return CHALLENGE_TYPES[ch.type] || CHALLENGE_TYPES.pushups;
+}
+
+function ensureChallengeDay(ch, d){
+  if(!ch.days[d] || typeof ch.days[d] !== 'object') ch.days[d] = {};
+  const day = ch.days[d];
+  if(typeof day.count !== 'number'){
+    if(ch.type === 'pushups'){
+      day.count = Number(day.pushups || 0);
+      day.entries = Array.isArray(day.pushSets) ? [...day.pushSets] : [];
+    } else if(ch.type === 'abs'){
+      day.count = Number(day.situps || 0);
+      day.entries = Array.isArray(day.sitSets) ? [...day.sitSets] : [];
+    } else {
+      day.count = 0;
+      day.entries = [];
+    }
+  }
+  if(!Array.isArray(day.entries)) day.entries = [];
+  return day;
+}
+
+function isDayComplete(ch, day){
+  const meta = getChallengeMeta(ch);
+  return Number(day?.count || 0) >= meta.target;
+}
+
+function completedDays(ch, start, end){
+  let count = 0;
+  const cur = new Date(start.getTime());
+  while(cur <= end){
+    const day = ensureChallengeDay(ch, dateKey(cur));
+    if(isDayComplete(ch, day)) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+function todayStatus(ch){
+  const meta = getChallengeMeta(ch);
+  const day = ensureChallengeDay(ch, todayStr());
+  if(isDayComplete(ch, day)) return '✓ Done today';
+  if(day.count > 0) {
+    return meta.unit === 'reps'
+      ? `${day.count}/${meta.target} ${meta.short}`
+      : `${day.count}/${meta.target} ${meta.unit}${meta.target === 1 ? '' : 's'}`;
+  }
+  return 'Not yet today';
+}
 
 export function getChallengeState(){
   const state = _state();
-  if(!state.challenge) state.challenge={startDate:null,days:{},active:false};
-  if(!state.challenge.secondEx){
-    // Auto-detect: check if user has logged squats more than sit-ups
-    const w=state.workouts||[];
-    let squatCount=0, sitCount=0;
-    w.forEach(wo=>(wo.exercises||[]).forEach(e=>{
-      const n=e.name.toLowerCase();
-      if(/squat/i.test(n)) squatCount++;
-      if(/sit[\s-]?up|crunch/i.test(n)) sitCount++;
-    }));
-    state.challenge.secondEx = squatCount >= sitCount ? 'squats' : 'situps';
-  }
+  if(!state.challenge) state.challenge = { startDate:null, days:{}, active:false, type:'pushups' };
+  if(!state.challenge.type) state.challenge.type = state.challenge.secondEx ? 'abs' : 'pushups';
+  if(!state.challenge.days) state.challenge.days = {};
   return state.challenge;
 }
+
+export function setChallengeType(type){
+  if(!CHALLENGE_TYPES[type]) return;
+  const ch = getChallengeState();
+  ch.type = type;
+  _save();
+  _render();
+}
+
+export function toggleChallengeEx(){
+  const ch = getChallengeState();
+  const idx = CHALLENGE_TYPE_ORDER.indexOf(ch.type);
+  ch.type = CHALLENGE_TYPE_ORDER[(idx + 1) % CHALLENGE_TYPE_ORDER.length];
+  _save();
+  _render();
+}
+
 export function startChallenge(){
   const state = _state();
-  state.challenge={startDate:todayStr(),days:{},active:true};
-  _save(); _render();
-  showToast('30-day challenge started! 💪');
+  const current = getChallengeState();
+  state.challenge = {
+    startDate: todayStr(),
+    days: {},
+    active: true,
+    type: current.type || 'pushups'
+  };
+  challengeLogDate = null;
+  _save();
+  _render();
+  showToast(`${getChallengeMeta(state.challenge).title} challenge started`);
 }
-export function toggleChallengeEx(){
-  const ch=getChallengeState();
-  // Cycle: situps → squats → deadbugs → situps
-  const order=['situps','squats','deadbugs'];
-  const cur=order.indexOf(ch.secondEx);
-  ch.secondEx=order[(cur+1)%order.length];
-  _save(); logChallengeDay();
-}
+
 export function challengeNavDay(offset){
-  const ch=getChallengeState();
-  const start=parseDateKey(ch.startDate);
-  const cur=challengeLogDate?parseDateKey(challengeLogDate):new Date();
-  cur.setDate(cur.getDate()+offset);
-  if(cur>new Date()) return;
-  if(cur<start) return;
-  challengeLogDate=dateKey(cur);
+  const ch = getChallengeState();
+  const start = parseDateKey(ch.startDate);
+  const cur = challengeLogDate ? parseDateKey(challengeLogDate) : new Date();
+  cur.setDate(cur.getDate() + offset);
+  if(cur > new Date()) return;
+  if(cur < start) return;
+  challengeLogDate = dateKey(cur);
   logChallengeDay();
 }
-export function logChallengeDay(){
-  const ch=getChallengeState();
-  if(!ch.active) return;
-  const d=challengeLogDate||todayStr();
-  const isToday=d===todayStr();
-  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
-  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
-  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
-  const day=ch.days[d];
-  const _exLabel=exLabel(ch);
-  const exLabelShort=exShort(ch);
-  const otherLabel=exNext(ch);
-  const dateObj=parseDateKey(d);
-  const dateLabel=isToday?'TODAY':dateObj.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-  const canGoNext=parseDateKey(d)<parseDateKey(todayStr());
 
-  const pushSetRows=day.pushSets.map((s,i)=>`
+export function logChallengeDay(){
+  const ch = getChallengeState();
+  if(!ch.active) return;
+  const meta = getChallengeMeta(ch);
+  const d = challengeLogDate || todayStr();
+  const isToday = d === todayStr();
+  const day = ensureChallengeDay(ch, d);
+  const dateObj = parseDateKey(d);
+  const dateLabel = isToday ? 'TODAY' : dateObj.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const canGoNext = parseDateKey(d) < parseDateKey(todayStr());
+  const done = isDayComplete(ch, day);
+  const status = meta.unit === 'reps'
+    ? `${day.count}/${meta.target} ${meta.short}`
+    : `${day.count}/${meta.target} ${meta.unit}${meta.target === 1 ? '' : 's'}`;
+  const entryRows = day.entries.map((entry, i) => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--muted);">
-      <span>Set ${i+1}: ${s} reps</span>
-      <button onclick="deleteChallengeSet('push',${i})" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
-    </div>`).join('');
-  const sitSetRows=day.sitSets.map((s,i)=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--muted);">
-      <span>Set ${i+1}: ${s} reps</span>
-      <button onclick="deleteChallengeSet('sit',${i})" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
-    </div>`).join('');
+      <span>${meta.unit === 'reps' ? `Entry ${i+1}: ${entry} reps` : `Entry ${i+1}: done`}</span>
+      <button onclick="deleteChallengeSet('main',${i})" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
+    </div>
+  `).join('');
+  const quickButtons = meta.quick.map(amount => `
+    <button onclick="addChallengeQuick('main',${amount})" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:8px;color:var(--accent);font-size:12px;cursor:pointer;">
+      ${meta.unit === 'reps' ? `+${amount}` : 'DONE'}
+    </button>
+  `).join('');
 
   _showModal(`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -122,278 +167,203 @@ export function logChallengeDay(){
       <button onclick="challengeNavDay(1)" style="background:none;border:none;color:${canGoNext?'var(--accent)':'var(--bg3)'};font-size:16px;cursor:pointer;padding:4px 8px;"${canGoNext?'':'disabled'}>›</button>
     </div>
 
-    <div style="display:flex;gap:10px;margin-bottom:10px;">
-      <div style="flex:1;">
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">PUSH-UPS · ${day.pushups}/100</div>
-        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:6px;">
-          <div style="height:100%;width:${Math.min(100,day.pushups)}%;background:${day.pushups>=100?'var(--green)':'var(--accent)'};border-radius:3px;transition:width 0.3s;"></div>
-        </div>
-        ${pushSetRows}
-        <div style="display:flex;gap:4px;margin-top:4px;">
-          <button onclick="addChallengeQuick('push',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+5</button>
-          <button onclick="addChallengeQuick('push',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
-          <button onclick="addChallengeQuick('push',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+20</button>
-          <button onclick="addChallengeQuick('push',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
-        </div>
-        ${day.pushSets.length?`<button onclick="addChallengeQuick('push',${day.pushSets[day.pushSets.length-1]})" style="width:100%;margin-top:4px;background:var(--accent);border:none;border-radius:6px;padding:6px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.pushSets[day.pushSets.length-1]}</button>`:''}
-      </div>
-      <div style="flex:1;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <div style="font-size:9px;color:var(--dim);">${_exLabel} · ${day.situps}/100</div>
-          <button onclick="toggleChallengeEx()" style="background:none;border:none;color:var(--accent);font-size:8px;cursor:pointer;padding:0;">↔ ${otherLabel}</button>
-        </div>
-        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:6px;">
-          <div style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:3px;transition:width 0.3s;"></div>
-        </div>
-        ${sitSetRows}
-        <div style="display:flex;gap:4px;margin-top:4px;">
-          <button onclick="addChallengeQuick('sit',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+5</button>
-          <button onclick="addChallengeQuick('sit',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+10</button>
-          <button onclick="addChallengeQuick('sit',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+20</button>
-          <button onclick="addChallengeQuick('sit',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px;color:var(--accent);font-size:12px;cursor:pointer;">+25</button>
-        </div>
-        ${day.sitSets.length?`<button onclick="addChallengeQuick('sit',${day.sitSets[day.sitSets.length-1]})" style="width:100%;margin-top:4px;background:var(--accent);border:none;border-radius:6px;padding:6px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.sitSets[day.sitSets.length-1]}</button>`:''}
-      </div>
+    <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">${meta.label}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${status}</div>
+    <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:10px;">
+      <div style="height:100%;width:${Math.min(100,(day.count/meta.target)*100)}%;background:${done?'var(--green)':'var(--accent)'};border-radius:3px;transition:width 0.3s;"></div>
     </div>
-
-    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="challengeLogDate=null;hideModal()">DONE</button>
+    ${entryRows}
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      ${quickButtons}
+    </div>
+    ${day.entries.length && meta.unit === 'reps' ? `<button onclick="addChallengeQuick('main',${day.entries[day.entries.length-1]})" style="width:100%;margin-top:6px;background:var(--accent);border:none;border-radius:6px;padding:8px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.entries[day.entries.length-1]}</button>` : ''}
+    <button class="btn ghost" style="width:100%;margin-top:10px;" onclick="challengeLogDate=null;hideModal()">DONE</button>
   `);
 }
-export function addChallengeQuick(type,reps){
-  const ch=getChallengeState();
-  const d=challengeLogDate||todayStr();
-  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
-  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
-  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
-  if(type==='push'){
-    ch.days[d].pushSets.push(reps);
-    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
-  } else {
-    ch.days[d].sitSets.push(reps);
-    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
-  }
+
+export function addChallengeQuick(type, amount){
+  const ch = getChallengeState();
+  const d = challengeLogDate || todayStr();
+  const day = ensureChallengeDay(ch, d);
+  const meta = getChallengeMeta(ch);
+  const entryValue = meta.unit === 'reps' ? amount : 1;
+  day.entries.push(entryValue);
+  day.count = day.entries.reduce((a, n) => a + n, 0);
   _save();
-  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete! 🔥');
+  if(isDayComplete(ch, day)) showToast('Challenge complete for today! 🔥');
   logChallengeDay();
 }
-export function addChallengeQuickSilent(type,reps){
-  const ch=getChallengeState();
-  const d=todayStr();
-  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
-  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
-  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
-  if(type==='push'){
-    ch.days[d].pushSets.push(reps);
-    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
-  } else {
-    ch.days[d].sitSets.push(reps);
-    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
-  }
+
+export function addChallengeQuickSilent(type, amount){
+  const ch = getChallengeState();
+  if(!ch.active) return;
+  const d = todayStr();
+  const day = ensureChallengeDay(ch, d);
+  const meta = getChallengeMeta(ch);
+  const entryValue = meta.unit === 'reps' ? amount : 1;
+  day.entries.push(entryValue);
+  day.count = day.entries.reduce((a, n) => a + n, 0);
   _save();
-  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete for today! 🔥');
 }
+
 export function addChallengeSet(type){
-  const ch=getChallengeState();
-  const d=challengeLogDate||todayStr();
-  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
-  if(!ch.days[d].pushSets) ch.days[d].pushSets=[];
-  if(!ch.days[d].sitSets) ch.days[d].sitSets=[];
-  const inputId=type==='push'?'ch-push-reps':'ch-sit-reps';
-  const reps=parseInt(document.getElementById(inputId)?.value)||0;
-  if(!reps){showToast('Enter reps');return;}
-  if(type==='push'){
-    ch.days[d].pushSets.push(reps);
-    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
-  } else {
-    ch.days[d].sitSets.push(reps);
-    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
-  }
+  addChallengeQuick(type, 1);
+}
+
+export function deleteChallengeSet(type, idx){
+  const ch = getChallengeState();
+  const d = challengeLogDate || todayStr();
+  const day = ensureChallengeDay(ch, d);
+  day.entries.splice(idx, 1);
+  day.count = day.entries.reduce((a, n) => a + n, 0);
   _save();
-  if(ch.days[d].pushups>=100&&ch.days[d].situps>=100) showToast('Challenge complete! 🔥');
   logChallengeDay();
 }
-export function deleteChallengeSet(type,idx){
-  const ch=getChallengeState();
-  const d=challengeLogDate||todayStr();
-  if(!ch.days[d]) return;
-  if(type==='push'){
-    ch.days[d].pushSets.splice(idx,1);
-    ch.days[d].pushups=ch.days[d].pushSets.reduce((a,r)=>a+r,0);
-  } else {
-    ch.days[d].sitSets.splice(idx,1);
-    ch.days[d].situps=ch.days[d].sitSets.reduce((a,r)=>a+r,0);
-  }
-  _save(); logChallengeDay();
-}
+
 export function resetChallenge(){
   _showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">RESET CHALLENGE?</div>
     <div style="font-size:13px;color:var(--text);margin-bottom:20px;">This will clear all progress.</div>
-    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);width:100%;" onclick="state.challenge={startDate:null,days:{},active:false};save();hideModal();render();">RESET</button>
+    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);width:100%;" onclick="state.challenge={startDate:null,days:{},active:false,type:'pushups'};save();hideModal();render();">RESET</button>
     <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CANCEL</button>
   `);
 }
-export function renderChallenge(){
-  const ch=getChallengeState();
-  if(!ch.active){
-    return `<button onclick="startChallenge()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;text-align:center;">
-      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:4px;">MONTHLY CHALLENGE</div>
-      <div style="font-size:12px;color:var(--muted);">100 push-ups + 100 reps daily</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:4px;">Tap to start</div>
-    </button>`;
-  }
-  let start=parseDateKey(ch.startDate);
-  const now=new Date();
-  let dayNum=Math.floor((now-start)/86400000)+1;
 
-  // ── Auto-reset / perfect month chaining ──
-  // Challenge runs on calendar months. At the start of a new month,
-  // check if every day from startDate through end of last month was perfect.
-  // Perfect → chain (target extends through end of current month).
-  // Missed any day → reset (new challenge starts the 1st of this month).
-  const startMonthEnd=new Date(start.getFullYear(),start.getMonth()+1,0); // last day of start's month
-  if(now>startMonthEnd){
-    // We've crossed at least one month boundary — check all completed months
-    const lastMonthEnd=new Date(now.getFullYear(),now.getMonth(),0); // last day of previous month
-    let allPerfect=true;
-    const cd=new Date(start.getTime());
-    while(cd<=lastMonthEnd){
-      const data=ch.days[dateKey(cd)];
-      if(!data||data.pushups<100||data.situps<100){ allPerfect=false; break; }
-      cd.setDate(cd.getDate()+1);
-    }
-    if(!allPerfect){
-      // Reset — new challenge aligned to 1st of this month
-      const firstOfMonth=new Date(now.getFullYear(),now.getMonth(),1);
-      ch.startDate=dateKey(firstOfMonth);
-      ch.days={};
+function renderTypeChips(activeType){
+  return CHALLENGE_TYPE_ORDER.map((type) => `
+    <button onclick="setChallengeType('${type}')" style="padding:8px 10px;border-radius:999px;border:1px solid ${activeType===type?'rgba(232,213,160,0.28)':'var(--border2)'};background:${activeType===type?'rgba(232,213,160,0.08)':'var(--bg3)'};color:${activeType===type?'var(--accent)':'var(--muted)'};font-size:10px;letter-spacing:1px;cursor:pointer;">
+      ${CHALLENGE_TYPES[type].title}
+    </button>
+  `).join('');
+}
+
+export function renderChallenge(){
+  const ch = getChallengeState();
+  const meta = getChallengeMeta(ch);
+  if(!ch.active){
+    return `<div style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">MONTHLY CHALLENGE</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Pick one focus to repeat all month.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${renderTypeChips(ch.type || 'pushups')}</div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:10px;">Current: ${meta.title} · ${meta.target} ${meta.unit}</div>
+      <button onclick="startChallenge()" class="btn primary" style="width:100%;font-size:13px;">START ${meta.title.toUpperCase()}</button>
+    </div>`;
+  }
+
+  let start = parseDateKey(ch.startDate);
+  const now = new Date();
+  let dayNum = Math.floor((now - start) / 86400000) + 1;
+  const startMonthEnd = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+  if(now > startMonthEnd){
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const completed = completedDays(ch, start, lastMonthEnd);
+    const totalNeeded = Math.floor((lastMonthEnd - start) / 86400000) + 1;
+    if(completed !== totalNeeded){
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      ch.startDate = dateKey(firstOfMonth);
+      ch.days = {};
       _save();
       showToast('New month, new challenge! 💪');
-      start=firstOfMonth;
-      dayNum=now.getDate(); // day of current month
+      start = firstOfMonth;
+      dayNum = now.getDate();
     }
   }
 
-  // Target = days from startDate through end of current month
-  const endOfMonth=new Date(now.getFullYear(),now.getMonth()+1,0);
-  const target=Math.floor((endOfMonth-start)/86400000)+1;
-  const daysInThisMonth=endOfMonth.getDate();
-
-  const daysCompleted=Object.values(ch.days).filter(d=>d.pushups>=100&&d.situps>=100).length;
-  const todayDone=ch.days[todayStr()];
-  const todayComplete=todayDone&&todayDone.pushups>=100&&todayDone.situps>=100;
-  const pct=Math.round((daysCompleted/target)*100);
-  // Calculate challenge streak (consecutive days completed ending today or yesterday)
-  let challengeStreak=0;
-  const checkDate=new Date();
-  if(!todayComplete) checkDate.setDate(checkDate.getDate()-1);
-  for(let i=0;i<target;i++){
-    const ds=checkDate.toDateString();
-    const dd=ch.days[ds];
-    if(dd&&dd.pushups>=100&&dd.situps>=100){ challengeStreak++; checkDate.setDate(checkDate.getDate()-1); }
-    else break;
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const targetDays = Math.floor((endOfMonth - start) / 86400000) + 1;
+  const daysCompleted = completedDays(ch, start, endOfMonth);
+  const pct = Math.round((daysCompleted / targetDays) * 100);
+  const todayDone = ensureChallengeDay(ch, todayStr());
+  const todayComplete = isDayComplete(ch, todayDone);
+  let challengeStreak = 0;
+  const checkDate = new Date();
+  if(!todayComplete) checkDate.setDate(checkDate.getDate() - 1);
+  for(let i = 0; i < targetDays; i++){
+    const ds = dateKey(checkDate);
+    const day = ensureChallengeDay(ch, ds);
+    if(isDayComplete(ch, day)){
+      challengeStreak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
   }
 
-  // Build day grid — scales dot size for extended challenges
-  const dotSize=target<=31?14:target<=62?10:8;
-  const dots=[...Array(target)].map((_,i)=>{
-    const dotDate=new Date(start.getTime()); dotDate.setDate(dotDate.getDate()+i);
-    const ds=dateKey(dotDate);
-    const data=ch.days[ds];
-    const done=data&&data.pushups>=100&&data.situps>=100;
-    const partial=data&&(data.pushups>0||data.situps>0)&&!done;
-    const isToday=ds===todayStr();
-    const isPast=dotDate<new Date()&&!isToday;
-    const bg=done?'var(--green)':partial?'var(--accent)':isToday?'var(--accent)':'var(--bg3)';
-    const opacity=done?'1':partial?'0.5':isToday?'0.3':isPast?'0.15':'0.1';
+  const dotSize = targetDays <= 31 ? 14 : targetDays <= 62 ? 10 : 8;
+  const dots = [...Array(targetDays)].map((_, i) => {
+    const dotDate = new Date(start.getTime());
+    dotDate.setDate(dotDate.getDate() + i);
+    const ds = dateKey(dotDate);
+    const day = ensureChallengeDay(ch, ds);
+    const done = isDayComplete(ch, day);
+    const partial = day.count > 0 && !done;
+    const isToday = ds === todayStr();
+    const isPast = dotDate < new Date() && !isToday;
+    const bg = done ? 'var(--green)' : partial ? 'var(--accent)' : isToday ? 'var(--accent)' : 'var(--bg3)';
+    const opacity = done ? '1' : partial ? '0.5' : isToday ? '0.3' : isPast ? '0.15' : '0.1';
     return `<div style="width:${dotSize}px;height:${dotSize}px;border-radius:3px;background:${bg};opacity:${opacity};"></div>`;
   }).join('');
 
-  // Label: show month name for single-month, or streak length for chained months
-  const monthNames=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const isChained=start.getMonth()!==now.getMonth()||start.getFullYear()!==now.getFullYear();
-  const label=isChained?`${dayNum}-DAY STREAK · ${monthNames[now.getMonth()]}`:`${monthNames[now.getMonth()]} CHALLENGE · DAY ${dayNum}/${daysInThisMonth}`;
+  const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const isChained = start.getMonth() !== now.getMonth() || start.getFullYear() !== now.getFullYear();
+  const label = isChained ? `${dayNum}-DAY STREAK · ${monthNames[now.getMonth()]}` : `${monthNames[now.getMonth()]} ${meta.title.toUpperCase()} · DAY ${dayNum}/${endOfMonth.getDate()}`;
 
   return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">${label}</div>
       <button onclick="resetChallenge()" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
     </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${meta.title} · ${meta.target} ${meta.unit}</div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <div style="font-size:11px;color:var(--muted);">${daysCompleted}/${target} days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
-      <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayComplete?'✓ Done today':todayDone?todayDone.pushups+' push · '+todayDone.situps+' '+exShort(ch):'Not yet today'}</div>
+      <div style="font-size:11px;color:var(--muted);">${daysCompleted}/${targetDays} days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
+      <div style="font-size:11px;color:${todayComplete?'var(--green)':'var(--dim)'};">${todayStatus(ch)}</div>
     </div>
-    <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG SOME WORK'}</button>
+    <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;font-size:13px;">${todayComplete?'UPDATE TODAY':'LOG TODAY'}</button>
   </div>`;
 }
 
-export function inlineChallengeAdd(type,reps){
-  addChallengeQuickSilent(type,reps);
-  const el=document.getElementById('inline-challenge');
+export function inlineChallengeAdd(type, reps){
+  addChallengeQuickSilent(type, reps);
+  const el = document.getElementById('inline-challenge');
   if(el){
-    const ch=getChallengeState();
-    const d=todayStr();
-    const day=ch.days[d]||{pushups:0,situps:0};
-    const pLabel=document.getElementById('ic-push-label');
-    const pBar=document.getElementById('ic-push-bar');
-    const sLabel=document.getElementById('ic-sit-label');
-    const sBar=document.getElementById('ic-sit-bar');
-    if(pLabel) pLabel.textContent='PUSH-UPS '+day.pushups+'/100';
-    if(pBar) pBar.style.width=Math.min(100,day.pushups)+'%';
-    if(pBar) pBar.style.background=day.pushups>=100?'var(--green)':'var(--accent)';
-    if(sLabel) sLabel.textContent=exLabel(ch)+' '+day.situps+'/100';
-    if(sBar) sBar.style.width=Math.min(100,day.situps)+'%';
-    if(sBar) sBar.style.background=day.situps>=100?'var(--green)':'var(--accent)';
-    const done=day.pushups>=100&&day.situps>=100;
-    const badge=document.getElementById('ic-done');
-    if(badge) badge.style.display=done?'inline':'none';
-    if(done) el.style.borderColor='rgba(82,200,122,0.3)';
+    const ch = getChallengeState();
+    const meta = getChallengeMeta(ch);
+    const day = ensureChallengeDay(ch, todayStr());
+    const label = document.getElementById('ic-main-label');
+    const bar = document.getElementById('ic-main-bar');
+    const done = isDayComplete(ch, day);
+    if(label) label.textContent = `${meta.label} ${day.count}/${meta.target}`;
+    if(bar) bar.style.width = Math.min(100, (day.count/meta.target)*100) + '%';
+    if(bar) bar.style.background = done ? 'var(--green)' : 'var(--accent)';
+    const badge = document.getElementById('ic-done');
+    if(badge) badge.style.display = done ? 'inline' : 'none';
+    if(done) el.style.borderColor = 'rgba(82,200,122,0.3)';
   }
 }
+
 export function renderInlineChallenge(){
   const state = _state();
-  if(!state.challenge||!state.challenge.active) return '';
-  const ch=getChallengeState();
-  const d=todayStr();
-  if(!ch.days[d]) ch.days[d]={pushups:0,situps:0,pushSets:[],sitSets:[]};
-  const day=ch.days[d];
-  const _exLabel2=exLabel(ch);
-  const otherExLabel=exNext(ch);
-  const done=day.pushups>=100&&day.situps>=100;
+  if(!state.challenge || !state.challenge.active) return '';
+  const ch = getChallengeState();
+  const meta = getChallengeMeta(ch);
+  const day = ensureChallengeDay(ch, todayStr());
+  const done = isDayComplete(ch, day);
+  const buttons = meta.quick.map(amount => `
+    <button onclick="inlineChallengeAdd('main',${amount})" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">
+      ${meta.unit === 'reps' ? `+${amount}` : 'DONE'}
+    </button>
+  `).join('');
+
   return `<div id="inline-challenge" style="margin-bottom:12px;background:var(--bg2);border:1px solid ${done?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:12px;padding:10px 12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:8px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">DAILY CHALLENGE</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button onclick="toggleChallengeEx();render();" style="background:none;border:none;color:var(--accent);font-size:8px;letter-spacing:1px;cursor:pointer;padding:0;text-transform:uppercase;">↔ ${otherExLabel}</button>
-        <span id="ic-done" style="font-size:9px;color:var(--green);display:${done?'inline':'none'};">✓ DONE</span>
-      </div>
+      <span id="ic-done" style="font-size:9px;color:var(--green);display:${done?'inline':'none'};">✓ DONE</span>
     </div>
-    <div style="display:flex;gap:8px;">
-      <div style="flex:1;">
-        <div id="ic-push-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">PUSH-UPS ${day.pushups}/100</div>
-        <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:4px;">
-          <div id="ic-push-bar" style="height:100%;width:${Math.min(100,day.pushups)}%;background:${day.pushups>=100?'var(--green)':'var(--accent)'};border-radius:2px;transition:width 0.2s;"></div>
-        </div>
-        <div style="display:flex;gap:3px;">
-          <button onclick="inlineChallengeAdd('push',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
-          <button onclick="inlineChallengeAdd('push',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
-          <button onclick="inlineChallengeAdd('push',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
-          <button onclick="inlineChallengeAdd('push',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
-        </div>
-      </div>
-      <div style="flex:1;">
-        <div id="ic-sit-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">${_exLabel2} ${day.situps}/100</div>
-        <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:4px;">
-          <div id="ic-sit-bar" style="height:100%;width:${Math.min(100,day.situps)}%;background:${day.situps>=100?'var(--green)':'var(--accent)'};border-radius:2px;transition:width 0.2s;"></div>
-        </div>
-        <div style="display:flex;gap:3px;">
-          <button onclick="inlineChallengeAdd('sit',5)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+5</button>
-          <button onclick="inlineChallengeAdd('sit',10)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+10</button>
-          <button onclick="inlineChallengeAdd('sit',20)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+20</button>
-          <button onclick="inlineChallengeAdd('sit',25)" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">+25</button>
-        </div>
-      </div>
+    <div id="ic-main-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">${meta.label} ${day.count}/${meta.target}</div>
+    <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:6px;">
+      <div id="ic-main-bar" style="height:100%;width:${Math.min(100,(day.count/meta.target)*100)}%;background:${done?'var(--green)':'var(--accent)'};border-radius:2px;transition:width 0.2s;"></div>
     </div>
+    <div style="display:flex;gap:3px;">${buttons}</div>
   </div>`;
 }
