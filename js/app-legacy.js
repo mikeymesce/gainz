@@ -5216,7 +5216,11 @@ window.addEventListener('beforeunload',()=>{
 });
 // Also save on visibility change (switching tabs, locking phone, etc.)
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden&&activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
+  if(document.hidden){
+    if(activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
+    try{ hideModal(); }catch(e){}
+    try{ window.challengeLogDate = null; }catch(e){}
+  }
 });
 
 function showRecoveryBanner(recovered, source){
@@ -5269,6 +5273,8 @@ checkOnline();
 runTests();
 initTestsAndDebug();
 initModalDismiss();
+hideModal();
+try{ window.challengeLogDate = null; }catch(e){}
 render();
 
 // ── Login Gate: show every open unless user is logged in ──
