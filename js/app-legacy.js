@@ -2973,9 +2973,6 @@ function renderHome(){
     </div>`:''}
 
     ${renderThisWeek()}
-
-    ${renderTemplateQuickLaunch()}
-
     ${renderChallenge()}
 `;
 }
