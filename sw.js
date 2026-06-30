@@ -2,7 +2,7 @@
 // Caches app files, checks for updates on every load,
 // and refreshes automatically when new code is deployed.
 
-const CACHE_NAME = 'gainz-v17';
+const CACHE_NAME = 'gainz-v16';
 const ASSETS = [
   '/gainz/',
   '/gainz/index.html',
@@ -29,15 +29,23 @@ const ASSETS = [
   '/gainz/js/nutrition.js',
 ];
 
-// Install — cache the app shell for fast, reliable opens.
+// Install — cache all assets, bypassing browser HTTP cache
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(ASSETS.map(url =>
+        fetch(url, { cache: 'reload' }).then(res => {
+          if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+          return cache.put(url, res);
+        })
+      ))
+    )
   );
   self.skipWaiting();
 });
 
-// Activate — wipe old caches and claim clients.
+// Activate — wipe ALL old caches (including any stale gainz-v* caches),
+// claim clients immediately, then force a full reload so fresh files load.
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -46,20 +54,12 @@ self.addEventListener('activate', e => {
             .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(c => c.navigate(c.url)))
   );
 });
 
-function updateCache(request) {
-  return fetch(request).then(response => {
-    if (response && response.ok) {
-      const clone = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-    }
-    return response;
-  });
-}
-
-// Fetch — serve cached shell/assets first, then refresh quietly.
+// Fetch — network-first for navigation, stale-while-revalidate for assets
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (!e.request.url.includes('mikeymesce.github.io/gainz')) return;
@@ -67,21 +67,33 @@ self.addEventListener('fetch', e => {
   if (e.request.url.includes('supabase')) return;
   if (e.request.url.includes('googleapis')) return;
 
+  // Navigation requests (HTML pages) — always try network first
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      caches.match('/gainz/index.html').then(cached => {
-        const networkRefresh = updateCache(e.request).catch(() => null);
-        return cached || networkRefresh;
-      })
+      fetch(e.request, { cache: 'reload' })
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(e.request))
     );
     return;
   }
 
+  // JS/CSS assets — network first, fall back to cache
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const networkRefresh = updateCache(e.request).catch(() => null);
-      return cached || networkRefresh;
-    })
+    fetch(e.request, { cache: 'reload' })
+      .then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
 
