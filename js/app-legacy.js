@@ -31,7 +31,17 @@ function applyTheme(t){
 // ── State load with validation + migration ──
 let _rawState = null;
 try {
-  _rawState = JSON.parse(localStorage.getItem("gainz_v5") || "null");
+  const bootKeys = ['gainz_v5', 'gainz_v5_backup_0', 'gainz_v5_backup_1', 'gainz_v5_backup_2'];
+  const bootCandidates = bootKeys.map((key) => {
+    try{
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    }catch(e){
+      return null;
+    }
+  }).filter(Boolean);
+  bootCandidates.sort((a,b)=>Number(b._localUpdatedAt||0)-Number(a._localUpdatedAt||0));
+  _rawState = bootCandidates[0] || null;
 } catch(e) {
   logDebug("❌ State parse error — resetting to defaults");
   setTimeout(()=>showToast("Data restored to defaults"), 500);
@@ -41,6 +51,8 @@ let activeWorkout = null;
 let screen = "start";
 let historyDetail = null;
 let progressEx = null;
+let historyAdvancedView = false;
+let moreAdvancedView = false;
 let collapsedEx = new Set();
 let doneExSet   = new Set(); // exercises marked done this session
 let renamingEx = null;
@@ -101,7 +113,7 @@ async function cloudSignIn(){
   const cloud=await syncFromCloud();
   if(cloud){
     Object.assign(state,migrateState(cloud));
-    localStorage.setItem('gainz_v5',JSON.stringify(state));
+    saveImmediate();
     showToast('Data synced from cloud');
   }
   render();
@@ -137,7 +149,7 @@ async function cloudSyncNow(){
   const cloud=await syncFromCloud();
   if(cloud){
     Object.assign(state,migrateState(cloud));
-    localStorage.setItem('gainz_v5',JSON.stringify(state));
+    saveImmediate();
     showToast('Data pulled from cloud');
     render();
   } else {
@@ -145,6 +157,16 @@ async function cloudSyncNow(){
     showToast('Data pushed to cloud');
     render();
   }
+}
+
+function hasCloudSessionHint(){
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i)||'';
+      if(key.startsWith('sb-bvnkzimwskuruhdmzpbt-auth-token') || key.includes('supabase.auth.token')) return true;
+    }
+  }catch(e){}
+  return false;
 }
 
 // ── Load custom muscle mappings from saved state ──
@@ -156,12 +178,13 @@ if(state._customMuscles){
 
 // ── Sync on App Load ──
 setTimeout(async ()=>{
+  if(!hasCloudSessionHint()) return;
   if(!syncFromCloud) return;
   try{
     const cloud=await syncFromCloud();
     if(cloud){
       Object.assign(state,migrateState(cloud));
-      localStorage.setItem('gainz_v5',JSON.stringify(state));
+      saveImmediate();
       render();
     }
   }catch(e){console.warn('[GAINZ] Load sync failed:',e);}
@@ -723,7 +746,7 @@ function startWorkout(split){
   // Auto-save every 20s during workout
   clearInterval(autoSaveInterval);
   autoSaveInterval=setInterval(()=>{
-    if(activeWorkout){ try{ localStorage.setItem("gainz_recovery",JSON.stringify(activeWorkout)); }catch(e){} }
+    if(activeWorkout) saveWorkoutRecovery(activeWorkout);
     else{ clearInterval(autoSaveInterval); }
   },20000);
   // Smart Start: offer to load exercises from last same-split workout
@@ -792,7 +815,7 @@ function addExercise(name){
   const nameLow=name.toLowerCase();
   const isUni=/single|one[\s-]?arm|one[\s-]?leg|lunge|bulgarian|step[\s-]?up|pistol|split squat/i.test(nameLow);
   activeWorkout.exercises.push({name,sets:[],superset:false,ssPair:null,bwMode:isBW,notes:"",warmupNext:false,mode:'bb',unilateral:isUni});
-  try{ localStorage.setItem('gainz_recovery', JSON.stringify(activeWorkout)); }catch(e){}
+  saveWorkoutRecovery(activeWorkout);
 
   // Auto-detect muscles for unknown exercises so weekly volume tracking works
   if(!EX_MUSCLES[name] && typeof detectMusclesFromName==='function'){
@@ -882,7 +905,7 @@ function confirmSet(name,rowIdx){
   const newSet={weight:bw?'BW':w,reps:r,time:Date.now(),bw:!!bw,pr:wasPR||undefined,warmup:isWarmup||undefined,db:isDB||undefined,unilateral:isUni||undefined};
   if(isWarmup) ex.warmupNext=false;
   ex.sets.push(newSet);
-  try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){}
+  saveWorkoutRecovery(activeWorkout);
   if(wasPR){haptic('heavy');confetti();}else{haptic('medium');}
   // Start rest timer
   const rest=state.exerciseRests[name]??GLOBAL_DEFAULT;
@@ -1057,7 +1080,7 @@ function logSet(n){
   if(ex) ex.sets.push(newSet);
   setHistory.push({exerciseName:n,set:newSet});
   // crash recovery save
-  try{ localStorage.setItem("gainz_recovery", JSON.stringify(activeWorkout)); }catch(e){}
+  saveWorkoutRecovery(activeWorkout);
   haptic("light");
   // Superset flow: after logging, prompt partner; start rest after both have logged
   if(ex?.superset && ex?.ssPair){
@@ -1173,7 +1196,7 @@ function addDrop(exName,setIdx){
   if(!set.drops) set.drops=[];
   set.drops.push({weight:w,reps:r});
   haptic('light');
-  try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){}
+  saveWorkoutRecovery(activeWorkout);
   logDebug('↳ Drop added: '+exName+' set '+(setIdx+1)+' → '+w+'lb x '+r);
   dropInputOpen={exName,setIdx}; // keep open for more drops
   render();
@@ -1445,7 +1468,7 @@ async function nudgeSignIn(){
   hideModal();
   showToast('Signed in — your data is now backed up 🔒');
   const cloud=await syncFromCloud();
-  if(cloud){ Object.assign(state,migrateState(cloud)); localStorage.setItem('gainz_v5',JSON.stringify(state)); }
+  if(cloud){ Object.assign(state,migrateState(cloud)); saveImmediate(); }
   await syncToCloud();
   render();
 }
@@ -2009,7 +2032,7 @@ function finishWorkout(){
   if(state.templates.length>20) state.templates=state.templates.slice(0,20);
   saveImmediate();
   clearInterval(autoSaveInterval);
-  try{ localStorage.removeItem("gainz_recovery"); }catch(e){}
+  clearWorkoutRecovery();
   // Clear active workout from cloud since it's now saved as a finished workout
   if(window.clearActiveWorkoutFromCloud) window.clearActiveWorkoutFromCloud();
   releaseWakeLock();
@@ -2052,7 +2075,7 @@ function applyWorkoutTime(){
   const m=parseInt(document.getElementById('edit-wo-min')?.value)||0;
   const newElapsed=(h*60+m)*60000;
   activeWorkout.startTime=Date.now()-newElapsed;
-  try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){}
+  saveWorkoutRecovery(activeWorkout);
   startWoTimer();
   hideModal();
   showToast('Workout time updated');
@@ -2061,7 +2084,7 @@ function abandonWorkout(){
   showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">LEAVE WORKOUT?</div>
     <div style="font-size:13px;color:var(--text);margin-bottom:20px;">This will discard everything from this session. Nothing will be saved.</div>
-    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);" onclick="activeWorkout=null;setHistory=[];skipTimer();stopWoTimer();collapsedEx.clear();doneExSet.clear();try{localStorage.removeItem('gainz_recovery');}catch(e){}screen='start';hideModal();render();">LEAVE WITHOUT SAVING</button>
+    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);" onclick="activeWorkout=null;setHistory=[];skipTimer();stopWoTimer();collapsedEx.clear();doneExSet.clear();clearWorkoutRecovery();screen='start';hideModal();render();">LEAVE WITHOUT SAVING</button>
     <button class="btn ghost" onclick="hideModal()" style="margin-top:8px;">KEEP WORKING</button>
   `);
 }
@@ -2078,15 +2101,18 @@ function goBack(){
     }
     historyDetail=null; histEditMode=false; histEditDirty=false; histEditSnapshot=null; render(); return;
   }
+  if(screen==="programBuilder"){ screen="workoutSetup"; render(); return; }
+  if(screen==="workoutSetup"){ screen="settings"; render(); return; }
   if(screen==="prHistory"){ screen="settings"; render(); return; }
   if(screen==="settings"){ screen="start"; render(); return; }
   if(screen==="log" && activeWorkout){ abandonWorkout(); return; }
+  if(screen==="gym" && !activeWorkout){ screen="start"; render(); return; }
 }
 
 function updateBackBtn(){
   const btn = document.getElementById("back-btn");
   if(!btn) return;
-  const show = progressEx || historyDetail || screen==="settings" || screen==="log" || screen==="prHistory";
+  const show = progressEx || historyDetail || screen==="settings" || screen==="workoutSetup" || screen==="programBuilder" || screen==="log" || screen==="gym" || screen==="prHistory";
   btn.classList.toggle("visible", !!show);
 }
 
@@ -2100,22 +2126,24 @@ function render(){
   const c=document.getElementById("content");
   const scrollY=window.scrollY||0;
   try{
-    if(screen==="start") c.innerHTML=renderHome();
+    if(screen==="start") c.innerHTML=typeof renderHomeCompact==='function' ? renderHomeCompact() : renderHome();
+    else if(screen==="gym") c.innerHTML=activeWorkout ? renderLog() : renderGymHub();
     else if(screen==="log") c.innerHTML=renderLog();
-    else if(screen==="me") c.innerHTML=renderMe();
+    else if(screen==="me") c.innerHTML=renderMeCompact();
     else if(screen==="nutrition") c.innerHTML=typeof renderNutrition==='function'?renderNutrition():'';
-    else if(screen==="settings"){ c.innerHTML=renderSettings(); setTimeout(()=>{ if(typeof renderSyncUI==='function') renderSyncUI(); },50); }
+    else if(screen==="settings"){ c.innerHTML=renderSettingsCompact(); setTimeout(()=>{ if(typeof renderSyncUI==='function') renderSyncUI(); },50); }
+    else if(screen==="workoutSetup") c.innerHTML=renderWorkoutSetup();
     else if(screen==="programBuilder") c.innerHTML=renderProgramBuilder();
     else if(screen==="prHistory") c.innerHTML=renderPRHistory();
   }catch(e){ console.error('[GAINZ render]',screen,e); c.innerHTML=`<div style="padding:20px;color:var(--danger);">Render error: ${e.message}</div>`; }
-  if(screen==="log"){
+  if(screen==="log" || (screen==="gym" && activeWorkout)){
     window.scrollTo(0,scrollY);
     setTimeout(initSwipeCollapse,0);
     setTimeout(initSetSwipes,0);
   }
   const sf=document.getElementById("sticky-finish");
   if(sf){
-    const show=screen==="log"&&activeWorkout&&activeWorkout.exercises.length>0;
+    const show=(screen==="log"||screen==="gym")&&activeWorkout&&activeWorkout.exercises.length>0;
     sf.style.display=show?"block":"none";
     const ub=document.getElementById("sticky-undo");
     if(ub) ub.style.display=setHistory.length?"block":"none";
@@ -2131,24 +2159,24 @@ function render(){
   }
   if(screen==="start"){ setTimeout(initCarouselFade,0); setTimeout(maybeShowHomeTour,300); }
   // Auto-save active workout to recovery on every render
-  if(activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
+  if(activeWorkout) saveWorkoutRecovery(activeWorkout);
   if(FEATURES.devMode){const t=performance.now()-renderStart;if(t>16)console.warn(`[GAINZ] render() took ${t.toFixed(1)}ms`);}
 }
 
 function renderNav(){
   const nav=document.getElementById("nav");
   const tabs=[
-    ["start","▲","START"],
-    ["me","◎","ME"],
-    ["nutrition","◆","FUEL"],
+    ["start","▲","TODAY"],
+    ["gym","●","GYM"],
+    ["me","◎","HISTORY"],
     ["settings","⚙","MORE"]
   ];
-  if(activeWorkout) tabs.splice(1,0,["log","●","LOG"]);
   nav.innerHTML=tabs.map(([s,ic,lb])=>{
-    const isActive=screen===s||(s==="settings"&&screen==="prHistory");
-    const isLog=s==="log";
-    const glowing=activeWorkout&&isLog;
-    return `<button class="nav-btn ${isActive?"active":""}" onclick="screen='${s}';historyDetail=null;progressEx=null;render()" style="">
+    const isGymTab=s==="gym";
+    const isActive=(s==="settings"&&screen==="prHistory") || screen===s || (isGymTab && screen==="log");
+    const glowing=activeWorkout&&isGymTab;
+    const target=isGymTab?(activeWorkout?"log":"gym"):s;
+    return `<button class="nav-btn ${isActive?"active":""}" onclick="screen='${target}';historyDetail=null;progressEx=null;historyAdvancedView=false;moreAdvancedView=false;render()" style="">
       <span class="icon" style="${glowing?"color:var(--accent);":""}">${glowing?"●":ic}</span>
       <span style="${glowing?"color:var(--accent);":""}">${lb}</span>
     </button>`;
@@ -2518,10 +2546,7 @@ let homeTourStep=-1;
 let homeTourEl=null;
 
 function maybeShowHomeTour(){
-  if(localStorage.getItem('gainz_seen_home_tour')) return;
-  if(homeTourStep>=0) return; // already showing
-  homeTourStep=0;
-  showHomeTourStep();
+  return;
 }
 
 function showHomeTourStep(){
@@ -2985,6 +3010,464 @@ function renderHome(){
 
 
 // ═══════════════════════════════════════════
+// COMPACT HOME — simplified daily tracker
+// ═══════════════════════════════════════════
+function renderHomeCompact(){
+  const todayWorkout=(state.workouts||[]).some(w=>new Date(w.timestamp).toISOString().slice(0,10)===new Date().toISOString().slice(0,10));
+  const daily=typeof ensureTodayDaily==='function' ? ensureTodayDaily() : null;
+  const supp=typeof ensureTodaySupp==='function' ? ensureTodaySupp() : { creatine:0, creatineDose:5 };
+  const lastBW=(state.bodyweight||[])[0]||null;
+  const creatineDays=typeof suppWeekCount==='function' ? suppWeekCount('creatine') : 0;
+  const sleepLabel=daily?.sleepHours===null||daily?.sleepHours===undefined?'Sleep --':`${daily.sleepHours}h sleep`;
+  const foodLabel=daily?.foodOnTrack?'Food on track':'Food not logged';
+  const stressLabel=daily?.stressLevel==='low'?'Calm':daily?.stressLevel==='mid'?'Busy':daily?.stressLevel==='high'?'Anxious':'Stress --';
+  const workoutLabel=activeWorkout?'Workout running':todayWorkout?'Workout done':'No workout yet';
+  const creatineOn=!!supp.creatine;
+  const creatineDose=supp.creatineDose||5;
+  const primaryStatus=activeWorkout
+    ? `${splitName(activeWorkout.split)} in progress`
+    : todayWorkout
+      ? 'Workout complete'
+      : 'Ready to train';
+  const secondaryStatus=[
+    sleepLabel !== 'Sleep --' ? sleepLabel : 'Sleep missing',
+    creatineOn ? `Creatine ${creatineDose}g` : 'Creatine open',
+    stressLabel !== 'Stress --' ? stressLabel : 'Stress open'
+  ].join(' · ');
+
+  return `
+    ${activeWorkout?`
+      <div class="active-banner" onclick="screen='log';render()" style="margin-bottom:12px;">
+        <div><span class="active-dot"></span><span style="font-size:13px;color:var(--accent)">IN PROGRESS</span>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;">${splitName(activeWorkout.split)} · ${activeWorkout.exercises.length} exercises</div>
+        </div>
+        <span style="color:var(--accent)">&#8594;</span>
+      </div>`:''}
+
+    <div class="sb-header">
+      <div>
+        <div class="sb-header-time">Today.</div>
+        <div class="sb-header-sub">Simple tracking, one screen</div>
+      </div>
+      <div style="text-align:right;">
+        <button class="sb-header-date" onclick="openDailyCheckin()" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px 12px;font-family:'DM Sans',sans-serif;">
+          <div style="font-size:12px;color:var(--text);">${today()}</div>
+          <div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">EDIT CHECK-IN</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="today-hero">
+      <div class="today-hero-kicker">Daily reset</div>
+      <div class="today-hero-title">${primaryStatus}</div>
+      <div class="today-hero-sub">${secondaryStatus}</div>
+      <div class="today-hero-meta">
+        <span class="today-hero-chip">${lastBW?`${lastBW.weight} lb latest`:'Weight open'}</span>
+        <span class="today-hero-chip">${creatineDays}/7 creatine</span>
+        <span class="today-hero-chip">${state.streak||0} day streak</span>
+      </div>
+      <div class="today-hero-actions">
+        <button class="btn primary" onclick="${activeWorkout?"screen='log';render()":"quickStart()"}" style="flex:1;margin-bottom:0;">${activeWorkout?'RESUME WORKOUT':'START WORKOUT'}</button>
+        <button class="btn ghost" onclick="openDailyCheckin()" style="flex:1;margin-bottom:0;">CHECK IN</button>
+      </div>
+    </div>
+
+    <div class="quick-action-row quick-action-row-luxe">
+      <button class="quick-action-chip${lastBW?' active':''}" onclick="openWeighIn()">
+        <span class="quick-action-kicker">Weight</span>
+        <strong>${lastBW?`${lastBW.weight} lb`:'Log now'}</strong>
+        <span>${lastBW?'Tap to update':'Morning or post-workout'}</span>
+      </button>
+      <button class="quick-action-chip${creatineOn?' active':''}" onclick="toggleCreatine()">
+        <span class="quick-action-kicker">Creatine</span>
+        <strong>${creatineOn?`${creatineDose}g taken`:`${creatineDose}g target`}</strong>
+        <span>${creatineOn?'Tap to undo':'One tap to log'}</span>
+      </button>
+    </div>
+
+    ${typeof renderDailyTracker==='function' ? renderDailyTracker() : ''}
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Today at a glance</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Workout</div>
+          <div style="font-size:13px;color:var(--text);">${workoutLabel}</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Sleep</div>
+          <div style="font-size:13px;color:var(--text);">${sleepLabel}</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Food</div>
+          <div style="font-size:13px;color:var(--text);">${foodLabel}</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Stress</div>
+          <div style="font-size:13px;color:var(--text);">${stressLabel}</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+        <div style="font-size:11px;color:var(--dim);">Streak ${state.streak||0}</div>
+        <button onclick="screen='settings';render()" style="background:none;border:none;color:var(--accent);font-size:11px;letter-spacing:1px;cursor:pointer;padding:0;">MORE</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderGymHub(){
+  const rec=getRec();
+  const activeSplits=getActiveSplits();
+  const recent=(state.workouts||[]).slice(0,4);
+
+  return `
+    <div class="sb-header">
+      <div>
+        <div class="sb-header-time">Gym.</div>
+        <div class="sb-header-sub">Everything workout-related lives here</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:var(--muted);letter-spacing:1px;">${recent.length} recent session${recent.length===1?'':'s'}</div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:18px 18px 16px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Recommended</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:1px;line-height:1;color:var(--text);margin-bottom:8px;">${splitName(rec)}</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:14px;">Start fast or pick a different split.</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn primary" onclick="startWorkout('${rec}')" style="flex:1;margin-bottom:0;">START ${splitName(rec).toUpperCase()}</button>
+        <button class="btn ghost" onclick="quickStartModal()" style="flex:1;margin-bottom:0;">OTHER SPLIT</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Program</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${activeSplits.map(s=>`<button onclick="startWorkout('${s}')" style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;color:${s===rec?'var(--accent)':'var(--text)'};font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">${splitName(s)}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Recent Workouts</div>
+        <button onclick="screen='me';render()" style="background:none;border:none;color:var(--accent);font-size:11px;letter-spacing:1px;cursor:pointer;padding:0;">SEE ALL</button>
+      </div>
+      ${recent.length?recent.map((w,i)=>`
+        <button onclick="historyDetail=state.workouts[${i}];screen='me';render()" style="width:100%;background:${i===0?'rgba(232,213,160,0.05)':'var(--bg2)'};border:1px solid ${i===0?'rgba(232,213,160,0.18)':'var(--border2)'};border-radius:12px;padding:12px 14px;margin-bottom:${i<recent.length-1?'8px':'0'};cursor:pointer;text-align:left;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div>
+              <div style="font-size:13px;color:var(--text);font-weight:600;">${splitName(w.split)}</div>
+              <div style="font-size:11px;color:var(--dim);margin-top:2px;">${w.date} · ${(w.exercises||[]).length} exercises</div>
+            </div>
+            <div style="font-size:12px;color:var(--accent);">${w.totalVolume>0?`${w.totalVolume.toLocaleString()} lb`:'BW'}</div>
+          </div>
+        </button>
+      `).join(''):`
+        <div style="font-size:12px;color:var(--dim);">No workouts yet. Start with the recommended split above.</div>
+      `}
+    </div>
+  `;
+}
+
+function renderMeCompact(){
+  if(historyDetail) return renderHistDetail();
+  if(progressEx) return renderProgDetail();
+  if(historyAdvancedView) return renderMe();
+
+  const workouts=state.workouts||[];
+  const recent=workouts.slice(0,8);
+  const weekStart=new Date();
+  weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+  weekStart.setHours(0,0,0,0);
+  const thisWeek=workouts.filter(w=>new Date(w.timestamp)>=weekStart).length;
+  const latestBW=(state.bodyweight||[])[0]||null;
+  const prevBW=(state.bodyweight||[])[1]||null;
+  const bwDelta=latestBW&&prevBW ? Math.round((latestBW.weight-prevBW.weight)*10)/10 : null;
+  const creatineWeek=typeof suppWeekCount==='function' ? suppWeekCount('creatine') : 0;
+  const topExercises=Object.entries(workouts.reduce((acc,w)=>{
+    (w.exercises||[]).forEach(e=>{ acc[e.name]=(acc[e.name]||0)+1; });
+    return acc;
+  },{})).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  return `
+    <div class="sb-header">
+      <div>
+        <div class="sb-header-time">History.</div>
+        <div class="sb-header-sub">Recent sessions and a cleaner view of progress</div>
+      </div>
+      <div style="text-align:right;">
+        <button class="sb-header-date" onclick="historyAdvancedView=true;render()" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px 12px;font-family:'DM Sans',sans-serif;">
+          <div style="font-size:11px;color:var(--text);">DEEPER VIEW</div>
+          <div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">FILTERS AND HEATMAPS</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Snapshot</div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--accent);">${workouts.length}</div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;">Workouts</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--accent);">${thisWeek}</div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;">This Week</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:#52c87a;">${creatineWeek}/7</div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;">Creatine</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Weight</div>
+        <button onclick="screen='settings';render()" style="background:none;border:none;color:var(--accent);font-size:11px;letter-spacing:1px;cursor:pointer;padding:0;">LOG OR EDIT</button>
+      </div>
+      <div style="display:flex;align-items:end;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:0.95;color:var(--text);">${latestBW?`${latestBW.weight} lb`:'--'}</div>
+          <div style="font-size:11px;color:${bwDelta===null?'var(--dim)':bwDelta>0?'#ff9f43':'#52c87a'};margin-top:4px;">${bwDelta===null?'No recent change':bwDelta>0?`Up ${bwDelta} lb`:bwDelta<0?`Down ${Math.abs(bwDelta)} lb`:'Flat from last log'}</div>
+        </div>
+        <div style="flex:1;min-width:120px;">
+          ${typeof buildBWChart==='function' ? buildBWChart() : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Exercise Progress</div>
+        <button onclick="historyAdvancedView=true;meTab='progress';render()" style="background:none;border:none;color:var(--accent);font-size:11px;letter-spacing:1px;cursor:pointer;padding:0;">SEE MORE</button>
+      </div>
+      ${topExercises.length ? topExercises.map(([name,count])=>`
+        <button onclick="progressEx=${esc(name)};render()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;text-align:left;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div>
+              <div style="font-size:13px;color:var(--text);font-weight:600;">${name}</div>
+              <div style="font-size:11px;color:var(--dim);margin-top:2px;">${count} session${count===1?'':'s'}</div>
+            </div>
+            <div style="font-size:12px;color:var(--accent);">OPEN</div>
+          </div>
+        </button>
+      `).join('') : `<div style="font-size:12px;color:var(--dim);">No exercise history yet.</div>`}
+      <button onclick="screen='prHistory';render()" class="btn ghost" style="margin-bottom:0;">VIEW PR HISTORY</button>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Recent Workouts</div>
+        <button onclick="historyAdvancedView=true;meTab='history';render()" style="background:none;border:none;color:var(--accent);font-size:11px;letter-spacing:1px;cursor:pointer;padding:0;">FILTERS</button>
+      </div>
+      ${recent.length ? recent.map((w,i)=>`
+        <button onclick="historyDetail=state.workouts[${i}];render()" style="width:100%;background:${i===0?'rgba(232,213,160,0.05)':'var(--bg2)'};border:1px solid ${i===0?'rgba(232,213,160,0.18)':'var(--border2)'};border-radius:12px;padding:12px 14px;margin-bottom:${i<recent.length-1?'8px':'0'};cursor:pointer;text-align:left;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div>
+              <div style="font-size:13px;color:var(--text);font-weight:600;">${splitName(w.split)}</div>
+              <div style="font-size:11px;color:var(--dim);margin-top:2px;">${w.date} · ${(w.exercises||[]).length} exercises</div>
+            </div>
+            <div style="font-size:12px;color:var(--accent);">${w.totalVolume>0?`${w.totalVolume.toLocaleString()} lb`:'BW'}</div>
+          </div>
+        </button>
+      `).join('') : `<div style="font-size:12px;color:var(--dim);">Your completed workouts will show up here.</div>`}
+    </div>
+  `;
+}
+
+function renderSettingsCompact(){
+  const daily=typeof ensureTodayDaily==='function' ? ensureTodayDaily() : null;
+  const supp=typeof ensureTodaySupp==='function' ? ensureTodaySupp() : { creatine:0 };
+  const latestBW=(state.bodyweight||[])[0]||null;
+  const measurementsCount=(state.measurements||[]).length;
+  const templatesCount=(state.templates||[]).length;
+  const cloudCard=typeof renderCloudSyncCard==='function'
+    ? renderCloudSyncCard((label)=>`<div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:18px 0 10px;">${label}</div>`)
+    : '';
+
+  return `
+    <div class="sb-header">
+      <div>
+        <div class="sb-header-time">More.</div>
+        <div class="sb-header-sub">Settings and maintenance, with the clutter removed</div>
+      </div>
+      <div style="text-align:right;">
+        <button class="sb-header-date" onclick="screen='workoutSetup';render()" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px 12px;font-family:'DM Sans',sans-serif;">
+          <div style="font-size:11px;color:var(--text);">SETUP</div>
+          <div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">WORKOUT SYSTEM</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Daily Logging</div>
+        <button onclick="openDailyCheckin()" style="background:none;border:none;color:var(--accent);font-size:11px;letter-spacing:1px;cursor:pointer;padding:0;">OPEN CHECK-IN</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px;">
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">Weight</div>
+          <div style="font-size:14px;color:var(--text);">${latestBW?`${latestBW.weight} lb`:'Not logged'}</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px;">
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">Creatine</div>
+          <div style="font-size:14px;color:var(--text);">${supp.creatine>0?'Taken today':'Not taken'}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn primary" onclick="openWeighIn()" style="flex:1;margin-bottom:0;">LOG WEIGHT</button>
+        <button class="btn ghost" onclick="toggleCreatine()" style="flex:1;margin-bottom:0;">${supp.creatine>0?'UNDO CREATINE':'LOG CREATINE'}</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Program</div>
+      <button onclick="screen='workoutSetup';render()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;cursor:pointer;text-align:left;">
+        <div style="font-size:13px;color:var(--text);font-weight:600;">Workout split and schedule</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px;">Program, templates, stacks, rest defaults, and split names in one place.</div>
+      </button>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Tools</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button onclick="screen='prHistory';render()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:13px 14px;cursor:pointer;text-align:left;">
+          <div style="font-size:13px;color:var(--text);font-weight:600;">PR history</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px;">Review personal records over time.</div>
+        </button>
+        <button onclick="openImportModal()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:13px 14px;cursor:pointer;text-align:left;">
+          <div style="font-size:13px;color:var(--text);font-weight:600;">Import workout log</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px;">Paste existing notes and convert them into history.</div>
+        </button>
+        <button onclick="openMeasurementsModal()" style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:13px 14px;cursor:pointer;text-align:left;">
+          <div style="font-size:13px;color:var(--text);font-weight:600;">Measurements</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px;">${measurementsCount} saved log${measurementsCount===1?'':'s'} for body measurements.</div>
+        </button>
+      </div>
+    </div>
+
+    ${cloudCard}
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Data</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="exportData()" class="btn ghost" style="flex:1;margin-bottom:0;">EXPORT</button>
+        <button onclick="if(confirm('Clear all data? Cannot be undone.')){clearAllData().then(()=>location.reload());}" style="flex:1;background:rgba(192,64,74,0.06);border:1px solid rgba(192,64,74,0.2);border-radius:12px;color:var(--danger);font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1.5px;cursor:pointer;">CLEAR DATA</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderWorkoutSetup(){
+  const prog=state.program||'ppl';
+  const activeProg=PROGRAMS[prog];
+  const splits=getActiveSplits();
+  const templates=state.templates||[];
+  const stacks=state.stacks||[];
+  const defaultRest=state.defaultRest||45;
+  const splitRows=splits.map(key=>`
+    <button onclick="openRenameSplit('${key}')" class="setup-row-btn">
+      <div>
+        <div class="setup-row-title">${splitName(key)}</div>
+        <div class="setup-row-sub">Rename this split without touching history.</div>
+      </div>
+      <span class="setup-row-meta">EDIT</span>
+    </button>
+  `).join('');
+  const templateRows=templates.length ? templates.slice(0,4).map(t=>`
+    <div class="setup-inline-row">
+      <div style="flex:1;min-width:0;">
+        <div class="setup-row-title">${t.name}</div>
+        <div class="setup-row-sub">${t.exercises.map(e=>e.name).slice(0,3).join(' · ')}${t.exercises.length>3?' ...':''}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="loadTemplate('${t.id}')" class="setup-mini-btn accent">LOAD</button>
+        <button onclick="renameTemplate('${t.id}')" class="setup-mini-btn">RENAME</button>
+      </div>
+    </div>
+  `).join('') : `<div class="setup-empty">No templates yet. Finish workouts to save reusable layouts.</div>`;
+  const stackRows=stacks.length ? stacks.slice(0,4).map(st=>`
+    <div class="setup-inline-row">
+      <div style="flex:1;min-width:0;">
+        <div class="setup-row-title">${st.name}</div>
+        <div class="setup-row-sub">${st.exercises.join(' · ')}</div>
+      </div>
+    </div>
+  `).join('') : `<div class="setup-empty">No stacks yet. Use stacks when you want fast multi-exercise adds.</div>`;
+
+  return `
+    <div class="sb-header">
+      <div>
+        <div class="sb-header-time">Workout Setup.</div>
+        <div class="sb-header-sub">Program, templates, names, and defaults without the old settings bloat</div>
+      </div>
+      <div style="text-align:right;">
+        <button class="sb-header-date" onclick="screen='settings';render()" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px 12px;font-family:'DM Sans',sans-serif;">
+          <div style="font-size:11px;color:var(--text);">BACK</div>
+          <div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">TO MORE</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="setup-hero">
+      <div class="setup-hero-kicker">Current Program</div>
+      <div class="setup-hero-title">${activeProg?.label||'Custom'}</div>
+      <div class="setup-hero-sub">${activeProg?.desc||'Custom split sequence'} · ${activeProg?.days||`${splits.length} days / week`}</div>
+      <div class="setup-pill-row">${splits.map(s=>`<span class="setup-pill">${splitName(s)}</span>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn primary" onclick="openProgramBuilder()" style="flex:1;margin-bottom:0;">EDIT PROGRAM</button>
+        <button class="btn ghost" onclick="screen='gym';render()" style="flex:1;margin-bottom:0;">GO TO GYM</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div class="setup-section-kicker">Session Defaults</div>
+      <div class="setup-grid">
+        <button onclick="state.defaultRest=30;saveImmediate();render();" class="setup-metric-btn${defaultRest===30?' active':''}">
+          <span>Quick Rest</span>
+          <strong>30 sec</strong>
+        </button>
+        <button onclick="state.defaultRest=45;saveImmediate();render();" class="setup-metric-btn${defaultRest===45?' active':''}">
+          <span>Balanced</span>
+          <strong>45 sec</strong>
+        </button>
+        <button onclick="state.defaultRest=60;saveImmediate();render();" class="setup-metric-btn${defaultRest===60?' active':''}">
+          <span>Standard</span>
+          <strong>60 sec</strong>
+        </button>
+        <button onclick="state.defaultRest=90;saveImmediate();render();" class="setup-metric-btn${defaultRest===90?' active':''}">
+          <span>Long Rest</span>
+          <strong>90 sec</strong>
+        </button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div class="setup-section-kicker">Split Names</div>
+      ${splitRows}
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="setup-section-kicker" style="margin-bottom:0;">Templates</div>
+        <div class="setup-row-meta">${templates.length}</div>
+      </div>
+      ${templateRows}
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="setup-section-kicker" style="margin-bottom:0;">Stacks</div>
+        <button onclick="openNewStackModal()" class="setup-mini-btn accent">NEW</button>
+      </div>
+      ${stackRows}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════
 // FEATURE 1 — SAVED TEMPLATES
 // ═══════════════════════════════════════════
 function saveAsTemplate(){
@@ -3047,7 +3530,7 @@ function startWorkoutSilent(split){
   startWoTimer(); requestWakeLock();
   clearInterval(autoSaveInterval);
   autoSaveInterval=setInterval(()=>{
-    if(activeWorkout) try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){}
+    if(activeWorkout) saveWorkoutRecovery(activeWorkout);
     else clearInterval(autoSaveInterval);
   },20000);
 }
@@ -3748,7 +4231,7 @@ function renderSettings(){
     ${sectionHead('Data')}
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <button onclick="exportData()" style="flex:1;padding:13px;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;color:var(--muted);font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;">↑ EXPORT</button>
-      <button onclick="if(confirm('Clear all data? Cannot be undone.')){localStorage.removeItem('gainz_v5');location.reload();}" style="flex:1;padding:13px;background:rgba(192,64,74,0.06);border:1px solid rgba(192,64,74,0.2);border-radius:12px;color:var(--danger);font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;">✕ CLEAR DATA</button>
+      <button onclick="if(confirm('Clear all data? Cannot be undone.')){clearAllData().then(()=>location.reload());}" style="flex:1;padding:13px;background:rgba(192,64,74,0.06);border:1px solid rgba(192,64,74,0.2);border-radius:12px;color:var(--danger);font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;">✕ CLEAR DATA</button>
     </div>
 
     <div style="text-align:center;margin-top:36px;color:var(--dim);font-size:10px;letter-spacing:1.5px;padding-bottom:8px;">GAINZ v6 · Made for gains</div>
@@ -5197,17 +5680,17 @@ function recoverWorkout(recovered){
   screen='log';
   const banner=document.getElementById('recovery-banner');
   if(banner) banner.remove();
-  localStorage.removeItem('gainz_recovery');
+  clearWorkoutRecovery();
   startWoTimer();
   render();
 }
 // Save workout to recovery when browser is closing/navigating away
 window.addEventListener('beforeunload',()=>{
-  if(activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
+  if(activeWorkout) saveWorkoutRecovery(activeWorkout);
 });
 // Also save on visibility change (switching tabs, locking phone, etc.)
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden&&activeWorkout){ try{localStorage.setItem('gainz_recovery',JSON.stringify(activeWorkout));}catch(e){} }
+  if(document.hidden&&activeWorkout) saveWorkoutRecovery(activeWorkout);
 });
 
 function showRecoveryBanner(recovered, source){
@@ -5219,7 +5702,7 @@ function showRecoveryBanner(recovered, source){
   const banner=document.createElement("div");
   banner.id="recovery-banner";
   banner.style.cssText="position:fixed;top:0;left:0;right:0;background:#1e1815;border-bottom:1px solid var(--accent);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;z-index:9998;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);";
-  banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover workout?${sourceLabel} <span style="color:var(--dim);font-size:10px;">(last set ${idleLabel})</span></span><div style="display:flex;gap:8px;"><button onclick="recoverWorkout(window._pendingRecovery)" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="localStorage.removeItem('gainz_recovery');if(window.clearActiveWorkoutFromCloud)window.clearActiveWorkoutFromCloud();document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
+  banner.innerHTML=`<span style="color:var(--accent);">⚠ Recover workout?${sourceLabel} <span style="color:var(--dim);font-size:10px;">(last set ${idleLabel})</span></span><div style="display:flex;gap:8px;"><button onclick="recoverWorkout(window._pendingRecovery)" style="background:var(--accent);color:#0a0a0a;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">YES</button><button onclick="clearWorkoutRecovery();if(window.clearActiveWorkoutFromCloud)window.clearActiveWorkoutFromCloud();document.getElementById('recovery-banner').remove();" style="background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">DISCARD</button></div>`;
   document.body.appendChild(banner);
   logDebug("⚠ Crash recovery available"+sourceLabel+" (last set "+idleLabel+")");
 }
@@ -5227,14 +5710,14 @@ function showRecoveryBanner(recovered, source){
 (function checkCrashRecovery(){
   try{
     // First check localStorage (faster, more recent)
-    const rec=localStorage.getItem("gainz_recovery");
+    const rec=localStorage.getItem("gainz_recovery") || localStorage.getItem("gainz_recovery_backup");
     if(rec&&!activeWorkout){
       const recovered=JSON.parse(rec);
       showRecoveryBanner(recovered, 'local');
       return;
     }
     // If no local recovery, check cloud after a short delay
-    if(!activeWorkout && window.getActiveWorkoutFromCloud){
+    if(!activeWorkout && hasCloudSessionHint() && window.getActiveWorkoutFromCloud){
       setTimeout(async ()=>{
         try{
           const cloudWorkout=await window.getActiveWorkoutFromCloud();
@@ -5257,17 +5740,24 @@ if(location.search.includes('reset')){
   localStorage.removeItem('gainz_seen_home_tour');
 }
 checkOnline();
-runTests();
+if(FEATURES.devMode || location.search.includes('test') || location.search.includes('debug')){
+  runTests();
+}
 initTestsAndDebug();
 initModalDismiss();
 render();
 
 // ── Login Gate: show every open unless user is logged in ──
 async function showLoginGateIfNeeded(){
+  if(!hasCloudSessionHint()){
+    const gate = document.getElementById('login-gate');
+    if(gate) gate.style.display = 'block';
+    return;
+  }
   try{
     const loggedIn = await isLoggedIn();
     if(loggedIn){
-      // Logged in → pull cloud data and skip gate
+      // Logged in → pull cloud data and continue
       maybeShowSetup();
       return;
     }
@@ -5276,6 +5766,7 @@ async function showLoginGateIfNeeded(){
   const gate = document.getElementById('login-gate');
   if(gate) gate.style.display = 'block';
 }
+window.showLoginGateIfNeeded = showLoginGateIfNeeded;
 
 async function gateSignIn(){
   const email=document.getElementById('gate-email')?.value?.trim();
@@ -5289,7 +5780,7 @@ async function gateSignIn(){
     const cloud=await syncFromCloud();
     if(cloud){
       Object.assign(state,migrateState(cloud));
-      localStorage.setItem('gainz_v5',JSON.stringify(state));
+      saveImmediate();
     }
   }catch(e){}
   document.getElementById('login-gate').style.display='none';
@@ -5317,4 +5808,14 @@ window.gateSignIn=gateSignIn;
 window.gateSignUp=gateSignUp;
 window.gateGuest=gateGuest;
 
-showLoginGateIfNeeded();
+function startLaunchFlow(){
+  if(typeof maybeShowLaunchCinematic === 'function'){
+    if(!maybeShowLaunchCinematic()) showLoginGateIfNeeded();
+  }else{
+    showLoginGateIfNeeded();
+  }
+}
+
+requestAnimationFrame(() => {
+  setTimeout(startLaunchFlow, 180);
+});

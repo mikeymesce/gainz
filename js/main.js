@@ -4,22 +4,35 @@
 // for the legacy script (onclick handlers need globals)
 // ═══════════════════════════════════════════
 
-// Register service worker for auto-updates + offline support
+// Register service worker after first paint so startup stays stable on mobile.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/gainz/sw.js').then(reg => {
-    // Check for updates every time the app loads
-    reg.update();
-    reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-      newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'activated') {
-          // New version available — reload to get it
-          window.location.reload();
-        }
-      });
-    });
-  }).catch(err => console.warn('[SW] Registration failed:', err));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/gainz/sw.js').then(reg => {
+      setTimeout(() => {
+        reg.update().catch(() => {});
+      }, 3000);
+    }).catch(err => console.warn('[SW] Registration failed:', err));
+  }, { once: true });
 }
+
+// OneSignal is not needed for first paint. Keep its deferred queue available
+// for notification prompts, then load the SDK after the app has rendered.
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+function loadOneSignalLater() {
+  if (document.querySelector('script[data-gainz-onesignal]')) return;
+  window.OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: '39dc7518-10c4-4790-a969-d158f697af3c',
+      notifyButton: { enable: false },
+    });
+  });
+  const script = document.createElement('script');
+  script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+  script.defer = true;
+  script.dataset.gainzOnesignal = '1';
+  document.head.appendChild(script);
+}
+setTimeout(loadOneSignalLater, 5000);
 import { FEATURES, SCHEMA_VERSION, VERSION, GLOBAL_DEFAULT, SPLIT_COLORS, TAG_COLORS } from './config.js';
 import {
   OVERLOAD_PCT, DEFAULT_OVERLOAD_PCT, ALL_SPLITS, SPLIT_META, PROGRAMS,
@@ -35,7 +48,7 @@ import { playBeep } from './audio.js';
 import {
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
-  maybeShowCinematic, dismissCinematic, skipCinematic,
+  maybeShowCinematic, maybeShowLaunchCinematic, dismissCinematic, skipCinematic,
   maybeShowSetup, _skipSetup, _setupData, _setupGoNext, _setupSave,
   _renderSetupStep, _renderStep2Pace, _updateStep2Preview
 } from './onboarding.js';
@@ -46,7 +59,7 @@ import {
   importRestart, importViewHistory
 } from './import.js';
 import {
-  save, saveImmediate, saveAndSync, debouncedSave, checkStorageQuota,
+  save, saveImmediate, saveAndSync, debouncedSave, checkStorageQuota, hydrateDurableState, clearAllData, saveWorkoutRecovery, clearWorkoutRecovery,
   requestWakeLock, releaseWakeLock, checkOnline, exportData
 } from './persistence.js';
 import {
@@ -74,6 +87,7 @@ import {
 } from './challenge.js';
 import {
   DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
+  getTodayDaily, ensureTodayDaily, setSleepHours, toggleFoodOnTrack, setStressLevel, setDailyNote, renderDailyTracker,
   toggleCreatine, toggleVitamin, toggleAllVitamins, adjustCreatineDose,
   addWater as addWaterCheckin, removeWater as removeWaterCheckin, adjustCreatine, saveCreatineDose,
   openVitaminSettings, addVitaminRow, saveVitaminList,
@@ -93,6 +107,7 @@ import {
 import {
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud, maybeSaveBackup,
+  cloudBackupNow, startCloudSafetyLoop,
   syncActiveWorkoutToCloud, clearActiveWorkoutFromCloud, getActiveWorkoutFromCloud,
   renderCloudSyncCard, renderSyncUI
 } from './supabase.js';
@@ -123,7 +138,7 @@ Object.assign(window, {
   // Onboarding
   showSplash, dismissSplash, maybeShowSplash,
   maybeShowCoachTip, removeCoachTip,
-  maybeShowCinematic, dismissCinematic, skipCinematic,
+  maybeShowCinematic, maybeShowLaunchCinematic, dismissCinematic, skipCinematic,
   maybeShowSetup, _skipSetup, _setupData, _setupGoNext, _setupSave, _renderSetupStep, _renderStep2Pace, _updateStep2Preview,
   // Import
   openImportModal, closeImportModal, renderImportStep,
@@ -131,7 +146,7 @@ Object.assign(window, {
   importSelectAll, importSelectNone, importGoToStep,
   importRestart, importViewHistory,
   // Persistence
-  save, saveImmediate, saveAndSync, debouncedSave, checkStorageQuota,
+  save, saveImmediate, saveAndSync, debouncedSave, checkStorageQuota, hydrateDurableState, clearAllData, saveWorkoutRecovery, clearWorkoutRecovery,
   requestWakeLock, releaseWakeLock, checkOnline, exportData,
   // Workout logic
   getActiveSplits, getRec, getLastSession, isPR,
@@ -153,6 +168,7 @@ Object.assign(window, {
   inlineChallengeAdd,
   // Daily tracking
   DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
+  getTodayDaily, ensureTodayDaily, setSleepHours, toggleFoodOnTrack, setStressLevel, setDailyNote, renderDailyTracker,
   toggleCreatine, toggleVitamin, toggleAllVitamins, adjustCreatineDose,
   addWaterCheckin, removeWaterCheckin, adjustCreatine, saveCreatineDose,
   openVitaminSettings, addVitaminRow, saveVitaminList,
@@ -169,6 +185,7 @@ Object.assign(window, {
   // Cloud sync
   getUser, signUp, signIn, signOut, resetPassword, isLoggedIn,
   syncToCloud, syncFromCloud, maybeSaveBackup,
+  cloudBackupNow, startCloudSafetyLoop,
   syncActiveWorkoutToCloud, clearActiveWorkoutFromCloud, getActiveWorkoutFromCloud,
   renderCloudSyncCard, renderSyncUI,
   // Nutrition
@@ -180,11 +197,20 @@ Object.assign(window, {
   calNavPrev, calNavNext, toggleNutritionInsights,
 });
 
+queueMicrotask(() => {
+  hydrateDurableState().catch(() => {});
+});
+queueMicrotask(() => {
+  startCloudSafetyLoop?.();
+});
+
 // ── Ambient particles (persistent floating embers) ──
 (function spawnAmbientParticles() {
   const container = document.getElementById('ambient-particles');
   if (!container) return;
-  for (let i = 0; i < 25; i++) {
+  const isSmallTouchScreen = window.matchMedia('(max-width: 768px) and (pointer: coarse)').matches;
+  const particleCount = isSmallTouchScreen ? 8 : 25;
+  for (let i = 0; i < particleCount; i++) {
     const p = document.createElement('div');
     p.className = 'amb-particle';
     const x = Math.random() * 100;
@@ -211,7 +237,7 @@ Object.assign(window, {
         // Shift workout DURATION clock so background time isn't counted
         // (rest timer uses wall-clock time so it naturally keeps ticking)
         window.activeWorkout.startTime += awayMs;
-        try{ localStorage.setItem('gainz_recovery', JSON.stringify(window.activeWorkout)); }catch(e){}
+        saveWorkoutRecovery(window.activeWorkout);
 
         // If away 30+ min, offer to auto-finish
         if(awayMs >= AUTO_FINISH_THRESHOLD && window.activeWorkout.exercises.some(e => e.sets.length > 0)){
