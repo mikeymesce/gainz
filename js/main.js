@@ -11,10 +11,11 @@
   runtimeStyle.textContent = `
     .nav{
       align-items:flex-end;
-      padding:8px 0 max(2px, env(safe-area-inset-bottom));
+      min-height:calc(62px + env(safe-area-inset-bottom));
+      padding:8px 0 max(8px, calc(env(safe-area-inset-bottom) - 16px));
     }
     .nav-btn{
-      padding:2px 14px 0;
+      padding:4px 14px 0;
     }
   `;
   document.head.appendChild(runtimeStyle);
