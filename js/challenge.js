@@ -11,11 +11,11 @@ function parseDateKey(ds){
 function dateKey(d){ return d.toDateString(); }
 
 const CHALLENGE_TYPES = {
-  pushups: { label:'PUSH-UPS', short:'push-ups', title:'Push-ups', target:100, unit:'reps', quick:[10,20,25,50] },
-  abs: { label:'ABS', short:'abs', title:'Abs', target:100, unit:'reps', quick:[10,20,25,50] },
-  prayer: { label:'PRAYER', short:'prayer', title:'Prayer', target:1, unit:'session', quick:[1] },
-  breathing: { label:'BREATHING', short:'breathing', title:'Breathing', target:1, unit:'session', quick:[1] },
-  journaling: { label:'JOURNALING', short:'journal', title:'Journaling', target:1, unit:'session', quick:[1] },
+  pushups: { key:'pushups', label:'PUSH-UPS', short:'push-ups', title:'Push-ups', target:100, metricType:'reps', unit:'reps', quick:[10,20,25,50] },
+  abs: { key:'abs', label:'ABS', short:'abs', title:'Abs', target:100, metricType:'reps', unit:'reps', quick:[10,20,25,50] },
+  prayer: { key:'prayer', label:'PRAYER', short:'prayer', title:'Prayer', target:1, metricType:'check', unit:'check', quick:[1] },
+  breathing: { key:'breathing', label:'BREATHING', short:'breathing', title:'Breathing', target:10, metricType:'time', unit:'min', quick:[5,10,15,20] },
+  journaling: { key:'journaling', label:'JOURNALING', short:'journal', title:'Journaling', target:10, metricType:'time', unit:'min', quick:[5,10,15,20] },
 };
 const CHALLENGE_TYPE_ORDER = Object.keys(CHALLENGE_TYPES);
 
@@ -33,8 +33,36 @@ function _showModal(h) { window.showModal(h); }
 function _hideModal() { window.hideModal(); }
 function _render() { window.render(); }
 
+function defaultChallengeConfig(){
+  return { ...CHALLENGE_TYPES.pushups };
+}
+
+function buildChallengeConfig(base = {}){
+  const preset = CHALLENGE_TYPES[base.key] || CHALLENGE_TYPES[base.type] || defaultChallengeConfig();
+  const metricType = base.metricType || preset.metricType || 'reps';
+  const target = Math.max(1, Number(base.target || preset.target || 1));
+  const quick = Array.isArray(base.quick) && base.quick.length ? base.quick.map(n=>Math.max(1, Number(n||1))) : [...preset.quick];
+  const title = String(base.title || preset.title || 'Challenge').trim() || 'Challenge';
+  return {
+    key: base.key || preset.key || 'custom',
+    title,
+    label: title.toUpperCase(),
+    short: title.toLowerCase(),
+    target,
+    metricType,
+    unit: metricType === 'time' ? 'min' : metricType === 'reps' ? 'reps' : 'check',
+    quick
+  };
+}
+
 function getChallengeMeta(ch){
-  return CHALLENGE_TYPES[ch.type] || CHALLENGE_TYPES.pushups;
+  return buildChallengeConfig(ch.config || CHALLENGE_TYPES[ch.type] || defaultChallengeConfig());
+}
+
+function metricLabel(meta){
+  if(meta.metricType === 'check') return 'complete today';
+  if(meta.metricType === 'time') return `${meta.target} min/day`;
+  return `${meta.target} reps/day`;
 }
 
 function ensureChallengeDay(ch, d){
@@ -77,18 +105,19 @@ function todayStatus(ch){
   const day = ensureChallengeDay(ch, todayStr());
   if(isDayComplete(ch, day)) return '✓ Done today';
   if(day.count > 0) {
-    return meta.unit === 'reps'
-      ? `${day.count}/${meta.target} ${meta.short}`
-      : `${day.count}/${meta.target} ${meta.unit}${meta.target === 1 ? '' : 's'}`;
+    if(meta.metricType === 'check') return 'In progress';
+    if(meta.metricType === 'time') return `${day.count}/${meta.target} min`;
+    return `${day.count}/${meta.target} ${meta.short}`;
   }
   return 'Not yet today';
 }
 
 export function getChallengeState(){
   const state = _state();
-  if(!state.challenge) state.challenge = { startDate:null, days:{}, active:false, type:'pushups' };
+  if(!state.challenge) state.challenge = { startDate:null, days:{}, active:false, type:'pushups', config:defaultChallengeConfig() };
   if(!state.challenge.type) state.challenge.type = state.challenge.secondEx ? 'abs' : 'pushups';
   if(!state.challenge.days) state.challenge.days = {};
+  state.challenge.config = buildChallengeConfig(state.challenge.config || CHALLENGE_TYPES[state.challenge.type] || defaultChallengeConfig());
   return state.challenge;
 }
 
@@ -96,8 +125,72 @@ export function setChallengeType(type){
   if(!CHALLENGE_TYPES[type]) return;
   const ch = getChallengeState();
   ch.type = type;
+  ch.config = buildChallengeConfig(CHALLENGE_TYPES[type]);
   _save();
   _render();
+}
+
+export function applyChallengePreset(type){
+  if(!CHALLENGE_TYPES[type]) return;
+  const ch = getChallengeState();
+  ch.type = type;
+  ch.config = buildChallengeConfig(CHALLENGE_TYPES[type]);
+  _save();
+  _render();
+}
+
+export function saveChallengeSettings(){
+  const ch = getChallengeState();
+  const name = document.getElementById('challenge-name')?.value?.trim() || ch.config?.title || 'Challenge';
+  const metricType = document.getElementById('challenge-metric')?.value || 'reps';
+  const targetInput = Number(document.getElementById('challenge-target')?.value || 1);
+  const config = buildChallengeConfig({
+    key: ch.type,
+    title: name,
+    metricType,
+    target: metricType === 'check' ? 1 : targetInput,
+    quick: metricType === 'reps' ? [10,20,25,50] : metricType === 'time' ? [5,10,15,20] : [1]
+  });
+  ch.config = config;
+  _save();
+  _render();
+  showToast('Challenge settings updated');
+}
+
+export function updateChallengeMetricPreview(){
+  const metricType = document.getElementById('challenge-metric')?.value || 'reps';
+  const target = document.getElementById('challenge-target');
+  if(!target) return;
+  const isCheck = metricType === 'check';
+  target.disabled = isCheck;
+  target.style.opacity = isCheck ? '0.5' : '1';
+  if(isCheck) target.value = '1';
+}
+
+export function renderChallengeSettingsCard(){
+  const ch = getChallengeState();
+  const meta = getChallengeMeta(ch);
+  return `
+    <div class="card" style="padding:14px 18px;">
+      <div style="font-size:13px;color:var(--text);margin-bottom:4px;">Monthly Challenge</div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:12px;">Configure the home-screen challenge here.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+        ${CHALLENGE_TYPE_ORDER.map(type=>`<button onclick="applyChallengePreset('${type}')" style="padding:7px 10px;border-radius:999px;border:1px solid ${ch.type===type?'rgba(232,213,160,0.28)':'var(--border2)'};background:${ch.type===type?'rgba(232,213,160,0.08)':'var(--bg3)'};color:${ch.type===type?'var(--accent)':'var(--muted)'};font-size:10px;letter-spacing:1px;cursor:pointer;">${CHALLENGE_TYPES[type].title}</button>`).join('')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <input id="challenge-name" class="input" value="${meta.title}" placeholder="Challenge name" style="font-size:14px;"/>
+        <div style="display:flex;gap:8px;">
+          <select id="challenge-metric" class="input" style="font-size:14px;flex:1;" onchange="updateChallengeMetricPreview()">
+            <option value="reps" ${meta.metricType==='reps'?'selected':''}>Reps</option>
+            <option value="time" ${meta.metricType==='time'?'selected':''}>Time</option>
+            <option value="check" ${meta.metricType==='check'?'selected':''}>Check Mark</option>
+          </select>
+          <input id="challenge-target" class="input" type="number" min="1" value="${meta.target}" placeholder="Target" style="font-size:14px;flex:1;${meta.metricType==='check'?'opacity:0.5;':''}" ${meta.metricType==='check'?'disabled':''}/>
+        </div>
+        <div style="font-size:10px;color:var(--dim);">Use a preset, then rename it or change the tracking style. Example: journaling by minutes, prayer by check mark, sit-ups by reps.</div>
+        <button onclick="saveChallengeSettings()" class="btn ghost" style="margin-bottom:0;">SAVE CHALLENGE SETTINGS</button>
+      </div>
+    </div>`;
 }
 
 export function toggleChallengeEx(){
@@ -115,7 +208,8 @@ export function startChallenge(){
     startDate: todayStr(),
     days: {},
     active: true,
-    type: current.type || 'pushups'
+    type: current.type || 'pushups',
+    config: buildChallengeConfig(current.config || CHALLENGE_TYPES[current.type] || defaultChallengeConfig())
   };
   challengeLogDate = null;
   _save();
@@ -145,18 +239,20 @@ export function logChallengeDay(){
   const dateLabel = isToday ? 'TODAY' : dateObj.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   const canGoNext = parseDateKey(d) < parseDateKey(todayStr());
   const done = isDayComplete(ch, day);
-  const status = meta.unit === 'reps'
-    ? `${day.count}/${meta.target} ${meta.short}`
-    : `${day.count}/${meta.target} ${meta.unit}${meta.target === 1 ? '' : 's'}`;
+  const status = meta.metricType === 'check'
+    ? (done ? 'Complete' : 'Not complete yet')
+    : meta.metricType === 'time'
+      ? `${day.count}/${meta.target} min`
+      : `${day.count}/${meta.target} ${meta.short}`;
   const entryRows = day.entries.map((entry, i) => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--muted);">
-      <span>${meta.unit === 'reps' ? `Entry ${i+1}: ${entry} reps` : `Entry ${i+1}: done`}</span>
+      <span>${meta.metricType === 'reps' ? `Entry ${i+1}: ${entry} reps` : meta.metricType === 'time' ? `Entry ${i+1}: ${entry} min` : `Entry ${i+1}: done`}</span>
       <button onclick="deleteChallengeSet('main',${i})" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
     </div>
   `).join('');
   const quickButtons = meta.quick.map(amount => `
     <button onclick="addChallengeQuick('main',${amount})" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:8px;color:var(--accent);font-size:12px;cursor:pointer;">
-      ${meta.unit === 'reps' ? `+${amount}` : 'DONE'}
+      ${meta.metricType === 'reps' ? `+${amount}` : meta.metricType === 'time' ? `+${amount} MIN` : 'DONE'}
     </button>
   `).join('');
 
@@ -176,7 +272,7 @@ export function logChallengeDay(){
     <div style="display:flex;gap:6px;margin-top:8px;">
       ${quickButtons}
     </div>
-    ${day.entries.length && meta.unit === 'reps' ? `<button onclick="addChallengeQuick('main',${day.entries[day.entries.length-1]})" style="width:100%;margin-top:6px;background:var(--accent);border:none;border-radius:6px;padding:8px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.entries[day.entries.length-1]}</button>` : ''}
+    ${day.entries.length && meta.metricType !== 'check' ? `<button onclick="addChallengeQuick('main',${day.entries[day.entries.length-1]})" style="width:100%;margin-top:6px;background:var(--accent);border:none;border-radius:6px;padding:8px;color:var(--bg);font-size:11px;font-weight:600;cursor:pointer;">Repeat +${day.entries[day.entries.length-1]}${meta.metricType === 'time' ? ' min' : ''}</button>` : ''}
     <button class="btn ghost" style="width:100%;margin-top:10px;" onclick="challengeLogDate=null;hideModal()">DONE</button>
   `);
 }
@@ -186,9 +282,13 @@ export function addChallengeQuick(type, amount){
   const d = challengeLogDate || todayStr();
   const day = ensureChallengeDay(ch, d);
   const meta = getChallengeMeta(ch);
-  const entryValue = meta.unit === 'reps' ? amount : 1;
-  day.entries.push(entryValue);
-  day.count = day.entries.reduce((a, n) => a + n, 0);
+  if(meta.metricType === 'check'){
+    day.entries = [1];
+    day.count = 1;
+  } else {
+    day.entries.push(amount);
+    day.count = day.entries.reduce((a, n) => a + n, 0);
+  }
   _save();
   if(isDayComplete(ch, day)) showToast('Challenge complete for today! 🔥');
   logChallengeDay();
@@ -200,9 +300,13 @@ export function addChallengeQuickSilent(type, amount){
   const d = todayStr();
   const day = ensureChallengeDay(ch, d);
   const meta = getChallengeMeta(ch);
-  const entryValue = meta.unit === 'reps' ? amount : 1;
-  day.entries.push(entryValue);
-  day.count = day.entries.reduce((a, n) => a + n, 0);
+  if(meta.metricType === 'check'){
+    day.entries = [1];
+    day.count = 1;
+  } else {
+    day.entries.push(amount);
+    day.count = day.entries.reduce((a, n) => a + n, 0);
+  }
   _save();
 }
 
@@ -224,7 +328,7 @@ export function resetChallenge(){
   _showModal(`
     <div style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;">RESET CHALLENGE?</div>
     <div style="font-size:13px;color:var(--text);margin-bottom:20px;">This will clear all progress.</div>
-    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);width:100%;" onclick="state.challenge={startDate:null,days:{},active:false,type:'pushups'};save();hideModal();render();">RESET</button>
+    <button class="btn primary" style="background:var(--danger);border-color:var(--danger);width:100%;" onclick="state.challenge={startDate:null,days:{},active:false,type:'pushups',config:window.getChallengeState().config};save();hideModal();render();">RESET</button>
     <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="hideModal()">CANCEL</button>
   `);
 }
@@ -245,7 +349,7 @@ export function renderChallenge(){
       <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">MONTHLY CHALLENGE</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Pick one focus to repeat all month.</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${renderTypeChips(ch.type || 'pushups')}</div>
-      <div style="font-size:10px;color:var(--dim);margin-bottom:10px;">Current: ${meta.title} · ${meta.target} ${meta.unit}</div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:10px;">Current: ${meta.title} · ${metricLabel(meta)}</div>
       <button onclick="startChallenge()" class="btn primary" style="width:100%;font-size:13px;">START ${meta.title.toUpperCase()}</button>
     </div>`;
   }
@@ -315,7 +419,7 @@ export function renderChallenge(){
         <button onclick="resetChallenge()" style="background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;">✕</button>
       </div>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${meta.title} · ${meta.target} ${meta.unit}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${meta.title} · ${metricLabel(meta)}</div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${dots}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="font-size:11px;color:var(--muted);">${daysCompleted}/${targetDays} days · ${pct}%${challengeStreak>1?' · 🔥 '+challengeStreak+' day streak':''}</div>
@@ -335,7 +439,7 @@ export function inlineChallengeAdd(type, reps){
     const label = document.getElementById('ic-main-label');
     const bar = document.getElementById('ic-main-bar');
     const done = isDayComplete(ch, day);
-    if(label) label.textContent = `${meta.label} ${day.count}/${meta.target}`;
+    if(label) label.textContent = meta.metricType === 'check' ? `${meta.label} ${done ? 'DONE' : 'NOT YET'}` : meta.metricType === 'time' ? `${meta.label} ${day.count}/${meta.target} MIN` : `${meta.label} ${day.count}/${meta.target}`;
     if(bar) bar.style.width = Math.min(100, (day.count/meta.target)*100) + '%';
     if(bar) bar.style.background = done ? 'var(--green)' : 'var(--accent)';
     const badge = document.getElementById('ic-done');
@@ -353,7 +457,7 @@ export function renderInlineChallenge(){
   const done = isDayComplete(ch, day);
   const buttons = meta.quick.map(amount => `
     <button onclick="inlineChallengeAdd('main',${amount})" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:4px;color:var(--accent);font-size:10px;cursor:pointer;">
-      ${meta.unit === 'reps' ? `+${amount}` : 'DONE'}
+      ${meta.metricType === 'reps' ? `+${amount}` : meta.metricType === 'time' ? `+${amount}M` : 'DONE'}
     </button>
   `).join('');
 
@@ -362,7 +466,7 @@ export function renderInlineChallenge(){
       <div style="font-size:8px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;">DAILY CHALLENGE</div>
       <span id="ic-done" style="font-size:9px;color:var(--green);display:${done?'inline':'none'};">✓ DONE</span>
     </div>
-    <div id="ic-main-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">${meta.label} ${day.count}/${meta.target}</div>
+    <div id="ic-main-label" style="font-size:8px;color:var(--dim);margin-bottom:3px;">${meta.metricType === 'check' ? `${meta.label} ${done ? 'DONE' : 'NOT YET'}` : meta.metricType === 'time' ? `${meta.label} ${day.count}/${meta.target} MIN` : `${meta.label} ${day.count}/${meta.target}`}</div>
     <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:6px;">
       <div id="ic-main-bar" style="height:100%;width:${Math.min(100,(day.count/meta.target)*100)}%;background:${done?'var(--green)':'var(--accent)'};border-radius:2px;transition:width 0.2s;"></div>
     </div>

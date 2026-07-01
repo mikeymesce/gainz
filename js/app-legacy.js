@@ -3602,17 +3602,6 @@ function renderSettings(){
     <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;margin-bottom:2px;">More</div>
     <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:4px;text-transform:uppercase;">Settings & Preferences</div>
 
-    ${sectionHead('Notifications')}
-    <div class="card" style="padding:14px 18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-size:13px;color:var(--text);">Daily Reminders</div>
-          <div style="font-size:10px;color:var(--dim);margin-top:2px;">Workout, creatine, weigh-in reminders</div>
-        </div>
-        <button onclick="enableNotifications()" class="btn ghost small" id="notif-btn">ENABLE</button>
-      </div>
-    </div>
-
     ${sectionHead('Theme')}
     <div style="display:flex;gap:8px;">
       <button onclick="applyTheme('dark');render();" style="flex:1;background:${activeTheme==='dark'?'rgba(232,213,160,0.1)':'#0f0f12'};border:1px solid ${activeTheme==='dark'?'var(--accent)':'#1e1e24'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
@@ -3628,6 +3617,9 @@ function renderSettings(){
         <div style="font-size:10px;color:${activeTheme==='pink'?'#e8a0b8':'var(--muted)'};">Pink</div>
       </button>
     </div>
+
+    ${sectionHead('Monthly Challenge')}
+    ${typeof renderChallengeSettingsCard === 'function' ? renderChallengeSettingsCard() : ''}
 
     ${sectionHead('Program')}
     ${programCards}

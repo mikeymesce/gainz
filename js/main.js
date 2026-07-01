@@ -81,7 +81,8 @@ import {
   getChallengeState, setChallengeType, startChallenge, toggleChallengeEx, challengeNavDay,
   logChallengeDay, addChallengeQuick, addChallengeQuickSilent, addChallengeSet,
   deleteChallengeSet, resetChallenge, renderChallenge, renderInlineChallenge,
-  inlineChallengeAdd
+  inlineChallengeAdd, applyChallengePreset, saveChallengeSettings, renderChallengeSettingsCard,
+  updateChallengeMetricPreview
 } from './challenge.js';
 import {
   DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
@@ -161,7 +162,8 @@ Object.assign(window, {
   getChallengeState, setChallengeType, startChallenge, toggleChallengeEx, challengeNavDay,
   logChallengeDay, addChallengeQuick, addChallengeQuickSilent, addChallengeSet,
   deleteChallengeSet, resetChallenge, renderChallenge, renderInlineChallenge,
-  inlineChallengeAdd,
+  inlineChallengeAdd, applyChallengePreset, saveChallengeSettings, renderChallengeSettingsCard,
+  updateChallengeMetricPreview,
   // Daily tracking
   DEFAULT_VITAMINS, getVitaminList, getTodaySupp, ensureTodaySupp,
   toggleCreatine, toggleVitamin, toggleAllVitamins, adjustCreatineDose,
