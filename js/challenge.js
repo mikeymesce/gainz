@@ -347,14 +347,10 @@ export function renderChallenge(compact = false){
   if(!ch.active){
     if(compact){
       return `<div style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-          <div>
-            <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:5px;">Monthly Challenge</div>
-            <div style="font-size:13px;color:var(--text);">${meta.title}</div>
-            <div style="font-size:10px;color:var(--dim);margin-top:3px;">${metricLabel(meta)}</div>
-          </div>
-          <button onclick="startChallenge()" class="btn ghost" style="margin:0;min-width:116px;font-size:12px;">START</button>
-        </div>
+        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:5px;">Monthly Challenge</div>
+        <div style="font-size:13px;color:var(--text);margin-bottom:3px;">${meta.title}</div>
+        <div style="font-size:10px;color:var(--dim);margin-bottom:12px;">${metricLabel(meta)}</div>
+        <button onclick="startChallenge()" class="btn ghost" style="width:100%;margin:0;font-size:12px;">START</button>
       </div>`;
     }
     return `<div style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
@@ -425,14 +421,10 @@ export function renderChallenge(compact = false){
 
   if(compact){
     return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-        <div style="min-width:0;flex:1;">
-          <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:5px;">Monthly Challenge</div>
-          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta.title}</div>
-          <div style="font-size:10px;color:${todayComplete?'var(--green)':'var(--dim)'};margin-top:4px;">${todayStatus(ch)}</div>
-        </div>
-        <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="margin:0;min-width:116px;font-size:12px;">${todayComplete?'UPDATE':'LOG TODAY'}</button>
-      </div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:5px;">Monthly Challenge</div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:3px;">${meta.title}</div>
+      <div style="font-size:10px;color:${todayComplete?'var(--green)':'var(--dim)'};margin-bottom:12px;">${todayStatus(ch)}</div>
+      <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="width:100%;margin:0;font-size:12px;">${todayComplete?'UPDATE TODAY':'LOG TODAY'}</button>
     </div>`;
   }
 
