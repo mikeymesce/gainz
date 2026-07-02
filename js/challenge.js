@@ -341,10 +341,22 @@ function renderTypeChips(activeType){
   `).join('');
 }
 
-export function renderChallenge(){
+export function renderChallenge(compact = false){
   const ch = getChallengeState();
   const meta = getChallengeMeta(ch);
   if(!ch.active){
+    if(compact){
+      return `<div style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:5px;">Monthly Challenge</div>
+            <div style="font-size:13px;color:var(--text);">${meta.title}</div>
+            <div style="font-size:10px;color:var(--dim);margin-top:3px;">${metricLabel(meta)}</div>
+          </div>
+          <button onclick="startChallenge()" class="btn ghost" style="margin:0;min-width:116px;font-size:12px;">START</button>
+        </div>
+      </div>`;
+    }
     return `<div style="width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:10px;">
       <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">MONTHLY CHALLENGE</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Pick one focus to repeat all month.</div>
@@ -410,6 +422,19 @@ export function renderChallenge(){
   const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const isChained = start.getMonth() !== now.getMonth() || start.getFullYear() !== now.getFullYear();
   const label = isChained ? `${dayNum}-DAY STREAK · ${monthNames[now.getMonth()]}` : `${monthNames[now.getMonth()]} ${meta.title.toUpperCase()} · DAY ${dayNum}/${endOfMonth.getDate()}`;
+
+  if(compact){
+    return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:5px;">Monthly Challenge</div>
+          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta.title}</div>
+          <div style="font-size:10px;color:${todayComplete?'var(--green)':'var(--dim)'};margin-top:4px;">${todayStatus(ch)}</div>
+        </div>
+        <button onclick="logChallengeDay()" class="btn ${todayComplete?'ghost':'primary'}" style="margin:0;min-width:116px;font-size:12px;">${todayComplete?'UPDATE':'LOG TODAY'}</button>
+      </div>
+    </div>`;
+  }
 
   return `<div style="background:var(--bg2);border:1px solid ${todayComplete?'rgba(82,200,122,0.3)':'var(--border2)'};border-radius:14px;padding:14px;margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">

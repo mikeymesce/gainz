@@ -2858,7 +2858,7 @@ function renderHome(){
   // Last time this specific split was trained
   const lastThisSplit=state.workouts.find(w=>w.split===rec);
   const lastLine=lastThisSplit
-    ?`${lastThisSplit.date}  ·  ${lastThisSplit.exercises.length} exercises  ·  ${lastThisSplit.totalVolume>0?lastThisSplit.totalVolume.toLocaleString()+' lb':'BW'}`
+    ?`${lastThisSplit.date} · ${lastThisSplit.exercises.length} exercises · ${lastThisSplit.totalVolume>0?lastThisSplit.totalVolume.toLocaleString()+' lb':'BW'}`
     :`First time — let's go`;
 
   // Greeting + motivational phrase
@@ -2877,21 +2877,6 @@ function renderHome(){
       <span style="color:var(--accent)">&#8594;</span>
     </div>`:"";
 
-  // Streak dots — last 7 days
-  const now=Date.now();
-  const streakDots=[...Array(7)].map((_,i)=>{
-    const dayAgo=(6-i)*86400000;
-    const dayStart=now-dayAgo-((now-dayAgo)%86400000);
-    const dayEnd=dayStart+86400000;
-    const hit=state.workouts.some(w=>w.timestamp>=dayStart&&w.timestamp<dayEnd);
-    return `<div class="sb-dot${hit?'':' off'}"></div>`;
-  }).join('');
-
-
-
-  // Best 1RM stat — for the second stat box
-  const statColor2=best1RM?'#52c87a':'var(--accent)';
-
   // One-liner fun stat
   const funLine=funStat.sub?`${funStat.val} ${funStat.label.toLowerCase()} — ${funStat.sub.toLowerCase()}`:`${funStat.val} ${funStat.label.toLowerCase()}`;
 
@@ -2902,10 +2887,14 @@ function renderHome(){
         <div class="sb-header-time">${greetWord}.</div>
         <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-top:2px;">${phrase}</div>
       </div>
-      <div style="text-align:right;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="text-align:right;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:7px 10px;min-width:64px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;line-height:1;color:#ff5038;">${streak||0}</div>
+          <div style="font-size:8px;letter-spacing:2px;color:#ff5038;text-transform:uppercase;margin-top:2px;">Streak</div>
+        </div>
         <button class="sb-header-date" onclick="toggleHomeCal()" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px 12px;font-family:'DM Sans',sans-serif;">
           <div style="font-size:12px;color:var(--text);">📅 ${today()} ${homeCalOpen?'▲':'▼'}</div>
-          ${!homeCalOpen?'<div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">TAP FOR CALENDAR</div>':''}
+          ${!homeCalOpen?'<div style="font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;">Calendar</div>':''}
         </button>
       </div>
     </div>
@@ -2913,16 +2902,16 @@ function renderHome(){
     ${buildHomeCal()}
 
     <div class="sb-hero" style="--split-glow:${splitGlow};" onclick="startWorkout('${rec}')">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">
         <div>
           <div style="font-size:8px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;opacity:0.7;margin-bottom:4px;">Recommended today</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:56px;letter-spacing:2px;line-height:1;color:var(--text);">${splitName(rec).toUpperCase()}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:0.5px;">Day</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:0.5px;">${lastSplit==='--'?'Ready to start':`Last: ${lastSplit} · Rest: ${daysRest}`}</div>
         </div>
-        <div style="text-align:right;">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:#ff5038;line-height:1;">${streak||0}</div>
-          <div style="font-size:8px;letter-spacing:2px;color:#ff5038;text-transform:uppercase;margin-top:3px;">Streak</div>
-          <div style="display:flex;gap:3px;margin-top:8px;justify-content:flex-end;">${streakDots}</div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:4px;">This week</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;color:var(--text);">${thisWeek}</div>
+          <div style="font-size:9px;color:var(--dim);margin-top:3px;">sessions</div>
         </div>
       </div>
       ${(()=>{
@@ -2942,13 +2931,16 @@ function renderHome(){
           <button onclick="event.stopPropagation();addWater(16);render();" style="background:none;border:1px solid rgba(232,213,160,0.2);border-radius:8px;padding:4px 6px;cursor:pointer;font-size:12px;flex-shrink:0;" title="+16oz bottle">🫗</button>
         </div>`;
       })()}
-      <div style="font-size:11px;color:var(--dim);margin-bottom:14px;">${lastLine}</div>
-      ${(()=>{const est=estimateDuration(rec);return est?`<div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;">⏱ ~${est} min avg</div>`:''})()}
+      <div style="font-size:11px;color:var(--dim);margin-bottom:10px;">${lastLine}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        ${(()=>{const est=estimateDuration(rec);return est?`<div style="font-size:10px;color:var(--muted);letter-spacing:0.5px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);border:1px solid var(--border2);">~${est} min avg</div>`:''})()}
+        <div style="font-size:10px;color:var(--muted);letter-spacing:0.5px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);border:1px solid var(--border2);">${funLine}</div>
+      </div>
       <div style="display:flex;gap:8px;">
         <button class="sb-rec-cta" onclick="event.stopPropagation();quickStart()" style="flex:1;">
-          QUICK START &nbsp;&#8594;
+          START WORKOUT &nbsp;&#8594;
         </button>
-        <button onclick="event.stopPropagation();startWorkout('${rec}')" style="background:none;border:1px solid rgba(232,213,160,0.25);border-radius:12px;padding:13px 16px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">${splitName(rec).toUpperCase()}</button>
+        <button onclick="event.stopPropagation();startWorkout('${rec}')" style="background:none;border:1px solid rgba(232,213,160,0.25);border-radius:12px;padding:13px 16px;color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">OPEN</button>
       </div>
     </div>
 
@@ -2972,8 +2964,8 @@ function renderHome(){
       </div>
     </div>`:''}
 
+    ${renderChallenge(true)}
     ${renderThisWeek()}
-    ${renderChallenge()}
 `;
 }
 
